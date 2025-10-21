@@ -1,9 +1,17 @@
-// renderer.js - Frontend Logic
+// renderer.js - v11
+// Frontend Logic
 let currentSVGData = null;
 let currentSelectedElement = null;
 let serialConnected = false;
 let progressInterval = null;
 let currentProgress = 0;
+let zoomLevel = 1;
+let isPanning = false;
+let startX = 0;
+let startY = 0;
+let scrollLeft = 0;
+let scrollTop = 0;
+let viewMode = 'fit'; // 'fit' or 'full'
 
 // Tab switching
 document.querySelectorAll('.tab-button').forEach(button => {
@@ -62,37 +70,78 @@ canvasContent.addEventListener('drop', async (e) => {
 
 async function handleFile(file) {
   try {
+    console.log('Reading file:', file.name);
     const content = await file.text();
+    console.log('File content length:', content.length);
+    
+    console.log('Sending to backend for parsing...');
     const result = await window.electronAPI.parseSVG(file.path, content);
+    console.log('Parse result:', result);
     
     if (result.success) {
+      console.log('Parse successful, updating UI...');
       currentSVGData = result.data;
+      console.log('SVG data:', currentSVGData);
+      
       displaySVG(result.data);
+      console.log('SVG displayed');
+      
       renderTree(result.data.tree);
+      console.log('Tree rendered');
+      
       updateFileInfo(result.data, file);
+      console.log('File info updated');
     } else {
+      console.error('Parse failed:', result.error);
       alert('Error parsing SVG: ' + result.error);
     }
   } catch (error) {
+    console.error('Error in handleFile:', error);
     alert('Error reading file: ' + error.message);
   }
 }
 
 function displaySVG(data) {
-  canvasContent.innerHTML = `
+  console.log('=== displaySVG called ===');
+  console.log('Data:', data);
+  console.log('Content length:', data.content?.length);
+  
+  const html = `
     <div class="svg-display">
-      ${data.content}
+      <div class="svg-container fit-viewport" id="svgContainer">
+        ${data.content}
+      </div>
     </div>
   `;
+  console.log('Generated HTML preview:', html.substring(0, 200));
+  
+  canvasContent.innerHTML = html;
+  console.log('Canvas content updated');
+  
+  // Show the controls and setup functionality
+  const controls = document.getElementById('svgControls');
+  if (controls) {
+    controls.style.display = 'flex';
+  }
+  setupSVGControls();
 }
 
 function renderTree(tree) {
+  console.log('=== renderTree called ===');
+  console.log('Tree:', tree);
+  console.log('Tree children count:', tree.children?.length);
+  
   layersList.innerHTML = '';
   const treeElement = createTreeNode(tree);
+  console.log('Tree element created:', treeElement);
+  
   layersList.appendChild(treeElement);
+  console.log('Tree element appended to layersList');
 }
 
 function createTreeNode(node) {
+  console.log('Creating tree node for:', node.tag, node.id);
+  
   const nodeDiv = document.createElement('div');
   nodeDiv.className = 'tree-node';
   
@@ -280,6 +329,148 @@ function formatBytes(bytes) {
   const sizes = ['Bytes', 'KB', 'MB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// ============ SVG ZOOM AND PAN CONTROLS ============
+function setupSVGControls() {
+  console.log('=== setupSVGControls called ===');
+  
+  const container = document.getElementById('svgContainer');
+  const fitBtn = document.getElementById('fitViewport');
+  const fullBtn = document.getElementById('fullSize');
+  const zoomInBtn = document.getElementById('zoomIn');
+  const zoomOutBtn = document.getElementById('zoomOut');
+  const zoomResetBtn = document.getElementById('zoomReset');
+  const zoomLevelDisplay = document.getElementById('zoomLevel');
+  const svg = container?.querySelector('svg');
+  
+  console.log('Container:', container);
+  console.log('Fit button:', fitBtn);
+  console.log('SVG element:', svg);
+  
+  if (!svg || !container || !fitBtn) {
+    console.error('Missing elements - controls not initialized');
+    return;
+  }
+  
+  console.log('All elements found, setting up controls...');
+  
+  // Reset zoom state
+  zoomLevel = 1;
+  viewMode = 'fit';
+  updateZoomDisplay();
+  
+  // Fit to viewport button
+  fitBtn.addEventListener('click', () => {
+    viewMode = 'fit';
+    container.classList.add('fit-viewport');
+    container.classList.remove('full-size');
+    fitBtn.classList.add('active');
+    fullBtn.classList.remove('active');
+    zoomLevel = 1;
+    svg.style.transform = '';
+    updateZoomDisplay();
+  });
+  
+  // Full size button
+  fullBtn.addEventListener('click', () => {
+    viewMode = 'full';
+    container.classList.remove('fit-viewport');
+    container.classList.add('full-size');
+    fullBtn.classList.add('active');
+    fitBtn.classList.remove('active');
+    zoomLevel = 1;
+    svg.style.transform = '';
+    updateZoomDisplay();
+  });
+  
+  // Zoom in
+  zoomInBtn.addEventListener('click', () => {
+    zoomLevel = Math.min(zoomLevel + 0.25, 10);
+    applyZoom();
+  });
+  
+  // Zoom out
+  zoomOutBtn.addEventListener('click', () => {
+    zoomLevel = Math.max(zoomLevel - 0.25, 0.1);
+    applyZoom();
+  });
+  
+  // Reset zoom
+  zoomResetBtn.addEventListener('click', () => {
+    zoomLevel = 1;
+    applyZoom();
+  });
+  
+  function applyZoom() {
+    if (viewMode === 'fit') {
+      // Switch to full size mode when zooming
+      viewMode = 'full';
+      container.classList.remove('fit-viewport');
+      container.classList.add('full-size');
+      fullBtn.classList.add('active');
+      fitBtn.classList.remove('active');
+    }
+    
+    svg.style.transform = `scale(${zoomLevel})`;
+    svg.style.transformOrigin = 'top left';
+    updateZoomDisplay();
+  }
+  
+  function updateZoomDisplay() {
+    zoomLevelDisplay.textContent = `${Math.round(zoomLevel * 100)}%`;
+  }
+  
+  // Pan functionality
+  container.addEventListener('mousedown', (e) => {
+    if (viewMode === 'full' && e.button === 0) {
+      isPanning = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      scrollLeft = container.scrollLeft;
+      scrollTop = container.scrollTop;
+      container.classList.add('grabbing');
+      e.preventDefault();
+    }
+  });
+  
+  container.addEventListener('mousemove', (e) => {
+    if (!isPanning) return;
+    
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    
+    container.scrollLeft = scrollLeft - dx;
+    container.scrollTop = scrollTop - dy;
+  });
+  
+  container.addEventListener('mouseup', () => {
+    isPanning = false;
+    container.classList.remove('grabbing');
+  });
+  
+  container.addEventListener('mouseleave', () => {
+    isPanning = false;
+    container.classList.remove('grabbing');
+  });
+  
+  // Mouse wheel zoom
+  container.addEventListener('wheel', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      
+      if (e.deltaY < 0) {
+        zoomLevel = Math.min(zoomLevel + 0.1, 10);
+      } else {
+        zoomLevel = Math.max(zoomLevel - 0.1, 0.1);
+      }
+      
+      applyZoom();
+    }
+  });
+  
+  // Set initial active button
+  fitBtn.classList.add('active');
 }
 
 // ============ PHOTOS TAB ============

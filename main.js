@@ -1,8 +1,19 @@
-// main.js - Electron Main Process
+// main.js - v7
+// Electron Main Process
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { parseString } = require('xml2js');
 const { SerialPort } = require('serialport');
+
+// Enable live reload in development
+try {
+  require('electron-reloader')(module, {
+    debug: true,
+    watchRenderer: true
+  });
+} catch (_) { 
+  // electron-reloader not installed - running without hot reload
+}
 
 let mainWindow;
 let serialPort = null;
@@ -43,14 +54,25 @@ app.on('activate', () => {
 
 // IPC Handler for parsing SVG files
 ipcMain.handle('parse-svg', async (event, filePath, fileContent) => {
+  console.log('=== PARSE-SVG HANDLER CALLED ===');
+  console.log('File path:', filePath);
+  console.log('Content length:', fileContent.length);
+  console.log('Content preview:', fileContent.substring(0, 200));
+  
   try {
+    console.log('Calling parseSVGContent...');
     const svgData = await parseSVGContent(fileContent);
+    console.log('Parse completed successfully');
+    console.log('SVG Data:', svgData);
     
     return {
       success: true,
       data: svgData
     };
   } catch (error) {
+    console.error('=== PARSE ERROR ===');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
     return {
       success: false,
       error: error.message
@@ -144,42 +166,72 @@ ipcMain.handle('send-file-to-plotter', async (event, fileContent) => {
 });
 
 async function parseSVGContent(content) {
+  console.log('=== parseSVGContent called ===');
   return new Promise((resolve, reject) => {
+    console.log('Starting XML parse with xml2js...');
     parseString(content, { 
-      preserveChildrenOrder: true,
       explicitChildren: true,
-      charsAsChildren: true
+      preserveChildrenOrder: true,
+      charsAsChildren: false,
+      includeWhiteChars: false,
+      normalize: true,
+      normalizeTags: false,
+      explicitArray: true
     }, (err, result) => {
       if (err) {
+        console.error('XML parse error:', err);
         reject(err);
         return;
       }
       
+      console.log('XML parsed successfully');
+      console.log('Parsed structure keys:', Object.keys(result));
+      
       // Extract basic SVG attributes
       const svgRoot = result.svg || result;
+      console.log('SVG root keys:', Object.keys(svgRoot));
       const attrs = svgRoot.$ || {};
+      console.log('SVG attributes:', attrs);
       
       // Build hierarchical tree structure
-      const tree = buildElementTree(svgRoot, 'svg', 0);
-      
-      // Count total elements
-      const elementCount = countElements(tree);
-      
-      resolve({
-        viewBox: attrs.viewBox || null,
-        width: attrs.width || null,
-        height: attrs.height || null,
-        content: content,
-        tree: tree,
-        elementCount: elementCount
-      });
+      try {
+        console.log('Building element tree...');
+        const tree = buildElementTree(svgRoot, 'svg', 0);
+        console.log('Tree built successfully');
+        
+        // Count total elements
+        const elementCount = countElements(tree);
+        console.log('Total element count:', elementCount);
+        
+        const finalResult = {
+          viewBox: attrs.viewBox || null,
+          width: attrs.width || null,
+          height: attrs.height || null,
+          content: content,
+          tree: tree,
+          elementCount: elementCount
+        };
+        
+        console.log('Resolving with final result');
+        resolve(finalResult);
+      } catch (buildError) {
+        console.error('=== BUILD TREE ERROR ===');
+        console.error('Error message:', buildError.message);
+        console.error('Error stack:', buildError.stack);
+        reject(buildError);
+      }
     });
   });
 }
 
 function buildElementTree(node, tagName, depth) {
+  console.log(`Building tree for tag: ${tagName}, depth: ${depth}`);
+  console.log('Node keys:', Object.keys(node));
+  
   const attrs = node.$ || {};
   const id = attrs.id || `${tagName}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  console.log(`Element: ${tagName}, ID: ${id}, Attributes:`, attrs);
   
   const element = {
     id: id,
@@ -190,28 +242,31 @@ function buildElementTree(node, tagName, depth) {
     children: []
   };
   
-  // Process children
-  if (node.$) {
-    node.$.forEach(child => {
-      if (child['#name']) {
-        const childElement = buildElementTree(child, child['#name'], depth + 1);
-        element.children.push(childElement);
-      }
-    });
-  } else {
-    // Fallback: check for common SVG element properties
-    const childTags = ['g', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'text', 'image', 'use', 'defs', 'symbol', 'clipPath', 'mask'];
-    childTags.forEach(tag => {
-      if (node[tag]) {
-        const items = Array.isArray(node[tag]) ? node[tag] : [node[tag]];
-        items.forEach(item => {
-          const childElement = buildElementTree(item, tag, depth + 1);
+  // xml2js stores child elements directly as properties on the node object
+  // Each property is an array of elements with that tag name
+  for (const key in node) {
+    // Skip special xml2js properties
+    if (key === '$' || key === '_' || key === '$$') {
+      console.log(`Skipping special property: ${key}`);
+      continue;
+    }
+    
+    const items = node[key];
+    console.log(`Processing property: ${key}, is array: ${Array.isArray(items)}, length: ${items?.length}`);
+    
+    if (Array.isArray(items)) {
+      items.forEach((item, idx) => {
+        console.log(`Processing item ${idx} of ${key}:`, typeof item);
+        if (typeof item === 'object' && item !== null) {
+          const childElement = buildElementTree(item, key, depth + 1);
           element.children.push(childElement);
-        });
-      }
-    });
+          console.log(`Added child: ${key}`);
+        }
+      });
+    }
   }
   
+  console.log(`Finished building ${tagName}, children count: ${element.children.length}`);
   return element;
 }
 
