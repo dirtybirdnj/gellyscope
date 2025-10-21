@@ -1,4 +1,4 @@
-// renderer.js - v11
+// renderer.js - v13
 // Frontend Logic
 let currentSVGData = null;
 let currentSelectedElement = null;
@@ -12,6 +12,13 @@ let startY = 0;
 let scrollLeft = 0;
 let scrollTop = 0;
 let viewMode = 'fit'; // 'fit' or 'full'
+let isCropping = false;
+let cropTop = 0.25;
+let cropBottom = 0.75;
+let cropLeft = 0.25;
+let cropRight = 0.75;
+let flipH = false;
+let flipV = false;
 
 // Tab switching
 document.querySelectorAll('.tab-button').forEach(button => {
@@ -120,10 +127,15 @@ function displaySVG(data) {
   
   // Show the controls and setup functionality
   const controls = document.getElementById('svgControls');
+  const editControls = document.getElementById('svgEditControls');
   if (controls) {
     controls.style.display = 'flex';
   }
+  if (editControls) {
+    editControls.style.display = 'flex';
+  }
   setupSVGControls();
+  setupCropControls();
 }
 
 function renderTree(tree) {
@@ -386,13 +398,13 @@ function setupSVGControls() {
   
   // Zoom in
   zoomInBtn.addEventListener('click', () => {
-    zoomLevel = Math.min(zoomLevel + 0.25, 10);
+    zoomLevel = Math.min(zoomLevel + 0.1, 10);
     applyZoom();
   });
   
   // Zoom out
   zoomOutBtn.addEventListener('click', () => {
-    zoomLevel = Math.max(zoomLevel - 0.25, 0.1);
+    zoomLevel = Math.max(zoomLevel - 0.1, 0.1);
     applyZoom();
   });
   
@@ -412,9 +424,17 @@ function setupSVGControls() {
       fitBtn.classList.remove('active');
     }
     
-    svg.style.transform = `scale(${zoomLevel})`;
-    svg.style.transformOrigin = 'top left';
+    const transform = getTransformString();
+    svg.style.transform = transform;
+    svg.style.transformOrigin = 'center center';
     updateZoomDisplay();
+  }
+  
+  function getTransformString() {
+    let transforms = [`scale(${zoomLevel})`];
+    if (flipH) transforms.push('scaleX(-1)');
+    if (flipV) transforms.push('scaleY(-1)');
+    return transforms.join(' ');
   }
   
   function updateZoomDisplay() {
@@ -423,7 +443,7 @@ function setupSVGControls() {
   
   // Pan functionality
   container.addEventListener('mousedown', (e) => {
-    if (viewMode === 'full' && e.button === 0) {
+    if (e.button === 0 && !e.target.classList.contains('crop-line')) {
       isPanning = true;
       startX = e.clientX;
       startY = e.clientY;
@@ -471,6 +491,182 @@ function setupSVGControls() {
   
   // Set initial active button
   fitBtn.classList.add('active');
+}
+
+// ============ CROP CONTROLS ============
+function setupCropControls() {
+  console.log('=== setupCropControls called ===');
+  
+  const cropBtn = document.getElementById('cropBtn');
+  const flipHBtn = document.getElementById('flipHorizontal');
+  const flipVBtn = document.getElementById('flipVertical');
+  const svgDisplay = document.querySelector('.svg-display');
+  
+  if (!cropBtn || !svgDisplay) {
+    console.error('Missing crop elements');
+    return;
+  }
+  
+  console.log('Crop button found, setting up...');
+  
+  cropBtn.addEventListener('click', () => {
+    isCropping = !isCropping;
+    
+    if (isCropping) {
+      cropBtn.classList.add('active');
+      showCropOverlay();
+    } else {
+      cropBtn.classList.remove('active');
+      hideCropOverlay();
+    }
+  });
+  
+  // Flip horizontal
+  flipHBtn.addEventListener('click', () => {
+    flipH = !flipH;
+    if (flipH) {
+      flipHBtn.classList.add('active');
+    } else {
+      flipHBtn.classList.remove('active');
+    }
+    applyFlips();
+  });
+  
+  // Flip vertical
+  flipVBtn.addEventListener('click', () => {
+    flipV = !flipV;
+    if (flipV) {
+      flipVBtn.classList.add('active');
+    } else {
+      flipVBtn.classList.remove('active');
+    }
+    applyFlips();
+  });
+}
+
+function applyFlips() {
+  const svg = document.querySelector('#svgContainer svg');
+  if (!svg) return;
+  
+  const container = document.getElementById('svgContainer');
+  let transforms = [`scale(${zoomLevel})`];
+  if (flipH) transforms.push('scaleX(-1)');
+  if (flipV) transforms.push('scaleY(-1)');
+  
+  svg.style.transform = transforms.join(' ');
+  svg.style.transformOrigin = 'center center';
+}
+
+function showCropOverlay() {
+  const svgDisplay = document.querySelector('.svg-display');
+  if (!svgDisplay) return;
+  
+  // Remove existing overlay if any
+  hideCropOverlay();
+  
+  // Create overlay container
+  const overlay = document.createElement('div');
+  overlay.className = 'crop-overlay';
+  overlay.id = 'cropOverlay';
+  
+  // Create crop bounds box
+  const bounds = document.createElement('div');
+  bounds.className = 'crop-bounds';
+  bounds.id = 'cropBounds';
+  overlay.appendChild(bounds);
+  
+  // Create draggable lines
+  const topLine = createCropLine('horizontal', 'top');
+  const bottomLine = createCropLine('horizontal', 'bottom');
+  const leftLine = createCropLine('vertical', 'left');
+  const rightLine = createCropLine('vertical', 'right');
+  
+  overlay.appendChild(topLine);
+  overlay.appendChild(bottomLine);
+  overlay.appendChild(leftLine);
+  overlay.appendChild(rightLine);
+  
+  svgDisplay.appendChild(overlay);
+  
+  // Initial position
+  updateCropBounds();
+}
+
+function createCropLine(orientation, position) {
+  const line = document.createElement('div');
+  line.className = `crop-line ${orientation}`;
+  line.dataset.position = position;
+  
+  let isDragging = false;
+  let startPos = 0;
+  
+  line.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    startPos = orientation === 'horizontal' ? e.clientY : e.clientX;
+    e.preventDefault();
+  });
+  
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    
+    const svgDisplay = document.querySelector('.svg-display');
+    const rect = svgDisplay.getBoundingClientRect();
+    
+    if (orientation === 'horizontal') {
+      const y = (e.clientY - rect.top) / rect.height;
+      const clamped = Math.max(0, Math.min(1, y));
+      
+      if (position === 'top') {
+        cropTop = Math.min(clamped, cropBottom - 0.05);
+      } else {
+        cropBottom = Math.max(clamped, cropTop + 0.05);
+      }
+    } else {
+      const x = (e.clientX - rect.left) / rect.width;
+      const clamped = Math.max(0, Math.min(1, x));
+      
+      if (position === 'left') {
+        cropLeft = Math.min(clamped, cropRight - 0.05);
+      } else {
+        cropRight = Math.max(clamped, cropLeft + 0.05);
+      }
+    }
+    
+    updateCropBounds();
+  });
+  
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+  });
+  
+  return line;
+}
+
+function updateCropBounds() {
+  const topLine = document.querySelector('[data-position="top"]');
+  const bottomLine = document.querySelector('[data-position="bottom"]');
+  const leftLine = document.querySelector('[data-position="left"]');
+  const rightLine = document.querySelector('[data-position="right"]');
+  const bounds = document.getElementById('cropBounds');
+  
+  if (!topLine || !bottomLine || !leftLine || !rightLine || !bounds) return;
+  
+  topLine.style.top = `${cropTop * 100}%`;
+  bottomLine.style.top = `${cropBottom * 100}%`;
+  leftLine.style.left = `${cropLeft * 100}%`;
+  rightLine.style.left = `${cropRight * 100}%`;
+  
+  bounds.style.left = `${cropLeft * 100}%`;
+  bounds.style.top = `${cropTop * 100}%`;
+  bounds.style.width = `${(cropRight - cropLeft) * 100}%`;
+  bounds.style.height = `${(cropBottom - cropTop) * 100}%`;
+}
+
+function hideCropOverlay() {
+  const overlay = document.getElementById('cropOverlay');
+  if (overlay) {
+    overlay.remove();
+  }
 }
 
 // ============ PHOTOS TAB ============

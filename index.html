@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- index.html - v30 -->
+<!-- index.html - v32 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -244,6 +244,9 @@
       overflow: auto;
       cursor: grab;
       position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .svg-container.grabbing {
@@ -251,9 +254,7 @@
     }
 
     .svg-container.fit-viewport {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      overflow: hidden;
     }
 
     .svg-container.fit-viewport svg {
@@ -263,8 +264,75 @@
       height: auto;
     }
 
+    .svg-container.full-size {
+      overflow: auto;
+      align-items: flex-start;
+      justify-content: flex-start;
+    }
+
     .svg-container.full-size svg {
       display: block;
+      min-width: 100%;
+      min-height: 100%;
+    }
+
+    /* Crop overlay */
+    .crop-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .crop-line {
+      position: absolute;
+      background: #007acc;
+      cursor: move;
+      pointer-events: auto;
+    }
+
+    .crop-line.horizontal {
+      height: 2px;
+      width: 100%;
+      left: 0;
+    }
+
+    .crop-line.vertical {
+      width: 2px;
+      height: 100%;
+      top: 0;
+    }
+
+    .crop-line::before {
+      content: '';
+      position: absolute;
+      background: #ffffff;
+      border: 2px solid #007acc;
+      border-radius: 50%;
+      width: 12px;
+      height: 12px;
+    }
+
+    .crop-line.horizontal::before {
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .crop-line.vertical::before {
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .crop-bounds {
+      position: absolute;
+      border: 2px dashed #007acc;
+      background: rgba(0, 122, 204, 0.1);
+      pointer-events: none;
     }
 
     .svg-controls {
@@ -307,6 +375,7 @@
     .svg-control-btn.active {
       background: #cce7ff;
       border-color: #007acc;
+      color: #007acc;
     }
 
     .zoom-level {
@@ -654,6 +723,19 @@
                 or drag and drop an SVG file here
               </div>
             </div>
+          </div>
+          
+          <!-- SVG Edit Controls (top left, initially hidden) -->
+          <div class="svg-controls" id="svgEditControls" style="display: none; left: 16px; right: auto; gap: 12px; padding: 10px 14px;">
+            <button class="svg-control-btn" id="cropBtn" title="Crop" style="width: auto; padding: 0 12px; gap: 6px; display: flex; align-items: center;">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M 2 5 L 5 5 L 5 2 M 11 2 L 11 5 L 14 5 M 14 11 L 11 11 L 11 14 M 5 14 L 5 11 L 2 11" stroke="currentColor" stroke-width="1.5" fill="none"/>
+              </svg>
+              <span style="font-size: 13px;">Crop</span>
+            </button>
+            <div style="width: 1px; height: 28px; background: #d0d0d0;"></div>
+            <button class="svg-control-btn" id="flipHorizontal" title="Flip Horizontal" style="font-size: 18px;">↔️</button>
+            <button class="svg-control-btn" id="flipVertical" title="Flip Vertical" style="font-size: 18px;">↕️</button>
           </div>
           
           <!-- SVG Controls (initially hidden) -->
