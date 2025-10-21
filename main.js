@@ -1,9 +1,20 @@
-// main.js - v7
+// main.js - v10
 // Electron Main Process
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { parseString } = require('xml2js');
 const { SerialPort } = require('serialport');
+require('dotenv').config();
+
+// Debug flag from .env
+const DEBUG = process.env.DEBUG === 'true';
+
+// Debug logging helper
+function debugLog(...args) {
+  if (DEBUG) {
+    console.log(...args);
+  }
+}
 
 // Enable live reload in development
 try {
@@ -54,16 +65,16 @@ app.on('activate', () => {
 
 // IPC Handler for parsing SVG files
 ipcMain.handle('parse-svg', async (event, filePath, fileContent) => {
-  console.log('=== PARSE-SVG HANDLER CALLED ===');
-  console.log('File path:', filePath);
-  console.log('Content length:', fileContent.length);
-  console.log('Content preview:', fileContent.substring(0, 200));
+  debugLog('=== PARSE-SVG HANDLER CALLED ===');
+  debugLog('File path:', filePath);
+  debugLog('Content length:', fileContent.length);
+  debugLog('Content preview:', fileContent.substring(0, 200));
   
   try {
-    console.log('Calling parseSVGContent...');
+    debugLog('Calling parseSVGContent...');
     const svgData = await parseSVGContent(fileContent);
-    console.log('Parse completed successfully');
-    console.log('SVG Data:', svgData);
+    debugLog('Parse completed successfully');
+    debugLog('SVG Data:', svgData);
     
     return {
       success: true,
@@ -166,9 +177,9 @@ ipcMain.handle('send-file-to-plotter', async (event, fileContent) => {
 });
 
 async function parseSVGContent(content) {
-  console.log('=== parseSVGContent called ===');
+  debugLog('=== parseSVGContent called ===');
   return new Promise((resolve, reject) => {
-    console.log('Starting XML parse with xml2js...');
+    debugLog('Starting XML parse with xml2js...');
     parseString(content, { 
       explicitChildren: true,
       preserveChildrenOrder: true,
@@ -184,24 +195,24 @@ async function parseSVGContent(content) {
         return;
       }
       
-      console.log('XML parsed successfully');
-      console.log('Parsed structure keys:', Object.keys(result));
+      debugLog('XML parsed successfully');
+      debugLog('Parsed structure keys:', Object.keys(result));
       
       // Extract basic SVG attributes
       const svgRoot = result.svg || result;
-      console.log('SVG root keys:', Object.keys(svgRoot));
+      debugLog('SVG root keys:', Object.keys(svgRoot));
       const attrs = svgRoot.$ || {};
-      console.log('SVG attributes:', attrs);
+      debugLog('SVG attributes:', attrs);
       
       // Build hierarchical tree structure
       try {
-        console.log('Building element tree...');
+        debugLog('Building element tree...');
         const tree = buildElementTree(svgRoot, 'svg', 0);
-        console.log('Tree built successfully');
+        debugLog('Tree built successfully');
         
         // Count total elements
         const elementCount = countElements(tree);
-        console.log('Total element count:', elementCount);
+        debugLog('Total element count:', elementCount);
         
         const finalResult = {
           viewBox: attrs.viewBox || null,
@@ -212,7 +223,7 @@ async function parseSVGContent(content) {
           elementCount: elementCount
         };
         
-        console.log('Resolving with final result');
+        debugLog('Resolving with final result');
         resolve(finalResult);
       } catch (buildError) {
         console.error('=== BUILD TREE ERROR ===');
@@ -225,13 +236,13 @@ async function parseSVGContent(content) {
 }
 
 function buildElementTree(node, tagName, depth) {
-  console.log(`Building tree for tag: ${tagName}, depth: ${depth}`);
-  console.log('Node keys:', Object.keys(node));
+  debugLog(`Building tree for tag: ${tagName}, depth: ${depth}`);
+  debugLog('Node keys:', Object.keys(node));
   
   const attrs = node.$ || {};
   const id = attrs.id || `${tagName}-${Math.random().toString(36).substr(2, 9)}`;
   
-  console.log(`Element: ${tagName}, ID: ${id}, Attributes:`, attrs);
+  debugLog(`Element: ${tagName}, ID: ${id}, Attributes:`, attrs);
   
   const element = {
     id: id,
@@ -247,26 +258,26 @@ function buildElementTree(node, tagName, depth) {
   for (const key in node) {
     // Skip special xml2js properties
     if (key === '$' || key === '_' || key === '$$') {
-      console.log(`Skipping special property: ${key}`);
+      debugLog(`Skipping special property: ${key}`);
       continue;
     }
     
     const items = node[key];
-    console.log(`Processing property: ${key}, is array: ${Array.isArray(items)}, length: ${items?.length}`);
+    debugLog(`Processing property: ${key}, is array: ${Array.isArray(items)}, length: ${items?.length}`);
     
     if (Array.isArray(items)) {
       items.forEach((item, idx) => {
-        console.log(`Processing item ${idx} of ${key}:`, typeof item);
+        debugLog(`Processing item ${idx} of ${key}:`, typeof item);
         if (typeof item === 'object' && item !== null) {
           const childElement = buildElementTree(item, key, depth + 1);
           element.children.push(childElement);
-          console.log(`Added child: ${key}`);
+          debugLog(`Added child: ${key}`);
         }
       });
     }
   }
   
-  console.log(`Finished building ${tagName}, children count: ${element.children.length}`);
+  debugLog(`Finished building ${tagName}, children count: ${element.children.length}`);
   return element;
 }
 

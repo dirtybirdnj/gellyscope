@@ -1,5 +1,5 @@
 {
-  "_comment": "package.json - v4",
+  "_comment": "package.json - v5",
   "name": "gellyscope",
   "version": "1.0.0",
   "description": "Cross-platform SVG structure explorer and plotter controller - Gellyscope 🪼🌸",
@@ -19,7 +19,8 @@
   "license": "MIT",
   "dependencies": {
     "xml2js": "^0.6.2",
-    "serialport": "^12.0.0"
+    "serialport": "^12.0.0",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "electron": "^33.0.0",

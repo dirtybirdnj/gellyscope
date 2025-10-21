@@ -1,5 +1,16 @@
-// renderer.js - v13
+// renderer.js - v20
 // Frontend Logic
+
+// Check if debug mode is enabled (fallback to false if not set)
+const DEBUG = typeof localStorage !== 'undefined' && localStorage.getItem('DEBUG') === 'true';
+
+// Debug logging helper
+function debugLog(...args) {
+  if (DEBUG) {
+    console.log(...args);
+  }
+}
+
 let currentSVGData = null;
 let currentSelectedElement = null;
 let serialConnected = false;
@@ -77,27 +88,27 @@ canvasContent.addEventListener('drop', async (e) => {
 
 async function handleFile(file) {
   try {
-    console.log('Reading file:', file.name);
+    debugLog('Reading file:', file.name);
     const content = await file.text();
-    console.log('File content length:', content.length);
+    debugLog('File content length:', content.length);
     
-    console.log('Sending to backend for parsing...');
+    debugLog('Sending to backend for parsing...');
     const result = await window.electronAPI.parseSVG(file.path, content);
-    console.log('Parse result:', result);
+    debugLog('Parse result:', result);
     
     if (result.success) {
-      console.log('Parse successful, updating UI...');
+      debugLog('Parse successful, updating UI...');
       currentSVGData = result.data;
-      console.log('SVG data:', currentSVGData);
+      debugLog('SVG data:', currentSVGData);
       
       displaySVG(result.data);
-      console.log('SVG displayed');
+      debugLog('SVG displayed');
       
       renderTree(result.data.tree);
-      console.log('Tree rendered');
+      debugLog('Tree rendered');
       
       updateFileInfo(result.data, file);
-      console.log('File info updated');
+      debugLog('File info updated');
     } else {
       console.error('Parse failed:', result.error);
       alert('Error parsing SVG: ' + result.error);
@@ -109,9 +120,9 @@ async function handleFile(file) {
 }
 
 function displaySVG(data) {
-  console.log('=== displaySVG called ===');
-  console.log('Data:', data);
-  console.log('Content length:', data.content?.length);
+  debugLog('=== displaySVG called ===');
+  debugLog('Data:', data);
+  debugLog('Content length:', data.content?.length);
   
   const html = `
     <div class="svg-display">
@@ -120,39 +131,40 @@ function displaySVG(data) {
       </div>
     </div>
   `;
-  console.log('Generated HTML preview:', html.substring(0, 200));
+  debugLog('Generated HTML preview:', html.substring(0, 200));
   
   canvasContent.innerHTML = html;
-  console.log('Canvas content updated');
+  debugLog('Canvas content updated');
   
-  // Show the controls and setup functionality
-  const controls = document.getElementById('svgControls');
-  const editControls = document.getElementById('svgEditControls');
-  if (controls) {
-    controls.style.display = 'flex';
+  // Show the toolbar and info bar
+  const toolbar = document.getElementById('canvasToolbar');
+  const infoBar = document.getElementById('canvasInfoBar');
+  if (toolbar) {
+    toolbar.classList.add('visible');
   }
-  if (editControls) {
-    editControls.style.display = 'flex';
+  if (infoBar) {
+    infoBar.classList.add('visible');
   }
+  
   setupSVGControls();
   setupCropControls();
 }
 
 function renderTree(tree) {
-  console.log('=== renderTree called ===');
-  console.log('Tree:', tree);
-  console.log('Tree children count:', tree.children?.length);
+  debugLog('=== renderTree called ===');
+  debugLog('Tree:', tree);
+  debugLog('Tree children count:', tree.children?.length);
   
   layersList.innerHTML = '';
   const treeElement = createTreeNode(tree);
-  console.log('Tree element created:', treeElement);
+  debugLog('Tree element created:', treeElement);
   
   layersList.appendChild(treeElement);
-  console.log('Tree element appended to layersList');
+  debugLog('Tree element appended to layersList');
 }
 
 function createTreeNode(node) {
-  console.log('Creating tree node for:', node.tag, node.id);
+  debugLog('Creating tree node for:', node.tag, node.id);
   
   const nodeDiv = document.createElement('div');
   nodeDiv.className = 'tree-node';
@@ -226,13 +238,26 @@ function createTreeNode(node) {
       return;
     }
     
+    // Remove active class from all tree nodes
     document.querySelectorAll('.tree-node-content').forEach(el => {
       el.classList.remove('active');
     });
     
+    // Remove selection highlight from all SVG elements
+    document.querySelectorAll('#svgContainer svg [data-selected="true"]').forEach(el => {
+      el.removeAttribute('data-selected');
+    });
+    
+    // Add active class to clicked node
     contentDiv.classList.add('active');
     currentSelectedElement = node;
+    
+    // Highlight the corresponding SVG element
+    highlightSVGElement(node);
+    
+    // Update info displays
     updateElementInfo(node);
+    updateInfoBar(node);
   });
   
   return nodeDiv;
@@ -262,16 +287,97 @@ function updateElementInfo(node) {
   const attrCount = Object.keys(attributes).length;
   const childCount = node.children ? node.children.length : 0;
   
+  // Check if element supports stroke properties
+  const supportsStroke = ['path', 'line', 'polyline', 'polygon', 'rect', 'circle', 'ellipse'].includes(node.tag);
+  
   let attributesHTML = '';
   if (attrCount > 0) {
     attributesHTML = '<div class="attribute-list">';
     for (const [key, value] of Object.entries(attributes)) {
-      attributesHTML += `
-        <div class="attribute-item">
-          <span class="attr-name">${key}:</span>
-          <span class="attr-value">${value}</span>
-        </div>
-      `;
+      // Special handling for 'd' attribute (path data)
+      if (key === 'd') {
+        const preview = value.length > 50 ? value.substring(0, 50) + '...' : value;
+        attributesHTML += `
+          <div class="attribute-item">
+            <span class="attr-name">${key}:</span>
+            <div class="attr-collapse" data-attr="${key}">
+              <span class="attr-toggle collapsed"></span>
+              <span class="attr-value-preview">${escapeHtml(preview)}</span>
+            </div>
+            <div class="attr-value-full hidden" data-attr-full="${key}">${escapeHtml(value)}</div>
+          </div>
+        `;
+      }
+      // Stroke properties with dropdowns
+      else if (supportsStroke && key === 'stroke') {
+        attributesHTML += `
+          <div class="attribute-item">
+            <span class="attr-name">${key}:</span>
+            <div class="attr-control">
+              <input type="color" class="attr-input" value="${value}" data-attr="${key}" data-node-id="${node.id}" style="width: 60px;">
+              <input type="text" class="attr-input" value="${value}" data-attr="${key}" data-node-id="${node.id}">
+            </div>
+          </div>
+        `;
+      }
+      else if (supportsStroke && key === 'stroke-width') {
+        attributesHTML += `
+          <div class="attribute-item">
+            <span class="attr-name">${key}:</span>
+            <div class="attr-control">
+              <input type="number" class="attr-input" value="${value}" data-attr="${key}" data-node-id="${node.id}" min="0" step="0.5">
+            </div>
+          </div>
+        `;
+      }
+      else if (supportsStroke && key === 'stroke-linecap') {
+        attributesHTML += `
+          <div class="attribute-item">
+            <span class="attr-name">${key}:</span>
+            <div class="attr-control">
+              <select class="attr-select" data-attr="${key}" data-node-id="${node.id}">
+                <option value="butt" ${value === 'butt' ? 'selected' : ''}>butt</option>
+                <option value="round" ${value === 'round' ? 'selected' : ''}>round</option>
+                <option value="square" ${value === 'square' ? 'selected' : ''}>square</option>
+              </select>
+            </div>
+          </div>
+        `;
+      }
+      else if (supportsStroke && key === 'stroke-linejoin') {
+        attributesHTML += `
+          <div class="attribute-item">
+            <span class="attr-name">${key}:</span>
+            <div class="attr-control">
+              <select class="attr-select" data-attr="${key}" data-node-id="${node.id}">
+                <option value="miter" ${value === 'miter' ? 'selected' : ''}>miter</option>
+                <option value="round" ${value === 'round' ? 'selected' : ''}>round</option>
+                <option value="bevel" ${value === 'bevel' ? 'selected' : ''}>bevel</option>
+              </select>
+            </div>
+          </div>
+        `;
+      }
+      else if (supportsStroke && key === 'fill') {
+        attributesHTML += `
+          <div class="attribute-item">
+            <span class="attr-name">${key}:</span>
+            <div class="attr-control">
+              <input type="color" class="attr-input" value="${value === 'none' ? '#000000' : value}" data-attr="${key}" data-node-id="${node.id}" style="width: 60px;" ${value === 'none' ? 'disabled' : ''}>
+              <input type="text" class="attr-input" value="${value}" data-attr="${key}" data-node-id="${node.id}">
+            </div>
+          </div>
+        `;
+      }
+      // Regular attributes
+      else {
+        attributesHTML += `
+          <div class="attribute-item">
+            <span class="attr-name">${key}:</span>
+            <span class="attr-value">${escapeHtml(value)}</span>
+          </div>
+        `;
+      }
     }
     attributesHTML += '</div>';
   } else {
@@ -304,6 +410,53 @@ function updateElementInfo(node) {
       ${attributesHTML}
     </div>
   `;
+  
+  // Setup event listeners for editable attributes
+  setupAttributeEditors(node);
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function setupAttributeEditors(node) {
+  // Setup collapse/expand for 'd' attribute
+  document.querySelectorAll('.attr-collapse').forEach(el => {
+    el.addEventListener('click', () => {
+      const attr = el.dataset.attr;
+      const toggle = el.querySelector('.attr-toggle');
+      const full = document.querySelector(`[data-attr-full="${attr}"]`);
+      
+      if (toggle && full) {
+        toggle.classList.toggle('collapsed');
+        toggle.classList.toggle('expanded');
+        full.classList.toggle('hidden');
+      }
+    });
+  });
+  
+  // Setup attribute editors
+  document.querySelectorAll('.attr-select, .attr-input').forEach(el => {
+    el.addEventListener('change', (e) => {
+      updateSVGAttribute(e.target.dataset.nodeId, e.target.dataset.attr, e.target.value);
+    });
+  });
+}
+
+function updateSVGAttribute(nodeId, attrName, attrValue) {
+  const svg = document.querySelector('#svgContainer svg');
+  if (!svg) return;
+  
+  // Find element by ID
+  const element = svg.querySelector(`#${CSS.escape(nodeId)}`);
+  if (!element) return;
+  
+  // Update the attribute
+  element.setAttribute(attrName, attrValue);
+  
+  debugLog(`Updated ${attrName} to ${attrValue} for element ${nodeId}`);
 }
 
 function updateFileInfo(data, file) {
@@ -343,9 +496,74 @@ function formatBytes(bytes) {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
+function updateInfoBar(node) {
+  const infoBar = document.getElementById('canvasInfoBar');
+  if (!infoBar) return;
+  
+  // Show the info bar
+  infoBar.classList.add('visible');
+  
+  const attributes = node.attributes || {};
+  const childCount = node.children ? node.children.length : 0;
+  
+  // Extract position and dimensions from common attributes
+  let x = attributes.x || attributes.cx || '—';
+  let y = attributes.y || attributes.cy || '—';
+  let width = attributes.width || attributes.r || '—';
+  let height = attributes.height || attributes.r || '—';
+  
+  // For paths, try to get bounds from viewBox or d attribute
+  if (node.tag === 'path' && attributes.d) {
+    // Show that it's a path
+    x = 'path';
+    y = 'path';
+    width = 'path';
+    height = 'path';
+  }
+  
+  // For SVG root, show viewBox if available
+  if (node.tag === 'svg' && attributes.viewBox) {
+    const viewBox = attributes.viewBox.split(' ');
+    if (viewBox.length === 4) {
+      x = viewBox[0];
+      y = viewBox[1];
+      width = viewBox[2];
+      height = viewBox[3];
+    }
+  }
+  
+  // Update the info bar elements
+  document.getElementById('infoBarElement').textContent = `<${node.tag}>`;
+  document.getElementById('infoBarX').textContent = x;
+  document.getElementById('infoBarY').textContent = y;
+  document.getElementById('infoBarWidth').textContent = width;
+  document.getElementById('infoBarHeight').textContent = height;
+  document.getElementById('infoBarChildren').textContent = childCount;
+}
+
+function highlightSVGElement(node) {
+  const svgContainer = document.getElementById('svgContainer');
+  if (!svgContainer) return;
+  
+  const svg = svgContainer.querySelector('svg');
+  if (!svg) return;
+  
+  // Try to find the element by ID
+  let element = null;
+  
+  if (node.attributes && node.attributes.id) {
+    element = svg.querySelector(`#${CSS.escape(node.attributes.id)}`);
+  }
+  
+  // If we found the element, highlight it
+  if (element) {
+    element.setAttribute('data-selected', 'true');
+  }
+}
+
 // ============ SVG ZOOM AND PAN CONTROLS ============
 function setupSVGControls() {
-  console.log('=== setupSVGControls called ===');
+  debugLog('=== setupSVGControls called ===');
   
   const container = document.getElementById('svgContainer');
   const fitBtn = document.getElementById('fitViewport');
@@ -356,16 +574,16 @@ function setupSVGControls() {
   const zoomLevelDisplay = document.getElementById('zoomLevel');
   const svg = container?.querySelector('svg');
   
-  console.log('Container:', container);
-  console.log('Fit button:', fitBtn);
-  console.log('SVG element:', svg);
+  debugLog('Container:', container);
+  debugLog('Fit button:', fitBtn);
+  debugLog('SVG element:', svg);
   
   if (!svg || !container || !fitBtn) {
     console.error('Missing elements - controls not initialized');
     return;
   }
   
-  console.log('All elements found, setting up controls...');
+  debugLog('All elements found, setting up controls...');
   
   // Reset zoom state
   zoomLevel = 1;
@@ -495,7 +713,7 @@ function setupSVGControls() {
 
 // ============ CROP CONTROLS ============
 function setupCropControls() {
-  console.log('=== setupCropControls called ===');
+  debugLog('=== setupCropControls called ===');
   
   const cropBtn = document.getElementById('cropBtn');
   const flipHBtn = document.getElementById('flipHorizontal');
@@ -507,7 +725,7 @@ function setupCropControls() {
     return;
   }
   
-  console.log('Crop button found, setting up...');
+  debugLog('Crop button found, setting up...');
   
   cropBtn.addEventListener('click', () => {
     isCropping = !isCropping;
@@ -548,7 +766,6 @@ function applyFlips() {
   const svg = document.querySelector('#svgContainer svg');
   if (!svg) return;
   
-  const container = document.getElementById('svgContainer');
   let transforms = [`scale(${zoomLevel})`];
   if (flipH) transforms.push('scaleX(-1)');
   if (flipV) transforms.push('scaleY(-1)');

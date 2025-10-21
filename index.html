@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- index.html - v32 -->
+<!-- index.html - v36 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -70,15 +70,18 @@
       display: flex;
       flex: 1;
       overflow: hidden;
+      min-height: 0;
     }
 
     /* Left Panel - Layers */
     .left-panel {
       width: 300px;
+      min-width: 300px;
       background: #f9f9f9;
       border-right: 1px solid #d0d0d0;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
 
     .panel-header {
@@ -182,19 +185,86 @@
     /* Center Canvas */
     .canvas-area {
       flex: 1;
+      min-width: 0;
       display: flex;
-      align-items: center;
-      justify-content: center;
+      flex-direction: column;
       background: #fafafa;
       position: relative;
     }
 
+    .canvas-toolbar {
+      display: none;
+      background: #ffffff;
+      border-bottom: 1px solid #d0d0d0;
+      padding: 12px 16px;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .canvas-toolbar.visible {
+      display: flex;
+    }
+
+    .toolbar-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 4px 12px;
+      background: #f9f9f9;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 28px;
+      background: #d0d0d0;
+    }
+
     .canvas-content {
-      width: 100%;
-      height: 100%;
+      flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+    }
+
+    .canvas-info-bar {
+      display: none;
+      background: #ffffff;
+      border-top: 1px solid #d0d0d0;
+      padding: 8px 16px;
+      gap: 24px;
+      align-items: center;
+      font-size: 12px;
+      color: #666666;
+    }
+
+    .canvas-info-bar.visible {
+      display: flex;
+    }
+
+    .info-bar-item {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .info-bar-label {
+      font-weight: 600;
+      color: #555555;
+    }
+
+    .info-bar-value {
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      color: #333333;
+    }
+
+    .info-bar-divider {
+      width: 1px;
+      height: 16px;
+      background: #d0d0d0;
     }
 
     .upload-zone {
@@ -234,7 +304,7 @@
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       overflow: hidden;
-      border: 1px solid #e0e0e0;
+      border: 2px solid #007acc;
       position: relative;
     }
 
@@ -260,8 +330,9 @@
     .svg-container.fit-viewport svg {
       max-width: 100%;
       max-height: 100%;
-      width: auto;
-      height: auto;
+      width: auto !important;
+      height: auto !important;
+      object-fit: contain;
     }
 
     .svg-container.full-size {
@@ -272,8 +343,13 @@
 
     .svg-container.full-size svg {
       display: block;
-      min-width: 100%;
-      min-height: 100%;
+    }
+
+    /* Highlight selected element */
+    .svg-container svg [data-selected="true"] {
+      filter: drop-shadow(0 0 8px #007acc) brightness(1.2);
+      stroke: #007acc !important;
+      stroke-width: 2 !important;
     }
 
     /* Crop overlay */
@@ -336,17 +412,7 @@
     }
 
     .svg-controls {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      display: flex;
-      gap: 8px;
-      background: rgba(255, 255, 255, 0.95);
-      padding: 8px;
-      border-radius: 6px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      z-index: 10;
-      pointer-events: auto;
+      display: none;
     }
 
     .svg-control-btn {
@@ -392,10 +458,12 @@
     /* Right Panel - Info */
     .right-panel {
       width: 320px;
+      min-width: 320px;
       background: #f9f9f9;
       border-left: 1px solid #d0d0d0;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
 
     .info-content {
@@ -439,17 +507,90 @@
       padding: 4px 0;
       display: flex;
       gap: 8px;
+      flex-direction: column;
     }
 
     .attr-name {
       color: #0066cc;
-      min-width: 80px;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
     }
 
     .attr-value {
       color: #c7254e;
-      flex: 1;
       word-break: break-all;
+    }
+
+    .attr-control {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .attr-select {
+      flex: 1;
+      padding: 4px 8px;
+      background: #ffffff;
+      border: 1px solid #d0d0d0;
+      border-radius: 3px;
+      font-size: 12px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      color: #333333;
+    }
+
+    .attr-input {
+      flex: 1;
+      padding: 4px 8px;
+      background: #ffffff;
+      border: 1px solid #d0d0d0;
+      border-radius: 3px;
+      font-size: 12px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      color: #333333;
+    }
+
+    .attr-collapse {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .attr-toggle {
+      font-size: 10px;
+      color: #666666;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .attr-toggle.collapsed::before {
+      content: '▶';
+    }
+
+    .attr-toggle.expanded::before {
+      content: '▼';
+    }
+
+    .attr-value-preview {
+      color: #c7254e;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .attr-value-full {
+      color: #c7254e;
+      word-break: break-all;
+      white-space: pre-wrap;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .attr-value-full.hidden {
+      display: none;
     }
 
     /* Camera Tab */
@@ -713,6 +854,52 @@
 
         <!-- Center: Canvas -->
         <div class="canvas-area">
+          <!-- Fixed Toolbar -->
+          <div class="canvas-toolbar" id="canvasToolbar">
+            <!-- Edit Controls -->
+            <div class="toolbar-group">
+              <button class="svg-control-btn" id="cropBtn" title="Crop" style="width: auto; padding: 0 12px; gap: 6px;">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M 2 5 L 5 5 L 5 2 M 11 2 L 11 5 L 14 5 M 14 11 L 11 11 L 11 14 M 5 14 L 5 11 L 2 11" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                </svg>
+                <span style="font-size: 13px;">Crop</span>
+              </button>
+              <div class="toolbar-divider"></div>
+              <button class="svg-control-btn" id="flipHorizontal" title="Flip Horizontal" style="font-size: 18px;">↔️</button>
+              <button class="svg-control-btn" id="flipVertical" title="Flip Vertical" style="font-size: 18px;">↕️</button>
+            </div>
+
+            <!-- View Controls -->
+            <div class="toolbar-group">
+              <button class="svg-control-btn active" id="fitViewport" title="Fit to Viewport">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <rect x="2" y="2" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M 5 5 L 8 8 L 11 5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M 5 11 L 8 8 L 11 11" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+              </button>
+              <button class="svg-control-btn" id="fullSize" title="Full Size">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <rect x="2" y="2" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M 2 2 L 5 5 M 14 2 L 11 5 M 2 14 L 5 11 M 14 14 L 11 11" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Zoom Controls -->
+            <div class="toolbar-group">
+              <button class="svg-control-btn" id="zoomOut" title="Zoom Out">−</button>
+              <div class="zoom-level" id="zoomLevel">100%</div>
+              <button class="svg-control-btn" id="zoomIn" title="Zoom In">+</button>
+              <button class="svg-control-btn" id="zoomReset" title="Reset Zoom">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M 6 8 L 10 8 M 8 6 L 8 10" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
           <div class="canvas-content" id="canvasContent">
             <div class="upload-zone">
               <input type="file" id="fileInput" accept=".svg" />
@@ -725,44 +912,35 @@
             </div>
           </div>
           
-          <!-- SVG Edit Controls (top left, initially hidden) -->
-          <div class="svg-controls" id="svgEditControls" style="display: none; left: 16px; right: auto; gap: 12px; padding: 10px 14px;">
-            <button class="svg-control-btn" id="cropBtn" title="Crop" style="width: auto; padding: 0 12px; gap: 6px; display: flex; align-items: center;">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M 2 5 L 5 5 L 5 2 M 11 2 L 11 5 L 14 5 M 14 11 L 11 11 L 11 14 M 5 14 L 5 11 L 2 11" stroke="currentColor" stroke-width="1.5" fill="none"/>
-              </svg>
-              <span style="font-size: 13px;">Crop</span>
-            </button>
-            <div style="width: 1px; height: 28px; background: #d0d0d0;"></div>
-            <button class="svg-control-btn" id="flipHorizontal" title="Flip Horizontal" style="font-size: 18px;">↔️</button>
-            <button class="svg-control-btn" id="flipVertical" title="Flip Vertical" style="font-size: 18px;">↕️</button>
-          </div>
-          
-          <!-- SVG Controls (initially hidden) -->
-          <div class="svg-controls" id="svgControls" style="display: none;">
-            <button class="svg-control-btn active" id="fitViewport" title="Fit to Viewport">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <rect x="2" y="2" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M 5 5 L 8 8 L 11 5" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M 5 11 L 8 8 L 11 11" fill="none" stroke="currentColor" stroke-width="1.5"/>
-              </svg>
-            </button>
-            <button class="svg-control-btn" id="fullSize" title="Full Size">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <rect x="2" y="2" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M 2 2 L 5 5 M 14 2 L 11 5 M 2 14 L 5 11 M 14 14 L 11 11" stroke="currentColor" stroke-width="1.5"/>
-              </svg>
-            </button>
-            <div style="width: 1px; height: 24px; background: #d0d0d0; margin: 0 4px;"></div>
-            <button class="svg-control-btn" id="zoomOut" title="Zoom Out">−</button>
-            <div class="zoom-level" id="zoomLevel">100%</div>
-            <button class="svg-control-btn" id="zoomIn" title="Zoom In">+</button>
-            <button class="svg-control-btn" id="zoomReset" title="Reset Zoom">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M 6 8 L 10 8 M 8 6 L 8 10" stroke="currentColor" stroke-width="1.5"/>
-              </svg>
-            </button>
+          <!-- Bottom Info Bar -->
+          <div class="canvas-info-bar" id="canvasInfoBar">
+            <div class="info-bar-item">
+              <span class="info-bar-label">Element:</span>
+              <span class="info-bar-value" id="infoBarElement">—</span>
+            </div>
+            <div class="info-bar-divider"></div>
+            <div class="info-bar-item">
+              <span class="info-bar-label">X:</span>
+              <span class="info-bar-value" id="infoBarX">—</span>
+            </div>
+            <div class="info-bar-item">
+              <span class="info-bar-label">Y:</span>
+              <span class="info-bar-value" id="infoBarY">—</span>
+            </div>
+            <div class="info-bar-divider"></div>
+            <div class="info-bar-item">
+              <span class="info-bar-label">Width:</span>
+              <span class="info-bar-value" id="infoBarWidth">—</span>
+            </div>
+            <div class="info-bar-item">
+              <span class="info-bar-label">Height:</span>
+              <span class="info-bar-value" id="infoBarHeight">—</span>
+            </div>
+            <div class="info-bar-divider"></div>
+            <div class="info-bar-item">
+              <span class="info-bar-label">Children:</span>
+              <span class="info-bar-value" id="infoBarChildren">—</span>
+            </div>
           </div>
         </div>
 
