@@ -376,12 +376,6 @@
               <option value="in" selected>inches</option>
             </select>
           </div>
-          <div class="eject-info-divider"></div>
-          <div class="eject-info-item">
-            <button class="eject-action-btn" id="ejectToGcodeBtn">
-              <span>🚀</span> Generate G-code
-            </button>
-          </div>
         </div>
         <div class="eject-viewer" id="ejectViewer">
           <div class="eject-message" id="ejectMessage">
@@ -416,6 +410,21 @@
                 <option value="cm">cm</option>
                 <option value="in" selected>inches</option>
               </select>
+            </div>
+          </div>
+          <div class="toolbar-section toolbar-section-right">
+            <div class="eject-btn-group">
+              <button class="eject-action-btn" id="ejectToGcodeBtn">
+                <span>🚀</span> Generate G-code
+              </button>
+              <button class="eject-dropdown-btn" id="ejectDropdownBtn">
+                ▼
+              </button>
+              <div class="eject-dropdown-menu" id="ejectDropdownMenu" style="display: none;">
+                <button class="eject-dropdown-item" id="downloadGcodeBtn">
+                  <span>📥</span> Download G-code
+                </button>
+              </div>
             </div>
           </div>
         </div>

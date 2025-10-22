@@ -265,12 +265,17 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
 
     debugLog('Converted dimensions to mm:', widthMm, 'x', heightMm);
 
+    // Create gcode directory in app directory if it doesn't exist
+    const gcodePath = path.join(__dirname, 'gcode');
+    if (!fs.existsSync(gcodePath)) {
+      fs.mkdirSync(gcodePath, { recursive: true });
+      debugLog('Created gcode directory:', gcodePath);
+    }
+
     // Generate output filename
-    const homeDir = os.homedir();
-    const gellyrollerPath = path.join(homeDir, 'gellyroller');
     const baseName = path.basename(svgFilePath, path.extname(svgFilePath));
     const timestamp = Date.now();
-    const gcodeFilePath = path.join(gellyrollerPath, `${baseName}_${timestamp}.gcode`);
+    const gcodeFilePath = path.join(gcodePath, `${baseName}_${timestamp}.gcode`);
 
     debugLog('Output G-code path:', gcodeFilePath);
 
@@ -339,6 +344,46 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
     });
   } catch (error) {
     console.error('Error in eject-to-gcode handler:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC Handler for downloading G-code file
+ipcMain.handle('download-gcode', async (event, gcodeFilePath) => {
+  try {
+    debugLog('=== DOWNLOAD-GCODE HANDLER CALLED ===');
+    debugLog('G-code file path:', gcodeFilePath);
+
+    // Verify the file exists
+    if (!fs.existsSync(gcodeFilePath)) {
+      return { success: false, error: 'G-code file does not exist' };
+    }
+
+    // Get the filename
+    const fileName = path.basename(gcodeFilePath);
+
+    // Show save dialog
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save G-code File',
+      defaultPath: fileName,
+      filters: [
+        { name: 'G-code Files', extensions: ['gcode', 'nc', 'txt'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (result.canceled) {
+      debugLog('Download canceled by user');
+      return { success: false, canceled: true };
+    }
+
+    // Copy the file to the selected location
+    fs.copyFileSync(gcodeFilePath, result.filePath);
+    debugLog('G-code file saved to:', result.filePath);
+
+    return { success: true, filePath: result.filePath };
+  } catch (error) {
+    console.error('Error downloading G-code:', error);
     return { success: false, error: error.message };
   }
 });

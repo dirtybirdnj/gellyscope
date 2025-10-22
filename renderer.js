@@ -1803,6 +1803,7 @@ let ejectPageSize = 'A4';
 let ejectPageBackgroundElement = null;
 let ejectOriginalAspectRatio = 1; // Store original SVG aspect ratio
 let ejectPreviousUnit = 'in'; // Track previous unit for conversion
+let lastGeneratedGcodePath = null; // Track last generated G-code file for download
 
 // Function to load SVG into Eject tab
 function loadEjectTab() {
@@ -2277,6 +2278,28 @@ window.addEventListener('resize', () => {
 
 // Eject to G-code button handler
 const ejectToGcodeBtn = document.getElementById('ejectToGcodeBtn');
+const ejectDropdownBtn = document.getElementById('ejectDropdownBtn');
+const ejectDropdownMenu = document.getElementById('ejectDropdownMenu');
+const downloadGcodeBtn = document.getElementById('downloadGcodeBtn');
+
+// Toggle dropdown menu
+if (ejectDropdownBtn && ejectDropdownMenu) {
+  ejectDropdownBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isVisible = ejectDropdownMenu.style.display === 'block';
+    ejectDropdownMenu.style.display = isVisible ? 'none' : 'block';
+    debugLog('Dropdown toggled:', !isVisible);
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!ejectDropdownMenu.contains(e.target) && !ejectDropdownBtn.contains(e.target)) {
+      ejectDropdownMenu.style.display = 'none';
+    }
+  });
+}
+
+// Generate G-code button
 if (ejectToGcodeBtn) {
   ejectToGcodeBtn.addEventListener('click', async () => {
     debugLog('=== EJECT TO G-CODE CLICKED ===');
@@ -2301,10 +2324,11 @@ if (ejectToGcodeBtn) {
     debugLog('Current SVG path:', currentSVGData.path);
     debugLog('Output dimensions:', outputWidth, 'x', outputHeight, outputUnit);
 
-    // Disable button and show loading state
+    // Disable buttons and show loading state
     ejectToGcodeBtn.disabled = true;
+    ejectDropdownBtn.disabled = true;
     const originalText = ejectToGcodeBtn.innerHTML;
-    ejectToGcodeBtn.innerHTML = '<span>⏳</span> Generating G-code...';
+    ejectToGcodeBtn.innerHTML = '<span>⏳</span> Generating...';
 
     try {
       // Call the backend to convert SVG to G-code
@@ -2318,7 +2342,15 @@ if (ejectToGcodeBtn) {
       debugLog('Eject result:', result);
 
       if (result.success) {
-        alert(`G-code generated successfully!\n\nSaved to: ${result.gcodeFilePath}`);
+        // Save the path for download functionality
+        lastGeneratedGcodePath = result.gcodeFilePath;
+
+        // Enable download button
+        if (downloadGcodeBtn) {
+          downloadGcodeBtn.disabled = false;
+        }
+
+        alert(`G-code generated successfully!\n\nSaved to app's gcode directory.`);
         debugLog('G-code file created:', result.gcodeFilePath);
       } else {
         alert(`Failed to generate G-code:\n\n${result.error}\n\n${result.stderr || ''}`);
@@ -2328,9 +2360,51 @@ if (ejectToGcodeBtn) {
       console.error('Error ejecting to G-code:', error);
       alert(`Error generating G-code:\n\n${error.message}`);
     } finally {
-      // Re-enable button and restore text
+      // Re-enable buttons and restore text
       ejectToGcodeBtn.disabled = false;
+      ejectDropdownBtn.disabled = false;
       ejectToGcodeBtn.innerHTML = originalText;
+    }
+  });
+}
+
+// Download G-code button
+if (downloadGcodeBtn) {
+  downloadGcodeBtn.addEventListener('click', async () => {
+    debugLog('=== DOWNLOAD G-CODE CLICKED ===');
+
+    if (!lastGeneratedGcodePath) {
+      alert('No G-code file available. Please generate G-code first.');
+      return;
+    }
+
+    // Close dropdown
+    if (ejectDropdownMenu) {
+      ejectDropdownMenu.style.display = 'none';
+    }
+
+    // Disable button during download
+    downloadGcodeBtn.disabled = true;
+    const originalText = downloadGcodeBtn.innerHTML;
+    downloadGcodeBtn.innerHTML = '<span>⏳</span> Downloading...';
+
+    try {
+      const result = await window.electronAPI.downloadGcode(lastGeneratedGcodePath);
+
+      debugLog('Download result:', result);
+
+      if (result.success) {
+        alert(`G-code file saved successfully!\n\n${result.filePath}`);
+      } else if (!result.canceled) {
+        alert(`Failed to download G-code:\n\n${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error downloading G-code:', error);
+      alert(`Error downloading G-code:\n\n${error.message}`);
+    } finally {
+      // Re-enable button and restore text
+      downloadGcodeBtn.disabled = false;
+      downloadGcodeBtn.innerHTML = originalText;
     }
   });
 }
