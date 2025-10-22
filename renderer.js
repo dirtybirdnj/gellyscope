@@ -1,4 +1,4 @@
-// renderer.js - v28
+// renderer.js - v29
 // Frontend Logic
 
 // Check if debug mode is enabled (fallback to false if not set)
@@ -928,6 +928,58 @@ function hideCropOverlay() {
 
 // ============ IMAGES TAB ============
 const imageGrid = document.getElementById('imageGrid');
+const uploadImageBtn = document.getElementById('uploadImageBtn');
+const imageUploadInput = document.getElementById('imageUploadInput');
+
+// Setup upload button
+if (uploadImageBtn && imageUploadInput) {
+  uploadImageBtn.addEventListener('click', () => {
+    imageUploadInput.click();
+  });
+
+  imageUploadInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/bmp'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please select a valid image file (JPEG, PNG, or BMP)');
+      return;
+    }
+
+    try {
+      // Read file as data URL
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const imageData = event.target.result;
+
+        // Save image to gellyroller directory
+        const result = await window.electronAPI.saveImage(imageData, file.name);
+
+        if (result.success) {
+          debugLog('Image uploaded successfully:', result.filename);
+          // Reload images to show the new upload
+          await loadImages();
+        } else {
+          alert(`Failed to upload image: ${result.error}`);
+        }
+      };
+
+      reader.onerror = () => {
+        alert('Failed to read file');
+      };
+
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Error uploading image: ' + error.message);
+    }
+
+    // Clear the input so the same file can be uploaded again if needed
+    e.target.value = '';
+  });
+}
 
 async function loadImages() {
   try {

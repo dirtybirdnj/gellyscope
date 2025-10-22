@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- index.html - v43 -->
+<!-- index.html - v44 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -11,17 +11,17 @@
   <div class="app-container">
     <!-- Tab Navigation -->
     <div class="tab-nav">
-      <button class="tab-button" data-tab="camera">Camera</button>
-      <button class="tab-button" data-tab="images">Images</button>
-      <button class="tab-button" data-tab="vectors">Vectors</button>
-      <button class="tab-button" data-tab="trace">Trace</button>
-      <button class="tab-button" data-tab="eject">Eject</button>
-      <button class="tab-button" data-tab="render">Render</button>
-      <button class="tab-button active" data-tab="scope">Scope</button>
+      <button class="tab-button active" data-tab="camera">📷 Camera</button>
+      <button class="tab-button" data-tab="images">🖼️ Images</button>
+      <button class="tab-button" data-tab="trace">✏️ Trace</button>
+      <button class="tab-button" data-tab="vectors">📐 Vectors</button>
+      <button class="tab-button" data-tab="eject">📤 Eject</button>
+      <button class="tab-button" data-tab="render">🎨 Render</button>
+      <button class="tab-button" data-tab="scope" style="display: none;">Scope</button>
     </div>
 
     <!-- Camera Tab -->
-    <div class="tab-content" id="cameraTab">
+    <div class="tab-content active" id="cameraTab">
       <div class="camera-container">
         <div class="camera-preview" id="cameraPreview">
           <video id="cameraVideo" autoplay playsinline></video>
@@ -39,6 +39,10 @@
     <!-- Images Tab -->
     <div class="tab-content" id="imagesTab">
       <div class="images-container">
+        <div class="images-toolbar">
+          <input type="file" id="imageUploadInput" accept=".jpg,.jpeg,.png,.bmp" style="display: none;">
+          <button class="control-btn" id="uploadImageBtn">📤 Upload Image</button>
+        </div>
         <div class="image-grid" id="imageGrid">
           <!-- Jellyfish placeholders -->
         </div>
@@ -454,7 +458,7 @@
     </div>
 
     <!-- Scope Tab -->
-    <div class="tab-content active" id="scopeTab">
+    <div class="tab-content" id="scopeTab" style="display: none;">
       <div class="container">
         <!-- Left Panel: Tree Structure -->
         <div class="left-panel">
