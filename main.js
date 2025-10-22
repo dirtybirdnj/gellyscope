@@ -196,6 +196,33 @@ ipcMain.handle('read-file-base64', async (event, filePath) => {
   }
 });
 
+// IPC Handler for deleting files
+ipcMain.handle('delete-file', async (event, filePath) => {
+  try {
+    // Verify the file is in the gellyroller directory for safety
+    const homeDir = os.homedir();
+    const gellyrollerPath = path.join(homeDir, 'gellyroller');
+
+    if (!filePath.startsWith(gellyrollerPath)) {
+      return { success: false, error: 'Cannot delete files outside gellyroller directory' };
+    }
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return { success: false, error: 'File does not exist' };
+    }
+
+    // Delete the file
+    fs.unlinkSync(filePath);
+    debugLog('File deleted successfully:', filePath);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // IPC Handler for saving captured images
 ipcMain.handle('save-image', async (event, imageData, filename) => {
   const homeDir = os.homedir();

@@ -950,27 +950,69 @@ async function loadImages() {
     for (const file of result.files) {
       const imageItem = document.createElement('div');
       imageItem.className = 'image-item';
-      imageItem.title = file.name;
+
+      // Create image wrapper
+      const imageWrapper = document.createElement('div');
+      imageWrapper.className = 'image-wrapper';
+      imageWrapper.title = file.name;
 
       // Read the file as base64
       const fileData = await window.electronAPI.readFileBase64(file.path);
 
       if (fileData.success) {
         const img = document.createElement('img');
-        img.src = `data:${fileData.mimeType};base64,${fileData.data}`;
+        const imageSrc = `data:${fileData.mimeType};base64,${fileData.data}`;
+        img.src = imageSrc;
         img.alt = file.name;
         img.style.width = '100%';
         img.style.height = '100%';
         img.style.objectFit = 'cover';
-        imageItem.appendChild(img);
+        imageWrapper.appendChild(img);
+
+        // Add click handler to show image in Trace tab
+        imageWrapper.addEventListener('click', () => {
+          showImageInTraceTab(imageSrc, file.name);
+        });
+
+        // Store imageSrc on the item for button access
+        imageItem.dataset.imageSrc = imageSrc;
+        imageItem.dataset.fileName = file.name;
       } else {
-        imageItem.textContent = '❌';
-        imageItem.title = `Error loading ${file.name}`;
+        imageWrapper.textContent = '❌';
+        imageWrapper.title = `Error loading ${file.name}`;
       }
 
-      imageItem.addEventListener('click', () => {
-        alert(`Image: ${file.name}\nPath: ${file.path}`);
+      imageItem.appendChild(imageWrapper);
+
+      // Create buttons container
+      const buttonsContainer = document.createElement('div');
+      buttonsContainer.className = 'image-actions';
+
+      // Create Delete button
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'image-action-btn delete-btn';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await handleDeleteImage(file.path, file.name);
       });
+
+      // Create Trace button
+      const traceBtn = document.createElement('button');
+      traceBtn.className = 'image-action-btn trace-btn';
+      traceBtn.textContent = 'Trace';
+      traceBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const imageSrc = imageItem.dataset.imageSrc;
+        const fileName = imageItem.dataset.fileName;
+        if (imageSrc) {
+          showImageInTraceTab(imageSrc, fileName);
+        }
+      });
+
+      buttonsContainer.appendChild(deleteBtn);
+      buttonsContainer.appendChild(traceBtn);
+      imageItem.appendChild(buttonsContainer);
 
       imageGrid.appendChild(imageItem);
     }
@@ -980,6 +1022,621 @@ async function loadImages() {
     console.error('Error loading images:', error);
     imageGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">Error loading images</div>';
   }
+}
+
+// Handle image deletion
+async function handleDeleteImage(filePath, fileName) {
+  // Confirm deletion
+  const confirmed = confirm(`Are you sure you want to delete "${fileName}"?`);
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const result = await window.electronAPI.deleteFile(filePath);
+
+    if (result.success) {
+      debugLog('File deleted successfully:', fileName);
+      // Reload the images grid
+      await loadImages();
+    } else {
+      alert(`Failed to delete file: ${result.error}`);
+      console.error('Delete error:', result.error);
+    }
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    alert('An error occurred while deleting the file.');
+  }
+}
+
+// Show image in Trace tab
+function showImageInTraceTab(imageSrc, fileName) {
+  // Get trace tab elements
+  const traceImage = document.getElementById('traceImage');
+  const traceMessage = document.getElementById('traceMessage');
+  const traceImageContainer = document.getElementById('traceImageContainer');
+  const traceSvgOverlay = document.getElementById('traceSvgOverlay');
+
+  // Clear any previous trace
+  traceSvgOverlay.innerHTML = '';
+  const captureBtn = document.getElementById('captureTraceBtn');
+  if (captureBtn) {
+    captureBtn.disabled = true;
+  }
+
+  // Store current image info
+  window.currentTraceImage = {
+    src: imageSrc,
+    originalSrc: imageSrc,  // Store original unscaled image
+    fileName: fileName,
+    svgData: null,
+    processedSrc: null,  // Will store the processed image
+    scale: 100,  // Current scale percentage
+    originalWidth: 0,
+    originalHeight: 0,
+    isInitialLoad: true  // Flag to prevent infinite loop on trace updates
+  };
+
+  // Set the image
+  traceImage.src = imageSrc;
+  traceImageContainer.style.display = 'block';
+  traceMessage.style.display = 'none';
+
+  // Show the output toolbar
+  const outputToolbar = document.getElementById('outputToolbar');
+  if (outputToolbar) {
+    outputToolbar.style.display = 'flex';
+  }
+
+  // Switch to trace tab
+  switchTab('trace');
+
+  // Automatically run the trace process after image loads
+  // Only run this for the initial load, not when we update the processed image
+  traceImage.onload = () => {
+    if (window.currentTraceImage && window.currentTraceImage.isInitialLoad) {
+      // Store original dimensions
+      window.currentTraceImage.originalWidth = traceImage.naturalWidth;
+      window.currentTraceImage.originalHeight = traceImage.naturalHeight;
+      
+      // Mark that initial load is complete
+      window.currentTraceImage.isInitialLoad = false;
+
+      // Update dimension display
+      updateDimensionDisplay();
+
+      // Run initial trace
+      performTrace();
+    }
+  };
+
+  debugLog('Showing image in Trace tab:', fileName);
+}
+
+// ============ TRACE TAB CONTROLS ============
+
+let capturedLayers = [];
+let traceDebounceTimer = null;
+
+// Apply image processing filters and return processed image URL
+function applyImageProcessing(originalSrc) {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      // Get current control values
+      const brightness = parseInt(document.getElementById('brightnessSlider').value);
+      const contrast = parseInt(document.getElementById('contrastSlider').value);
+      const saturation = parseInt(document.getElementById('saturationSlider').value);
+      const hue = parseInt(document.getElementById('hueSlider').value);
+      const greyscale = document.getElementById('greyscaleToggle').checked;
+      const sepia = document.getElementById('sepiaToggle').checked;
+
+      // Build CSS filter string
+      let filters = [];
+
+      if (brightness !== 0) {
+        filters.push(`brightness(${1 + brightness / 100})`);
+      }
+      if (contrast !== 0) {
+        filters.push(`contrast(${1 + contrast / 100})`);
+      }
+      if (saturation !== 0) {
+        filters.push(`saturate(${1 + saturation / 100})`);
+      }
+      if (hue !== 0) {
+        filters.push(`hue-rotate(${hue}deg)`);
+      }
+      if (greyscale) {
+        filters.push('grayscale(100%)');
+      }
+      if (sepia) {
+        filters.push('sepia(100%)');
+      }
+
+      // Apply filters
+      if (filters.length > 0) {
+        ctx.filter = filters.join(' ');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+      }
+
+      // Return processed image as data URL
+      resolve(canvas.toDataURL());
+    };
+
+    img.src = originalSrc;
+  });
+}
+
+// Scale image based on percentage
+function scaleImage(imageSrc, scalePercent) {
+  return new Promise((resolve) => {
+    if (scalePercent === 100) {
+      resolve(imageSrc);
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.onload = () => {
+      const scale = scalePercent / 100;
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL());
+    };
+
+    img.src = imageSrc;
+  });
+}
+
+// Update dimension display
+function updateDimensionDisplay() {
+  const originalDimensions = document.getElementById('originalDimensions');
+  const scaledDimensions = document.getElementById('scaledDimensions');
+  const scaledDimensionsGroup = document.getElementById('scaledDimensionsGroup');
+
+  if (window.currentTraceImage) {
+    const width = window.currentTraceImage.originalWidth;
+    const height = window.currentTraceImage.originalHeight;
+
+    originalDimensions.textContent = `${width} × ${height} px`;
+
+    if (window.currentTraceImage.scale !== 100) {
+      const scale = window.currentTraceImage.scale / 100;
+      const scaledWidth = Math.round(width * scale);
+      const scaledHeight = Math.round(height * scale);
+
+      scaledDimensions.textContent = `${scaledWidth} × ${scaledHeight} px`;
+      scaledDimensionsGroup.style.display = 'block';
+    } else {
+      scaledDimensionsGroup.style.display = 'none';
+    }
+  }
+}
+
+// Debounced trace function
+async function performTrace() {
+  if (!window.currentTraceImage || !window.currentTraceImage.src) {
+    return;
+  }
+
+  try {
+    const traceActionBtn = document.getElementById('traceActionBtn');
+    if (traceActionBtn) {
+      traceActionBtn.disabled = true;
+      traceActionBtn.textContent = 'Processing...';
+    }
+
+    // First scale the image if needed
+    const scaledImageSrc = await scaleImage(
+      window.currentTraceImage.originalSrc,
+      window.currentTraceImage.scale
+    );
+
+    // Then apply image processing filters to the scaled image
+    const processedImageSrc = await applyImageProcessing(scaledImageSrc);
+
+    // Store the processed image and update the display
+    window.currentTraceImage.processedSrc = processedImageSrc;
+    const traceImage = document.getElementById('traceImage');
+    if (traceImage) {
+      traceImage.src = processedImageSrc;
+    }
+
+    // Get potrace parameters
+    const turnPolicy = document.getElementById('turnPolicySelect').value;
+    const turdSize = parseInt(document.getElementById('turdSizeSlider').value);
+    const alphaMax = parseFloat(document.getElementById('alphaMaxSlider').value);
+    const optTolerance = parseFloat(document.getElementById('optToleranceSlider').value);
+    const optCurve = document.getElementById('optCurveToggle').checked;
+
+    Potrace.setParameter({
+      turnpolicy: turnPolicy,
+      turdsize: turdSize,
+      optcurve: optCurve,
+      alphamax: alphaMax,
+      opttolerance: optTolerance
+    });
+
+    // Load processed image into potrace
+    Potrace.loadImageFromUrl(processedImageSrc);
+
+    // Process the image
+    Potrace.process(() => {
+      // Get SVG output
+      let svgString = Potrace.getSVG(1);
+
+      // Apply fill/stroke options
+      const useFill = document.getElementById('fillToggle').checked;
+      const strokeColor = document.getElementById('strokeColorPicker').value;
+      const strokeWidth = document.getElementById('strokeWidthSlider').value;
+
+      // Parse SVG to modify path attributes
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
+      const svgElement = svgDoc.querySelector('svg');
+      const paths = svgDoc.querySelectorAll('path');
+
+      // Make SVG responsive by removing fixed dimensions
+      if (svgElement) {
+        // Preserve viewBox if it exists, or create one from width/height
+        if (!svgElement.hasAttribute('viewBox') && svgElement.hasAttribute('width') && svgElement.hasAttribute('height')) {
+          const width = svgElement.getAttribute('width');
+          const height = svgElement.getAttribute('height');
+          svgElement.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        }
+
+        // Remove fixed width and height to make it responsive
+        svgElement.removeAttribute('width');
+        svgElement.removeAttribute('height');
+      }
+
+      paths.forEach(path => {
+        if (useFill) {
+          // Fill mode: black fill, no stroke
+          path.setAttribute('fill', '#000000');
+          path.setAttribute('stroke', 'none');
+        } else {
+          // Stroke mode: no fill, custom stroke
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', strokeColor);
+          path.setAttribute('stroke-width', strokeWidth);
+        }
+      });
+
+      // Serialize back to string
+      const serializer = new XMLSerializer();
+      svgString = serializer.serializeToString(svgDoc);
+
+      // Store the SVG data
+      window.currentTraceImage.svgData = svgString;
+
+      // Display the SVG overlay
+      const traceSvgOverlay = document.getElementById('traceSvgOverlay');
+      traceSvgOverlay.innerHTML = svgString;
+
+      // Enable capture button
+      const captureBtn = document.getElementById('captureTraceBtn');
+      if (captureBtn) {
+        captureBtn.disabled = false;
+      }
+
+      if (traceActionBtn) {
+        traceActionBtn.disabled = false;
+        traceActionBtn.textContent = 'Trace';
+      }
+
+      // Update page background after trace
+      setTimeout(() => {
+        updatePageBackground();
+      }, 100);
+
+      debugLog('Trace completed successfully with fill:', useFill);
+    });
+  } catch (error) {
+    console.error('Error tracing image:', error);
+    const traceActionBtn = document.getElementById('traceActionBtn');
+    if (traceActionBtn) {
+      traceActionBtn.disabled = false;
+      traceActionBtn.textContent = 'Trace';
+    }
+  }
+}
+
+// Debounced trace trigger
+function triggerAutoTrace() {
+  if (traceDebounceTimer) {
+    clearTimeout(traceDebounceTimer);
+  }
+  traceDebounceTimer = setTimeout(() => {
+    performTrace();
+  }, 500); // Wait 500ms after last change
+}
+
+// ========== IMAGE PROCESSING CONTROLS ==========
+
+// Brightness
+const brightnessSlider = document.getElementById('brightnessSlider');
+const brightnessValue = document.getElementById('brightnessValue');
+
+if (brightnessSlider && brightnessValue) {
+  brightnessSlider.addEventListener('input', (e) => {
+    brightnessValue.textContent = e.target.value;
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Contrast
+const contrastSlider = document.getElementById('contrastSlider');
+const contrastValue = document.getElementById('contrastValue');
+
+if (contrastSlider && contrastValue) {
+  contrastSlider.addEventListener('input', (e) => {
+    contrastValue.textContent = e.target.value;
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Saturation
+const saturationSlider = document.getElementById('saturationSlider');
+const saturationValue = document.getElementById('saturationValue');
+
+if (saturationSlider && saturationValue) {
+  saturationSlider.addEventListener('input', (e) => {
+    saturationValue.textContent = e.target.value;
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Hue
+const hueSlider = document.getElementById('hueSlider');
+const hueValue = document.getElementById('hueValue');
+
+if (hueSlider && hueValue) {
+  hueSlider.addEventListener('input', (e) => {
+    hueValue.textContent = e.target.value + '°';
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Greyscale
+const greyscaleToggle = document.getElementById('greyscaleToggle');
+
+if (greyscaleToggle) {
+  greyscaleToggle.addEventListener('change', (e) => {
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Sepia
+const sepiaToggle = document.getElementById('sepiaToggle');
+
+if (sepiaToggle) {
+  sepiaToggle.addEventListener('change', (e) => {
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// ========== POTRACE PARAMETERS CONTROLS ==========
+
+// Turn Policy
+const turnPolicySelect = document.getElementById('turnPolicySelect');
+
+if (turnPolicySelect) {
+  turnPolicySelect.addEventListener('change', (e) => {
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Turd Size
+const turdSizeSlider = document.getElementById('turdSizeSlider');
+const turdSizeValue = document.getElementById('turdSizeValue');
+
+if (turdSizeSlider && turdSizeValue) {
+  turdSizeSlider.addEventListener('input', (e) => {
+    turdSizeValue.textContent = e.target.value;
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Alpha Max
+const alphaMaxSlider = document.getElementById('alphaMaxSlider');
+const alphaMaxValue = document.getElementById('alphaMaxValue');
+
+if (alphaMaxSlider && alphaMaxValue) {
+  alphaMaxSlider.addEventListener('input', (e) => {
+    alphaMaxValue.textContent = parseFloat(e.target.value).toFixed(1);
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Opt Tolerance
+const optToleranceSlider = document.getElementById('optToleranceSlider');
+const optToleranceValue = document.getElementById('optToleranceValue');
+
+if (optToleranceSlider && optToleranceValue) {
+  optToleranceSlider.addEventListener('input', (e) => {
+    optToleranceValue.textContent = parseFloat(e.target.value).toFixed(2);
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Curve Optimization
+const optCurveToggle = document.getElementById('optCurveToggle');
+
+if (optCurveToggle) {
+  optCurveToggle.addEventListener('change', (e) => {
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// ========== DISPLAY CONTROLS ==========
+
+// Show bitmap toggle - only affects visibility
+const showBitmapToggle = document.getElementById('showBitmapToggle');
+
+if (showBitmapToggle) {
+  showBitmapToggle.addEventListener('change', (e) => {
+    const traceImage = document.getElementById('traceImage');
+    if (traceImage) {
+      if (e.target.checked) {
+        // Restore the opacity from the slider
+        const opacitySlider = document.getElementById('bitmapOpacitySlider');
+        const opacity = opacitySlider ? parseFloat(opacitySlider.value) / 100 : 1;
+        traceImage.style.opacity = opacity;
+      } else {
+        traceImage.style.opacity = '0';
+      }
+      debugLog('Show bitmap:', e.target.checked);
+    }
+  });
+}
+
+// Bitmap opacity slider
+const bitmapOpacitySlider = document.getElementById('bitmapOpacitySlider');
+const bitmapOpacityValue = document.getElementById('bitmapOpacityValue');
+
+if (bitmapOpacitySlider && bitmapOpacityValue) {
+  bitmapOpacitySlider.addEventListener('input', (e) => {
+    const opacity = parseFloat(e.target.value) / 100;
+    bitmapOpacityValue.textContent = e.target.value + '%';
+
+    const traceImage = document.getElementById('traceImage');
+    const showBitmapToggle = document.getElementById('showBitmapToggle');
+
+    // Only apply opacity if bitmap is visible
+    if (traceImage && showBitmapToggle && showBitmapToggle.checked) {
+      traceImage.style.opacity = opacity;
+    }
+
+    debugLog('Bitmap opacity:', opacity);
+  });
+}
+
+// ========== ACTION BUTTONS ==========
+
+// Trace action button
+const traceActionBtn = document.getElementById('traceActionBtn');
+
+if (traceActionBtn) {
+  traceActionBtn.addEventListener('click', () => {
+    if (!window.currentTraceImage || !window.currentTraceImage.src) {
+      alert('Please select an image first');
+      return;
+    }
+    performTrace();
+  });
+}
+
+// Capture trace button with loading spinner
+const captureTraceBtn = document.getElementById('captureTraceBtn');
+
+if (captureTraceBtn) {
+  captureTraceBtn.addEventListener('click', () => {
+    if (!window.currentTraceImage || !window.currentTraceImage.svgData) {
+      alert('No trace data to capture');
+      return;
+    }
+
+    // Disable button and show loading spinner
+    captureTraceBtn.disabled = true;
+    const originalText = captureTraceBtn.textContent;
+    captureTraceBtn.innerHTML = 'Capturing<span class="spinner"></span>';
+
+    // Simulate processing time (potrace processing happens sync, so we use setTimeout to show spinner)
+    setTimeout(() => {
+      // Create a new layer
+      const layerName = `Layer ${capturedLayers.length + 1}`;
+      const layer = {
+        id: Date.now(),
+        name: layerName,
+        svgData: window.currentTraceImage.svgData,
+        visible: true
+      };
+
+      capturedLayers.push(layer);
+
+      // Add to layers list
+      updateLayersList();
+
+      // Re-enable button and remove spinner
+      captureTraceBtn.disabled = false;
+      captureTraceBtn.textContent = originalText;
+
+      debugLog('Captured trace as:', layerName);
+    }, 300);
+  });
+}
+
+function updateLayersList() {
+  const layersList = document.getElementById('traceLayersList');
+
+  if (capturedLayers.length === 0) {
+    layersList.innerHTML = '<div style="padding: 16px; text-align: center; opacity: 0.5; font-size: 13px;">No layers</div>';
+    return;
+  }
+
+  layersList.innerHTML = '';
+
+  capturedLayers.forEach((layer, index) => {
+    const layerItem = document.createElement('div');
+    layerItem.className = 'layer-item';
+    layerItem.style.cssText = 'padding: 8px 12px; border-bottom: 1px solid #e0e0e0; cursor: pointer; display: flex; justify-content: space-between; align-items: center;';
+
+    const layerName = document.createElement('span');
+    layerName.textContent = layer.name;
+    layerName.style.fontSize = '13px';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = '×';
+    deleteBtn.style.cssText = 'background: none; border: none; font-size: 20px; color: #d32f2f; cursor: pointer; padding: 0; width: 24px; height: 24px;';
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Remove from array
+      capturedLayers.splice(index, 1);
+      // Update the list display
+      updateLayersList();
+      debugLog('Deleted layer:', layer.name);
+    });
+
+    layerItem.appendChild(layerName);
+    layerItem.appendChild(deleteBtn);
+    layersList.appendChild(layerItem);
+  });
 }
 
 // ============ VECTORS TAB ============
@@ -1161,3 +1818,472 @@ stopCameraBtn.addEventListener('click', () => {
     debugLog('Camera stopped');
   }
 });
+
+// ============ ARROW BUTTON CONTROLS ============
+// Handle all arrow button clicks for slider adjustments
+document.querySelectorAll('.arrow-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const targetId = btn.dataset.target;
+    const direction = parseInt(btn.dataset.direction);
+    const slider = document.getElementById(targetId);
+
+    if (!slider) return;
+
+    const step = parseFloat(slider.step) || 1;
+    const min = parseFloat(slider.min);
+    const max = parseFloat(slider.max);
+    const currentValue = parseFloat(slider.value);
+
+    // Calculate new value
+    const newValue = currentValue + (step * direction);
+
+    // Clamp to min/max range
+    slider.value = Math.max(min, Math.min(max, newValue));
+
+    // Trigger input event to update display and trace
+    slider.dispatchEvent(new Event('input'));
+
+    debugLog(`Arrow button: ${targetId} ${direction > 0 ? '+' : '-'}${step} = ${slider.value}`);
+  });
+});
+
+// ============ PATH OPTIONS CONTROLS ============
+
+// Fill toggle - show/hide stroke controls
+const fillToggle = document.getElementById('fillToggle');
+const strokeControls = document.getElementById('strokeControls');
+
+if (fillToggle && strokeControls) {
+  // Set initial state (fill is OFF by default, so show stroke controls)
+  strokeControls.style.display = fillToggle.checked ? 'none' : 'block';
+
+  fillToggle.addEventListener('change', (e) => {
+    strokeControls.style.display = e.target.checked ? 'none' : 'block';
+
+    // Re-trace with new fill/stroke settings
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+
+    debugLog('Fill toggle:', e.target.checked);
+  });
+}
+
+// Stroke color picker
+const strokeColorPicker = document.getElementById('strokeColorPicker');
+
+if (strokeColorPicker) {
+  strokeColorPicker.addEventListener('input', (e) => {
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+    debugLog('Stroke color:', e.target.value);
+  });
+}
+
+// Stroke width slider
+const strokeWidthSlider = document.getElementById('strokeWidthSlider');
+const strokeWidthValue = document.getElementById('strokeWidthValue');
+
+if (strokeWidthSlider && strokeWidthValue) {
+  strokeWidthSlider.addEventListener('input', (e) => {
+    strokeWidthValue.textContent = parseFloat(e.target.value).toFixed(1);
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// ============ COLLAPSIBLE SECTIONS ============
+// Handle section collapse/expand
+document.querySelectorAll('.section-header').forEach(header => {
+  header.addEventListener('click', () => {
+    const sectionName = header.dataset.section;
+    const content = document.querySelector(`[data-section-content="${sectionName}"]`);
+
+    if (content) {
+      header.classList.toggle('collapsed');
+      content.classList.toggle('collapsed');
+
+      debugLog('Section toggled:', sectionName, header.classList.contains('collapsed') ? 'collapsed' : 'expanded');
+    }
+  });
+});
+
+// ============ OUTPUT SCALING & PAGE SIZE ============
+
+// Page sizes in mm (width × height)
+const PAGE_SIZES = {
+  'A0': [841, 1189],
+  'A1': [594, 841],
+  'A2': [420, 594],
+  'A3': [297, 420],
+  'A4': [210, 297],
+  'A5': [148, 210],
+  'A6': [105, 148],
+  'A7': [74, 105]
+};
+
+let currentPageSize = 'A4';
+let pageBackgroundElement = null;
+let outputScale = 100; // Output scale percentage
+
+// Convert units to mm
+function toMm(value, unit) {
+  switch (unit) {
+    case 'mm': return value;
+    case 'cm': return value * 10;
+    case 'in': return value * 25.4;
+    default: return value;
+  }
+}
+
+// Get page dimensions in mm
+function getPageDimensions() {
+  if (currentPageSize === 'custom') {
+    const width = parseFloat(document.getElementById('customWidth').value);
+    const height = parseFloat(document.getElementById('customHeight').value);
+    const unit = document.getElementById('customUnit').value;
+
+    if (isNaN(width) || isNaN(height)) {
+      return null;
+    }
+
+    return [toMm(width, unit), toMm(height, unit)];
+  } else {
+    return PAGE_SIZES[currentPageSize];
+  }
+}
+
+// Create or update page background
+function updatePageBackground() {
+  const traceViewer = document.getElementById('traceViewer');
+  const traceImageContainer = document.getElementById('traceImageContainer');
+
+  if (!traceImageContainer || traceImageContainer.style.display === 'none') {
+    return;
+  }
+
+  const dimensions = getPageDimensions();
+  if (!dimensions) {
+    removePageBackground();
+    return;
+  }
+
+  const [widthMm, heightMm] = dimensions;
+  const aspectRatio = widthMm / heightMm;
+
+  // Remove existing background
+  if (pageBackgroundElement) {
+    pageBackgroundElement.remove();
+  }
+
+  // Create new page background
+  pageBackgroundElement = document.createElement('div');
+  pageBackgroundElement.className = 'page-background';
+
+  // Calculate size to fit in viewer while maintaining aspect ratio
+  const viewerRect = traceViewer.getBoundingClientRect();
+  const maxWidth = viewerRect.width * 0.85;
+  const maxHeight = viewerRect.height * 0.85;
+
+  let displayWidth, displayHeight;
+
+  if (maxWidth / maxHeight > aspectRatio) {
+    // Constrained by height
+    displayHeight = maxHeight;
+    displayWidth = displayHeight * aspectRatio;
+  } else {
+    // Constrained by width
+    displayWidth = maxWidth;
+    displayHeight = displayWidth / aspectRatio;
+  }
+
+  pageBackgroundElement.style.width = displayWidth + 'px';
+  pageBackgroundElement.style.height = displayHeight + 'px';
+  pageBackgroundElement.style.left = '50%';
+  pageBackgroundElement.style.top = '50%';
+  pageBackgroundElement.style.transform = 'translate(-50%, -50%)';
+
+  // Insert into viewer before the image container
+  traceViewer.insertBefore(pageBackgroundElement, traceImageContainer);
+
+  // Apply output scale to the image container
+  const scaleFactor = outputScale / 100;
+  const scaledWidth = displayWidth * scaleFactor;
+  const scaledHeight = displayHeight * scaleFactor;
+
+  // Scale the image container to fit the page
+  traceImageContainer.style.width = scaledWidth + 'px';
+  traceImageContainer.style.height = scaledHeight + 'px';
+  traceImageContainer.style.maxWidth = scaledWidth + 'px';
+  traceImageContainer.style.maxHeight = scaledHeight + 'px';
+
+  debugLog('Page background updated:', currentPageSize, widthMm + 'mm × ' + heightMm + 'mm', 'scale:', outputScale + '%');
+}
+
+function removePageBackground() {
+  if (pageBackgroundElement) {
+    pageBackgroundElement.remove();
+    pageBackgroundElement = null;
+  }
+
+  const traceImageContainer = document.getElementById('traceImageContainer');
+  if (traceImageContainer) {
+    traceImageContainer.style.width = '';
+    traceImageContainer.style.height = '';
+    traceImageContainer.style.maxWidth = '';
+    traceImageContainer.style.maxHeight = '';
+  }
+}
+
+// Output scale slider handler
+const outputScaleSlider = document.getElementById('outputScaleSlider');
+const outputScaleValue = document.getElementById('outputScaleValue');
+
+if (outputScaleSlider && outputScaleValue) {
+  outputScaleSlider.addEventListener('input', (e) => {
+    outputScale = parseInt(e.target.value);
+    outputScaleValue.textContent = outputScale + '%';
+
+    // Update page background with new scale
+    if (pageBackgroundElement) {
+      updatePageBackground();
+    }
+
+    debugLog('Output scale changed:', outputScale + '%');
+  });
+}
+
+// Page size button handlers
+document.querySelectorAll('.page-size-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const size = btn.dataset.size;
+
+    // Update active state
+    document.querySelectorAll('.page-size-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    currentPageSize = size;
+
+    // Show/hide custom inputs
+    const customInputs = document.getElementById('customSizeInputs');
+    if (size === 'custom') {
+      customInputs.style.display = 'flex';
+    } else {
+      customInputs.style.display = 'none';
+      updatePageBackground();
+    }
+
+    debugLog('Page size selected:', size);
+  });
+});
+
+// Custom size input handlers
+const customWidth = document.getElementById('customWidth');
+const customHeight = document.getElementById('customHeight');
+const customUnit = document.getElementById('customUnit');
+
+[customWidth, customHeight, customUnit].forEach(input => {
+  if (input) {
+    input.addEventListener('input', () => {
+      if (currentPageSize === 'custom') {
+        updatePageBackground();
+      }
+    });
+  }
+});
+
+// Update page background on window resize
+window.addEventListener('resize', () => {
+  if (pageBackgroundElement) {
+    updatePageBackground();
+  }
+});
+
+// ============ IMAGE SCALING CONTROLS ============
+
+// Scale button handlers
+document.querySelectorAll('.scale-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const scale = parseInt(btn.dataset.scale);
+
+    // Update active state
+    document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    // Update scale in current image
+    if (window.currentTraceImage) {
+      window.currentTraceImage.scale = scale;
+
+      // Update dimension display
+      updateDimensionDisplay();
+
+      // Re-trace with new scale
+      if (window.currentTraceImage.originalSrc) {
+        triggerAutoTrace();
+      }
+    }
+
+    debugLog('Image scale changed:', scale + '%');
+  });
+});
+
+// Initialize page background for A4
+setTimeout(() => {
+  if (window.currentTraceImage && window.currentTraceImage.src) {
+    updatePageBackground();
+  }
+}, 100);
+
+// ============ SAVE FUNCTIONALITY ============
+
+// Save SVG button
+const saveSvgBtn = document.getElementById('saveSvgBtn');
+if (saveSvgBtn) {
+  saveSvgBtn.addEventListener('click', async () => {
+    if (!window.currentTraceImage || !window.currentTraceImage.svgData) {
+      alert('No SVG data to save. Please trace an image first.');
+      return;
+    }
+
+    try {
+      saveSvgBtn.disabled = true;
+      const originalText = saveSvgBtn.innerHTML;
+      saveSvgBtn.innerHTML = '<span>⏳</span> Saving...';
+
+      // Generate filename from original image name
+      const baseName = window.currentTraceImage.fileName.replace(/\.[^/.]+$/, '');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const filename = `${baseName}_trace_${timestamp}.svg`;
+
+      // Convert SVG string to data URL
+      const svgBlob = new Blob([window.currentTraceImage.svgData], { type: 'image/svg+xml' });
+      const reader = new FileReader();
+
+      reader.onload = async function() {
+        const dataUrl = reader.result;
+
+        // Save using existing saveImage method (works for SVG too)
+        const result = await window.electronAPI.saveImage(dataUrl, filename);
+
+        if (result.success) {
+          debugLog('SVG saved:', result.path);
+
+          // Switch to vectors tab
+          switchTab('vectors');
+
+          // Show success message briefly
+          saveSvgBtn.innerHTML = '<span>✓</span> Saved!';
+          setTimeout(() => {
+            saveSvgBtn.innerHTML = originalText;
+            saveSvgBtn.disabled = false;
+          }, 2000);
+        } else {
+          throw new Error(result.error);
+        }
+      };
+
+      reader.readAsDataURL(svgBlob);
+
+    } catch (error) {
+      console.error('Error saving SVG:', error);
+      alert('Error saving SVG: ' + error.message);
+      saveSvgBtn.disabled = false;
+      saveSvgBtn.innerHTML = '<span>💾</span> Save SVG';
+    }
+  });
+}
+
+// Save Image button
+const saveImageBtn = document.getElementById('saveImageBtn');
+if (saveImageBtn) {
+  saveImageBtn.addEventListener('click', async () => {
+    const traceImageContainer = document.getElementById('traceImageContainer');
+    const traceSvgOverlay = document.getElementById('traceSvgOverlay');
+
+    if (!traceSvgOverlay || !traceSvgOverlay.innerHTML) {
+      alert('No trace to save. Please trace an image first.');
+      return;
+    }
+
+    try {
+      saveImageBtn.disabled = true;
+      const originalText = saveImageBtn.innerHTML;
+      saveImageBtn.innerHTML = '<span>⏳</span> Saving...';
+
+      // Create a canvas to render the composite image
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Get the container dimensions
+      const containerRect = traceImageContainer.getBoundingClientRect();
+      canvas.width = containerRect.width;
+      canvas.height = containerRect.height;
+
+      // Draw white background if page background exists
+      if (pageBackgroundElement) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Draw the processed bitmap image at full opacity
+      // (ignore display opacity settings - always save at 100%)
+      const traceImage = document.getElementById('traceImage');
+      ctx.globalAlpha = 1.0;
+      ctx.drawImage(traceImage, 0, 0, canvas.width, canvas.height);
+
+      // Draw the SVG
+      const svgElement = traceSvgOverlay.querySelector('svg');
+      if (svgElement) {
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const svgUrl = URL.createObjectURL(svgBlob);
+
+        const img = new Image();
+        img.onload = function() {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(svgUrl);
+
+          // Convert canvas to JPEG
+          canvas.toBlob(async (blob) => {
+            const reader = new FileReader();
+            reader.onload = async function() {
+              const dataUrl = reader.result;
+
+              // Generate filename
+              const baseName = window.currentTraceImage.fileName.replace(/\.[^/.]+$/, '');
+              const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+              const filename = `${baseName}_traced_${timestamp}.jpg`;
+
+              // Trigger download
+              const a = document.createElement('a');
+              a.href = dataUrl;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+
+              debugLog('Image downloaded:', filename);
+
+              // Show success message
+              saveImageBtn.innerHTML = '<span>✓</span> Downloaded!';
+              setTimeout(() => {
+                saveImageBtn.innerHTML = originalText;
+                saveImageBtn.disabled = false;
+              }, 2000);
+            };
+            reader.readAsDataURL(blob);
+          }, 'image/jpeg', 0.95);
+        };
+        img.src = svgUrl;
+      }
+
+    } catch (error) {
+      console.error('Error saving image:', error);
+      alert('Error saving image: ' + error.message);
+      saveImageBtn.disabled = false;
+      saveImageBtn.innerHTML = '<span>📷</span> Save Image';
+    }
+  });
+} 
