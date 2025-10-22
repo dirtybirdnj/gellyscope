@@ -15,6 +15,7 @@
       <button class="tab-button" data-tab="images">Images</button>
       <button class="tab-button" data-tab="vectors">Vectors</button>
       <button class="tab-button" data-tab="trace">Trace</button>
+      <button class="tab-button" data-tab="eject">Eject</button>
       <button class="tab-button active" data-tab="scope">Scope</button>
     </div>
 
@@ -349,6 +350,20 @@
             <!-- Action Buttons -->
             <button class="trace-action-btn" id="traceActionBtn">Trace</button>
             <button class="trace-action-btn capture-btn" id="captureTraceBtn" disabled>Capture Trace</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Eject Tab -->
+    <div class="tab-content" id="ejectTab">
+      <div class="eject-container">
+        <div class="eject-viewer" id="ejectViewer">
+          <div class="eject-message" id="ejectMessage">
+            No vector image loaded
+          </div>
+          <div class="eject-svg-container" id="ejectSvgContainer" style="display: none;">
+            <!-- SVG will be displayed here -->
           </div>
         </div>
       </div>

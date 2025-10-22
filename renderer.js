@@ -1704,8 +1704,39 @@ switchTab = function(tabName) {
     loadImages();
   } else if (tabName === 'vectors') {
     loadVectors();
+  } else if (tabName === 'eject') {
+    loadEjectTab();
   }
 };
+
+// Function to load SVG into Eject tab
+function loadEjectTab() {
+  const ejectMessage = document.getElementById('ejectMessage');
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+
+  if (currentSVGData && currentSVGData.content) {
+    // Hide message and show SVG container
+    ejectMessage.style.display = 'none';
+    ejectSvgContainer.style.display = 'flex';
+    ejectSvgContainer.innerHTML = currentSVGData.content;
+
+    // Apply proper sizing to the SVG
+    const svg = ejectSvgContainer.querySelector('svg');
+    if (svg) {
+      svg.removeAttribute('width');
+      svg.removeAttribute('height');
+      svg.style.width = '100%';
+      svg.style.height = '100%';
+      svg.style.maxWidth = '100%';
+      svg.style.maxHeight = '100%';
+    }
+  } else {
+    // Show message and hide SVG container
+    ejectMessage.style.display = 'block';
+    ejectSvgContainer.style.display = 'none';
+    ejectMessage.textContent = 'No vector image loaded';
+  }
+}
 
 // ============ CAMERA TAB ============
 const cameraVideo = document.getElementById('cameraVideo');
