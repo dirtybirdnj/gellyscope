@@ -1,4 +1,4 @@
-// renderer.js - v25
+// renderer.js - v26
 // Frontend Logic
 
 // Check if debug mode is enabled (fallback to false if not set)
@@ -1903,7 +1903,7 @@ function renderGcode(gcodeText) {
 
   // Parse G-code to extract drawing commands
   const paths = [];
-  let currentX = 0, currentY = 0, currentZ = 0;
+  let currentX = 0, currentY = 0;
   let isPenDown = false;
   let minX = Infinity, maxX = -Infinity;
   let minY = Infinity, maxY = -Infinity;
@@ -1914,42 +1914,48 @@ function renderGcode(gcodeText) {
     const cleanLine = line.split(';')[0].trim().toUpperCase();
     if (!cleanLine) continue;
 
-    // Parse G-code commands
-    if (cleanLine.startsWith('G0') || cleanLine.startsWith('G00')) {
-      // Rapid move (pen up)
-      if (currentPath.length > 0) {
-        paths.push([...currentPath]);
-        currentPath = [];
+    // Parse M42 commands (pen control)
+    // M42 P0 S1 = pen up (pin high)
+    // M42 P0 S0 = pen down (pin low)
+    if (cleanLine.includes('M42')) {
+      const sMatch = cleanLine.match(/S(\d+)/);
+      if (sMatch) {
+        const sValue = parseInt(sMatch[1]);
+        if (sValue === 1) {
+          // Pen up - save current path if it exists
+          if (currentPath.length > 0) {
+            paths.push([...currentPath]);
+            currentPath = [];
+          }
+          isPenDown = false;
+        } else if (sValue === 0) {
+          // Pen down
+          isPenDown = true;
+        }
       }
-      isPenDown = false;
+    }
+
+    // Parse G0/G1 movement commands
+    if (cleanLine.startsWith('G0') || cleanLine.startsWith('G00') ||
+        cleanLine.startsWith('G1') || cleanLine.startsWith('G01')) {
 
       // Extract X, Y coordinates
       const xMatch = cleanLine.match(/X([-\d.]+)/);
       const yMatch = cleanLine.match(/Y([-\d.]+)/);
-      const zMatch = cleanLine.match(/Z([-\d.]+)/);
 
       if (xMatch) currentX = parseFloat(xMatch[1]);
       if (yMatch) currentY = parseFloat(yMatch[1]);
-      if (zMatch) currentZ = parseFloat(zMatch[1]);
-    } else if (cleanLine.startsWith('G1') || cleanLine.startsWith('G01')) {
-      // Linear move (pen down)
-      const xMatch = cleanLine.match(/X([-\d.]+)/);
-      const yMatch = cleanLine.match(/Y([-\d.]+)/);
-      const zMatch = cleanLine.match(/Z([-\d.]+)/);
 
-      if (xMatch) currentX = parseFloat(xMatch[1]);
-      if (yMatch) currentY = parseFloat(yMatch[1]);
-      if (zMatch) currentZ = parseFloat(zMatch[1]);
-
-      // Track bounds
+      // Track bounds for all movements
       minX = Math.min(minX, currentX);
       maxX = Math.max(maxX, currentX);
       minY = Math.min(minY, currentY);
       maxY = Math.max(maxY, currentY);
 
-      // Add point to current path
-      currentPath.push({ x: currentX, y: currentY });
-      isPenDown = true;
+      // Only add to path if pen is down
+      if (isPenDown) {
+        currentPath.push({ x: currentX, y: currentY });
+      }
     }
   }
 
