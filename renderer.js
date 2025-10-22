@@ -1740,7 +1740,10 @@ async function handleVectorEject(filePath) {
     const result = await window.electronAPI.parseSVG(filePath, fileContent.data);
 
     if (result.success) {
-      currentSVGData = result.data;
+      currentSVGData = {
+        ...result.data,
+        path: filePath // Store the file path
+      };
       debugLog('Vector loaded for eject:', currentSVGData);
 
       // Switch to eject tab

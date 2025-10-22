@@ -240,6 +240,8 @@ ipcMain.handle('delete-file', async (event, filePath) => {
 
 // IPC Handler for converting SVG to G-code using vpype
 ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputHeight, unit) => {
+  let tempFilePath = null;
+
   try {
     debugLog('=== EJECT-TO-GCODE HANDLER CALLED ===');
     debugLog('SVG file path:', svgFilePath);
@@ -265,6 +267,47 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
 
     debugLog('Converted dimensions to mm:', widthMm, 'x', heightMm);
 
+    // Read and scale the SVG content
+    let svgContent = fs.readFileSync(svgFilePath, 'utf8');
+    debugLog('Original SVG length:', svgContent.length);
+
+    // Parse SVG to modify viewBox
+    // Match viewBox attribute
+    const viewBoxMatch = svgContent.match(/viewBox=["']([^"']+)["']/);
+
+    if (viewBoxMatch) {
+      const viewBoxValues = viewBoxMatch[1].split(/\s+/).map(parseFloat);
+      const [minX, minY, origWidth, origHeight] = viewBoxValues;
+
+      debugLog('Original viewBox:', viewBoxValues);
+      debugLog('Scaling to:', widthMm, 'x', heightMm, 'mm');
+
+      // Create new viewBox with target dimensions in mm
+      const newViewBox = `${minX} ${minY} ${widthMm} ${heightMm}`;
+      svgContent = svgContent.replace(/viewBox=["'][^"']+["']/, `viewBox="${newViewBox}"`);
+
+      debugLog('New viewBox:', newViewBox);
+    } else {
+      // If no viewBox, try to add one based on width/height attributes
+      const widthMatch = svgContent.match(/width=["']([^"']+)["']/);
+      const heightMatch = svgContent.match(/height=["']([^"']+)["']/);
+
+      if (widthMatch && heightMatch) {
+        const origWidth = parseFloat(widthMatch[1]);
+        const origHeight = parseFloat(heightMatch[1]);
+
+        // Insert viewBox after opening svg tag
+        const viewBox = `viewBox="0 0 ${widthMm} ${heightMm}"`;
+        svgContent = svgContent.replace(/<svg/, `<svg ${viewBox}`);
+
+        debugLog('Added viewBox:', viewBox);
+      }
+    }
+
+    // Also set width and height attributes to mm
+    svgContent = svgContent.replace(/width=["'][^"']+["']/, `width="${widthMm}mm"`);
+    svgContent = svgContent.replace(/height=["'][^"']+["']/, `height="${heightMm}mm"`);
+
     // Create gcode directory in app directory if it doesn't exist
     const gcodePath = path.join(__dirname, 'gcode');
     if (!fs.existsSync(gcodePath)) {
@@ -272,18 +315,20 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
       debugLog('Created gcode directory:', gcodePath);
     }
 
-    // Generate output filename
+    // Write scaled SVG to temporary file
     const baseName = path.basename(svgFilePath, path.extname(svgFilePath));
     const timestamp = Date.now();
-    const gcodeFilePath = path.join(gcodePath, `${baseName}_${timestamp}.gcode`);
+    tempFilePath = path.join(gcodePath, `${baseName}_${timestamp}_scaled.svg`);
+    fs.writeFileSync(tempFilePath, svgContent, 'utf8');
+    debugLog('Scaled SVG written to:', tempFilePath);
 
+    // Generate output filename
+    const gcodeFilePath = path.join(gcodePath, `${baseName}_${timestamp}.gcode`);
     debugLog('Output G-code path:', gcodeFilePath);
 
-    // Build vpype command
-    // vpype read input.svg scale to dimensions gwrite output.gcode
+    // Build vpype command - use scaled SVG without scaleto
     const vpypeArgs = [
-      'read', svgFilePath,
-      'scaleto', `${widthMm}mm`, `${heightMm}mm`,
+      'read', tempFilePath,
       'gwrite', gcodeFilePath
     ];
 
@@ -308,6 +353,16 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
 
       vpype.on('close', (code) => {
         debugLog('vpype process exited with code:', code);
+
+        // Clean up temporary file
+        if (tempFilePath && fs.existsSync(tempFilePath)) {
+          try {
+            fs.unlinkSync(tempFilePath);
+            debugLog('Cleaned up temp file:', tempFilePath);
+          } catch (err) {
+            console.error('Error cleaning up temp file:', err);
+          }
+        }
 
         if (code === 0) {
           // Check if output file was created
@@ -335,6 +390,16 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
 
       vpype.on('error', (err) => {
         console.error('Error spawning vpype:', err);
+
+        // Clean up temporary file on error
+        if (tempFilePath && fs.existsSync(tempFilePath)) {
+          try {
+            fs.unlinkSync(tempFilePath);
+          } catch (cleanupErr) {
+            console.error('Error cleaning up temp file:', cleanupErr);
+          }
+        }
+
         resolve({
           success: false,
           error: 'Failed to execute vpype. Make sure vpype and vpype-gcode are installed.',
@@ -344,6 +409,16 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
     });
   } catch (error) {
     console.error('Error in eject-to-gcode handler:', error);
+
+    // Clean up temporary file on error
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch (cleanupErr) {
+        console.error('Error cleaning up temp file:', cleanupErr);
+      }
+    }
+
     return { success: false, error: error.message };
   }
 });
