@@ -1817,9 +1817,6 @@ function loadEjectTab() {
     ejectInfoBar.style.display = 'flex';
     ejectOutputToolbar.style.display = 'flex';
 
-    // Auto-populate fixed dimensions on initial load
-    populateFixedDimensions(ejectPageSize);
-
     ejectSvgContainer.innerHTML = currentSVGData.content;
 
     // Apply proper sizing to the SVG
@@ -1992,51 +1989,39 @@ function updateEjectPageBackground() {
   // Create dimension lines
   createEjectDimensionLines(ejectViewer, displayWidth, displayHeight, widthMm, heightMm, ejectSvgContainer);
 
-  // Check if fixed output mode is enabled
-  const fixedOutputCheckbox = document.getElementById('ejectFixedOutput');
-  const isFixedOutput = fixedOutputCheckbox && fixedOutputCheckbox.checked;
-
   debugLog('=== Scaling Calculation ===');
-  debugLog('Fixed output enabled:', isFixedOutput);
   debugLog('Page size:', ejectPageSize, '→', widthMm + 'mm × ' + heightMm + 'mm');
   debugLog('Display size:', displayWidth + 'px × ' + displayHeight + 'px');
 
+  // Read output dimensions from inputs
+  const outputWidth = parseFloat(document.getElementById('ejectFixedWidth').value);
+  const outputHeight = parseFloat(document.getElementById('ejectFixedHeight').value);
+  const outputUnit = document.getElementById('ejectFixedUnit').value;
+
+  debugLog('Output dimensions:', outputWidth, '×', outputHeight, outputUnit);
+
   let scaledWidth, scaledHeight;
 
-  if (isFixedOutput) {
-    // Use fixed dimensions from inputs
-    const fixedWidth = parseFloat(document.getElementById('ejectFixedWidth').value);
-    const fixedHeight = parseFloat(document.getElementById('ejectFixedHeight').value);
-    const fixedUnit = document.getElementById('ejectFixedUnit').value;
+  if (!isNaN(outputWidth) && !isNaN(outputHeight) && outputWidth > 0 && outputHeight > 0) {
+    // Convert output dimensions to mm
+    const outputWidthMm = toMm(outputWidth, outputUnit);
+    const outputHeightMm = toMm(outputHeight, outputUnit);
 
-    debugLog('Fixed inputs:', fixedWidth, '×', fixedHeight, fixedUnit);
+    // Calculate scale factor to convert mm to display pixels
+    // Using the page's display dimensions as reference
+    const mmToPixelRatio = displayWidth / widthMm;
 
-    if (!isNaN(fixedWidth) && !isNaN(fixedHeight)) {
-      // Convert fixed dimensions to mm
-      const fixedWidthMm = toMm(fixedWidth, fixedUnit);
-      const fixedHeightMm = toMm(fixedHeight, fixedUnit);
+    scaledWidth = outputWidthMm * mmToPixelRatio;
+    scaledHeight = outputHeightMm * mmToPixelRatio;
 
-      // Calculate scale factor to convert mm to display pixels
-      // Using the page's display dimensions as reference
-      const mmToPixelRatio = displayWidth / widthMm;
-
-      scaledWidth = fixedWidthMm * mmToPixelRatio;
-      scaledHeight = fixedHeightMm * mmToPixelRatio;
-
-      debugLog('Fixed dimensions in mm:', fixedWidthMm + 'mm × ' + fixedHeightMm + 'mm');
-      debugLog('MM to pixel ratio:', mmToPixelRatio);
-      debugLog('Calculated scaled size:', scaledWidth + 'px × ' + scaledHeight + 'px');
-    } else {
-      debugLog('Invalid fixed dimensions, using full page size');
-      // Use full page size if inputs are invalid
-      scaledWidth = displayWidth;
-      scaledHeight = displayHeight;
-    }
+    debugLog('Output dimensions in mm:', outputWidthMm + 'mm × ' + outputHeightMm + 'mm');
+    debugLog('MM to pixel ratio:', mmToPixelRatio);
+    debugLog('Calculated scaled size:', scaledWidth + 'px × ' + scaledHeight + 'px');
   } else {
-    // Use full page size when fixed output is not enabled
+    debugLog('No output dimensions set, using full page size');
+    // Use full page size if inputs are invalid or empty
     scaledWidth = displayWidth;
     scaledHeight = displayHeight;
-    debugLog('Using full page size:', scaledWidth + 'px × ' + scaledHeight + 'px');
   }
 
   // Scale the svg container to fit the page
@@ -2066,29 +2051,6 @@ function removeEjectPageBackground() {
   }
 }
 
-// Helper function to populate fixed dimensions with 1/4 of page height
-function populateFixedDimensions(pageSize) {
-  const dimensions = PAGE_SIZES[pageSize];
-  if (!dimensions) return;
-
-  const [widthMm, heightMm] = dimensions;
-
-  // Calculate 1/4 of the height in inches
-  const quarterHeightMm = heightMm / 4;
-  const quarterHeightInches = quarterHeightMm / 25.4;
-
-  // Calculate proportional width based on aspect ratio
-  const aspectRatio = widthMm / heightMm;
-  const quarterWidthMm = quarterHeightMm * aspectRatio;
-  const quarterWidthInches = quarterWidthMm / 25.4;
-
-  // Populate the inputs (rounded to 2 decimal places)
-  document.getElementById('ejectFixedWidth').value = quarterWidthInches.toFixed(2);
-  document.getElementById('ejectFixedHeight').value = quarterHeightInches.toFixed(2);
-
-  debugLog('Auto-populated fixed dimensions:', quarterWidthInches.toFixed(2) + '" × ' + quarterHeightInches.toFixed(2) + '"');
-}
-
 // Eject page size button handlers
 document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -2106,12 +2068,10 @@ document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
       ejectCustomInputs.style.display = 'flex';
     } else {
       ejectCustomInputs.style.display = 'none';
-
-      // Auto-populate fixed dimensions with 1/4 of page height
-      populateFixedDimensions(size);
-
-      updateEjectPageBackground();
     }
+
+    // Update page background when page size changes
+    updateEjectPageBackground();
 
     debugLog('Eject page size selected:', size);
   });
@@ -2132,27 +2092,18 @@ const ejectCustomUnit = document.getElementById('ejectCustomUnit');
   }
 });
 
-// Fixed output dimension input handlers
+// Output dimension input handlers
 const ejectFixedWidth = document.getElementById('ejectFixedWidth');
 const ejectFixedHeight = document.getElementById('ejectFixedHeight');
 const ejectFixedUnit = document.getElementById('ejectFixedUnit');
-const ejectFixedOutput = document.getElementById('ejectFixedOutput');
 
-[ejectFixedWidth, ejectFixedHeight, ejectFixedUnit, ejectFixedOutput].forEach(input => {
+[ejectFixedWidth, ejectFixedHeight, ejectFixedUnit].forEach(input => {
   if (input) {
     input.addEventListener('input', () => {
       if (ejectPageBackgroundElement) {
         updateEjectPageBackground();
       }
     });
-    // Also listen for 'change' event for checkbox
-    if (input.type === 'checkbox') {
-      input.addEventListener('change', () => {
-        if (ejectPageBackgroundElement) {
-          updateEjectPageBackground();
-        }
-      });
-    }
   }
 });
 

@@ -365,7 +365,8 @@
           </div>
           <div class="eject-info-divider"></div>
           <div class="eject-info-item">
-            <span class="eject-info-label">Width:</span>
+            <span class="eject-info-label">Output Dimensions:</span>
+            <span class="eject-info-label" style="margin-left: 8px;">Width:</span>
             <input type="number" class="eject-dimension-input" id="ejectFixedWidth" placeholder="Width" min="1" step="0.1">
             <span class="eject-info-label" style="margin-left: 8px;">Height:</span>
             <input type="number" class="eject-dimension-input" id="ejectFixedHeight" placeholder="Height" min="1" step="0.1">
@@ -374,13 +375,6 @@
               <option value="cm">cm</option>
               <option value="in" selected>inches</option>
             </select>
-          </div>
-          <div class="eject-info-divider"></div>
-          <div class="eject-info-item">
-            <label class="eject-checkbox-label">
-              <input type="checkbox" id="ejectFixedOutput">
-              <span>Fixed Output</span>
-            </label>
           </div>
         </div>
         <div class="eject-viewer" id="ejectViewer">
@@ -408,13 +402,13 @@
               <button class="page-size-btn eject-page-size-btn" data-size="custom">Custom</button>
             </div>
             <div class="custom-size-inputs" id="ejectCustomSizeInputs" style="display: none;">
-              <input type="number" class="custom-input" id="ejectCustomWidth" placeholder="Width" min="1" step="0.1">
+              <input type="number" class="custom-input" id="ejectCustomWidth" placeholder="Width" min="1" step="0.1" value="12">
               <span class="custom-separator">×</span>
-              <input type="number" class="custom-input" id="ejectCustomHeight" placeholder="Height" min="1" step="0.1">
+              <input type="number" class="custom-input" id="ejectCustomHeight" placeholder="Height" min="1" step="0.1" value="24">
               <select class="custom-unit" id="ejectCustomUnit">
                 <option value="mm">mm</option>
                 <option value="cm">cm</option>
-                <option value="in">inches</option>
+                <option value="in" selected>inches</option>
               </select>
             </div>
           </div>
