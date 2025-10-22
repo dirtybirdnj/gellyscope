@@ -1192,7 +1192,22 @@ async function performTrace() {
       // Parse SVG to modify path attributes
       const parser = new DOMParser();
       const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
+      const svgElement = svgDoc.querySelector('svg');
       const paths = svgDoc.querySelectorAll('path');
+
+      // Make SVG responsive by removing fixed dimensions
+      if (svgElement) {
+        // Preserve viewBox if it exists, or create one from width/height
+        if (!svgElement.hasAttribute('viewBox') && svgElement.hasAttribute('width') && svgElement.hasAttribute('height')) {
+          const width = svgElement.getAttribute('width');
+          const height = svgElement.getAttribute('height');
+          svgElement.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        }
+
+        // Remove fixed width and height to make it responsive
+        svgElement.removeAttribute('width');
+        svgElement.removeAttribute('height');
+      }
 
       paths.forEach(path => {
         if (useFill) {
