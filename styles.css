@@ -833,6 +833,39 @@ body {
   padding-bottom: 8px;
   border-bottom: 1px solid #e0e0e0;
   letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s;
+}
+
+.section-header:hover {
+  color: #007acc;
+}
+
+.section-collapse-arrow {
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+
+.section-header.collapsed .section-collapse-arrow {
+  transform: rotate(-90deg);
+}
+
+.section-content {
+  overflow: hidden;
+  transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+  max-height: 2000px;
+  opacity: 1;
+}
+
+.section-content.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .control-group {

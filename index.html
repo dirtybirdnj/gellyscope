@@ -85,7 +85,11 @@
 
             <!-- Image Processing Section -->
             <div class="pipeline-section">
-              <div class="section-header">Image Processing</div>
+              <div class="section-header" data-section="image-processing">
+                <span class="section-collapse-arrow">▼</span>
+                <span>Image Processing</span>
+              </div>
+              <div class="section-content" data-section-content="image-processing">
 
               <div class="control-group">
                 <label class="control-label">Brightness</label>
@@ -142,11 +146,16 @@
                   <span class="toggle-slider"></span>
                 </label>
               </div>
+              </div>
             </div>
 
             <!-- Potrace Parameters Section -->
             <div class="pipeline-section">
-              <div class="section-header">Trace Parameters</div>
+              <div class="section-header" data-section="trace-parameters">
+                <span class="section-collapse-arrow">▼</span>
+                <span>Trace Parameters</span>
+              </div>
+              <div class="section-content" data-section-content="trace-parameters">
 
               <div class="control-group">
                 <label class="control-label">Turn Policy</label>
@@ -197,11 +206,16 @@
                   <span class="toggle-slider"></span>
                 </label>
               </div>
+              </div>
             </div>
 
             <!-- Path Options Section -->
             <div class="pipeline-section">
-              <div class="section-header">Path Options</div>
+              <div class="section-header" data-section="path-options">
+                <span class="section-collapse-arrow">▼</span>
+                <span>Path Options</span>
+              </div>
+              <div class="section-content" data-section-content="path-options">
 
               <div class="control-group">
                 <label class="control-label">Fill</label>
@@ -227,11 +241,16 @@
                   <span class="control-value" id="strokeWidthValue">1.0</span>
                 </div>
               </div>
+              </div>
             </div>
 
             <!-- Display Options Section -->
             <div class="pipeline-section">
-              <div class="section-header">Display</div>
+              <div class="section-header" data-section="display">
+                <span class="section-collapse-arrow">▼</span>
+                <span>Display</span>
+              </div>
+              <div class="section-content" data-section-content="display">
 
               <div class="control-group">
                 <label class="control-label">Show Bitmap</label>
@@ -239,6 +258,17 @@
                   <input type="checkbox" id="showBitmapToggle" checked>
                   <span class="toggle-slider"></span>
                 </label>
+              </div>
+
+              <div class="control-group">
+                <label class="control-label">Bitmap Opacity</label>
+                <div class="control-slider-wrapper">
+                  <button class="arrow-btn" data-target="bitmapOpacitySlider" data-direction="-1">◄</button>
+                  <input type="range" class="control-slider" id="bitmapOpacitySlider" min="0" max="100" value="100" step="1">
+                  <button class="arrow-btn" data-target="bitmapOpacitySlider" data-direction="1">►</button>
+                </div>
+                <span class="control-value" id="bitmapOpacityValue">100%</span>
+              </div>
               </div>
             </div>
 

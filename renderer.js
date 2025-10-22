@@ -1407,16 +1407,44 @@ if (optCurveToggle) {
 
 // ========== DISPLAY CONTROLS ==========
 
-// Show bitmap toggle - only affects bitmap, not SVG overlay
+// Show bitmap toggle - only affects visibility
 const showBitmapToggle = document.getElementById('showBitmapToggle');
 
 if (showBitmapToggle) {
   showBitmapToggle.addEventListener('change', (e) => {
     const traceImage = document.getElementById('traceImage');
     if (traceImage) {
-      traceImage.style.opacity = e.target.checked ? '1' : '0';
+      if (e.target.checked) {
+        // Restore the opacity from the slider
+        const opacitySlider = document.getElementById('bitmapOpacitySlider');
+        const opacity = opacitySlider ? parseFloat(opacitySlider.value) / 100 : 1;
+        traceImage.style.opacity = opacity;
+      } else {
+        traceImage.style.opacity = '0';
+      }
       debugLog('Show bitmap:', e.target.checked);
     }
+  });
+}
+
+// Bitmap opacity slider
+const bitmapOpacitySlider = document.getElementById('bitmapOpacitySlider');
+const bitmapOpacityValue = document.getElementById('bitmapOpacityValue');
+
+if (bitmapOpacitySlider && bitmapOpacityValue) {
+  bitmapOpacitySlider.addEventListener('input', (e) => {
+    const opacity = parseFloat(e.target.value) / 100;
+    bitmapOpacityValue.textContent = e.target.value + '%';
+
+    const traceImage = document.getElementById('traceImage');
+    const showBitmapToggle = document.getElementById('showBitmapToggle');
+
+    // Only apply opacity if bitmap is visible
+    if (traceImage && showBitmapToggle && showBitmapToggle.checked) {
+      traceImage.style.opacity = opacity;
+    }
+
+    debugLog('Bitmap opacity:', opacity);
   });
 }
 
@@ -1766,3 +1794,19 @@ if (strokeWidthSlider && strokeWidthValue) {
     }
   });
 }
+
+// ============ COLLAPSIBLE SECTIONS ============
+// Handle section collapse/expand
+document.querySelectorAll('.section-header').forEach(header => {
+  header.addEventListener('click', () => {
+    const sectionName = header.dataset.section;
+    const content = document.querySelector(`[data-section-content="${sectionName}"]`);
+
+    if (content) {
+      header.classList.toggle('collapsed');
+      content.classList.toggle('collapsed');
+
+      debugLog('Section toggled:', sectionName, header.classList.contains('collapsed') ? 'collapsed' : 'expanded');
+    }
+  });
+});
