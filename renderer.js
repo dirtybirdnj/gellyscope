@@ -1838,6 +1838,31 @@ function loadEjectTab() {
       // Display dimensions
       if (width && height) {
         ejectDimensions.textContent = `${width} × ${height}`;
+
+        // Set default output dimensions if not already set
+        // Default to 4 inches for the smaller dimension, maintaining aspect ratio
+        const currentWidth = document.getElementById('ejectFixedWidth').value;
+        const currentHeight = document.getElementById('ejectFixedHeight').value;
+
+        if (!currentWidth || !currentHeight) {
+          const aspectRatio = width / height;
+          let defaultWidth, defaultHeight;
+
+          if (width < height) {
+            // Portrait or square
+            defaultWidth = 4;
+            defaultHeight = 4 / aspectRatio;
+          } else {
+            // Landscape
+            defaultHeight = 4;
+            defaultWidth = 4 * aspectRatio;
+          }
+
+          document.getElementById('ejectFixedWidth').value = defaultWidth.toFixed(2);
+          document.getElementById('ejectFixedHeight').value = defaultHeight.toFixed(2);
+
+          debugLog('Set default output dimensions:', defaultWidth.toFixed(2) + '" × ' + defaultHeight.toFixed(2) + '"');
+        }
       } else {
         ejectDimensions.textContent = 'Unknown';
       }
