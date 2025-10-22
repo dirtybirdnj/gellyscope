@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- index.html - v36 -->
+<!-- index.html - v37 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -60,6 +60,7 @@
     .tab-content {
       flex: 1;
       display: none;
+      min-height: 0;
     }
 
     .tab-content.active {
@@ -190,6 +191,8 @@
       flex-direction: column;
       background: #fafafa;
       position: relative;
+      min-height: 0;
+      overflow: hidden;
     }
 
     .canvas-toolbar {
@@ -200,6 +203,7 @@
       gap: 16px;
       align-items: center;
       flex-wrap: wrap;
+      flex-shrink: 0;
     }
 
     .canvas-toolbar.visible {
@@ -228,6 +232,7 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
+      min-height: 0;
     }
 
     .canvas-info-bar {
@@ -239,10 +244,13 @@
       align-items: center;
       font-size: 12px;
       color: #666666;
+      flex-shrink: 0;
+      min-height: 40px;
     }
 
     .canvas-info-bar.visible {
-      display: flex;
+      display: flex !important;
+      flex-shrink: 0;
     }
 
     .info-bar-item {
@@ -987,46 +995,4 @@
               <select class="config-select" id="dataBits">
                 <option value="7">7</option>
                 <option value="8" selected>8</option>
-              </select>
-            </div>
-            <div class="config-group">
-              <label class="config-label">Stop Bits</label>
-              <select class="config-select" id="stopBits">
-                <option value="1" selected>1</option>
-                <option value="2">2</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="plotter-actions">
-            <button class="control-btn" id="connectBtn">Connect</button>
-            <button class="control-btn" id="disconnectBtn" disabled>Disconnect</button>
-            <button class="control-btn" id="refreshPorts">Refresh Ports</button>
-            <input type="file" id="plotterFileInput" accept=".gcode,.nc,.svg" />
-            <button class="control-btn" id="uploadPlotterFile" disabled>Upload File</button>
-          </div>
-        </div>
-
-        <div class="plotter-content">
-          <div class="progress-section" id="progressSection" style="display: none;">
-            <div class="info-label">File Progress</div>
-            <div class="progress-bar">
-              <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
-            </div>
-            <div style="margin-top: 8px; font-size: 12px;" id="progressInfo">Ready to send...</div>
-          </div>
-
-          <div style="flex: 1; display: flex; flex-direction: column;">
-            <div class="info-label" style="margin-bottom: 8px;">Terminal Output</div>
-            <div class="terminal" id="terminal">
-              Waiting for connection...
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="renderer.js"></script>
-</body>
-</html>
+              </select

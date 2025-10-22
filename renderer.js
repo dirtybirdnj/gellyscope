@@ -136,6 +136,16 @@ function displaySVG(data) {
   canvasContent.innerHTML = html;
   debugLog('Canvas content updated');
   
+  // Apply proper sizing to the SVG
+  const svg = document.querySelector('#svgContainer svg');
+  if (svg) {
+    // Preserve the viewBox but remove fixed width/height
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+  }
+  
   // Show the toolbar and info bar
   const toolbar = document.getElementById('canvasToolbar');
   const infoBar = document.getElementById('canvasInfoBar');
@@ -255,9 +265,16 @@ function createTreeNode(node) {
     // Highlight the corresponding SVG element
     highlightSVGElement(node);
     
-    // Update info displays
+    // Update info displays - ensure info bar is visible
     updateElementInfo(node);
     updateInfoBar(node);
+    
+    // Force info bar to show
+    const infoBar = document.getElementById('canvasInfoBar');
+    if (infoBar) {
+      infoBar.classList.add('visible');
+      infoBar.style.display = 'flex'; // Force display
+    }
   });
   
   return nodeDiv;
