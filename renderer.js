@@ -1976,8 +1976,8 @@ function updatePageBackground() {
 
   // Calculate size to fit in viewer while maintaining aspect ratio
   const viewerRect = traceViewer.getBoundingClientRect();
-  const maxWidth = viewerRect.width * 0.9;
-  const maxHeight = viewerRect.height * 0.9;
+  const maxWidth = viewerRect.width * 0.85;
+  const maxHeight = viewerRect.height * 0.85;
 
   let displayWidth, displayHeight;
 
@@ -1993,11 +1993,16 @@ function updatePageBackground() {
 
   pageBackgroundElement.style.width = displayWidth + 'px';
   pageBackgroundElement.style.height = displayHeight + 'px';
+  pageBackgroundElement.style.left = '50%';
+  pageBackgroundElement.style.top = '50%';
+  pageBackgroundElement.style.transform = 'translate(-50%, -50%)';
 
-  // Position it behind the image container
-  traceImageContainer.appendChild(pageBackgroundElement);
+  // Insert into viewer before the image container
+  traceViewer.insertBefore(pageBackgroundElement, traceImageContainer);
 
   // Scale the image container to fit the page
+  traceImageContainer.style.width = displayWidth + 'px';
+  traceImageContainer.style.height = displayHeight + 'px';
   traceImageContainer.style.maxWidth = displayWidth + 'px';
   traceImageContainer.style.maxHeight = displayHeight + 'px';
 
@@ -2012,6 +2017,8 @@ function removePageBackground() {
 
   const traceImageContainer = document.getElementById('traceImageContainer');
   if (traceImageContainer) {
+    traceImageContainer.style.width = '';
+    traceImageContainer.style.height = '';
     traceImageContainer.style.maxWidth = '';
     traceImageContainer.style.maxHeight = '';
   }
