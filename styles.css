@@ -1583,6 +1583,56 @@ input[type="file"] {
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
+.eject-info-divider {
+  width: 1px;
+  height: 24px;
+  background: #d0d0d0;
+}
+
+.eject-dimension-input {
+  width: 80px;
+  padding: 4px 8px;
+  border: 1px solid #d0d0d0;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.eject-dimension-input:focus {
+  outline: none;
+  border-color: #007acc;
+}
+
+.eject-dimension-unit {
+  padding: 4px 8px;
+  border: 1px solid #d0d0d0;
+  border-radius: 3px;
+  font-size: 12px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.eject-dimension-unit:focus {
+  outline: none;
+  border-color: #007acc;
+}
+
+.eject-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333333;
+  user-select: none;
+}
+
+.eject-checkbox-label input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
 .eject-viewer {
   flex: 1;
   width: 100%;

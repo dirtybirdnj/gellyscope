@@ -1989,10 +1989,43 @@ function updateEjectPageBackground() {
   // Create dimension lines
   createEjectDimensionLines(ejectViewer, displayWidth, displayHeight, widthMm, heightMm, ejectSvgContainer);
 
-  // Apply output scale to the svg container
-  const scaleFactor = ejectOutputScale / 100;
-  const scaledWidth = displayWidth * scaleFactor;
-  const scaledHeight = displayHeight * scaleFactor;
+  // Check if fixed output mode is enabled
+  const fixedOutputCheckbox = document.getElementById('ejectFixedOutput');
+  const isFixedOutput = fixedOutputCheckbox && fixedOutputCheckbox.checked;
+
+  let scaledWidth, scaledHeight;
+
+  if (isFixedOutput) {
+    // Use fixed dimensions from inputs
+    const fixedWidth = parseFloat(document.getElementById('ejectFixedWidth').value);
+    const fixedHeight = parseFloat(document.getElementById('ejectFixedHeight').value);
+    const fixedUnit = document.getElementById('ejectFixedUnit').value;
+
+    if (!isNaN(fixedWidth) && !isNaN(fixedHeight)) {
+      // Convert fixed dimensions to mm
+      const fixedWidthMm = toMm(fixedWidth, fixedUnit);
+      const fixedHeightMm = toMm(fixedHeight, fixedUnit);
+
+      // Calculate scale factor to convert mm to display pixels
+      // Using the page's display dimensions as reference
+      const mmToPixelRatio = displayWidth / widthMm;
+
+      scaledWidth = fixedWidthMm * mmToPixelRatio;
+      scaledHeight = fixedHeightMm * mmToPixelRatio;
+
+      debugLog('Fixed output mode:', fixedWidthMm + 'mm × ' + fixedHeightMm + 'mm', '→', scaledWidth + 'px × ' + scaledHeight + 'px');
+    } else {
+      // Fall back to scaled output if inputs are invalid
+      const scaleFactor = ejectOutputScale / 100;
+      scaledWidth = displayWidth * scaleFactor;
+      scaledHeight = displayHeight * scaleFactor;
+    }
+  } else {
+    // Apply output scale to the svg container
+    const scaleFactor = ejectOutputScale / 100;
+    scaledWidth = displayWidth * scaleFactor;
+    scaledHeight = displayHeight * scaleFactor;
+  }
 
   // Scale the svg container to fit the page
   ejectSvgContainer.style.width = scaledWidth + 'px';
@@ -2075,6 +2108,30 @@ const ejectCustomUnit = document.getElementById('ejectCustomUnit');
         updateEjectPageBackground();
       }
     });
+  }
+});
+
+// Fixed output dimension input handlers
+const ejectFixedWidth = document.getElementById('ejectFixedWidth');
+const ejectFixedHeight = document.getElementById('ejectFixedHeight');
+const ejectFixedUnit = document.getElementById('ejectFixedUnit');
+const ejectFixedOutput = document.getElementById('ejectFixedOutput');
+
+[ejectFixedWidth, ejectFixedHeight, ejectFixedUnit, ejectFixedOutput].forEach(input => {
+  if (input) {
+    input.addEventListener('input', () => {
+      if (ejectPageBackgroundElement) {
+        updateEjectPageBackground();
+      }
+    });
+    // Also listen for 'change' event for checkbox
+    if (input.type === 'checkbox') {
+      input.addEventListener('change', () => {
+        if (ejectPageBackgroundElement) {
+          updateEjectPageBackground();
+        }
+      });
+    }
   }
 });
 
