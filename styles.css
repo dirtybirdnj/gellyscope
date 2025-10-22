@@ -1069,6 +1069,15 @@ input:checked + .toggle-slider:before {
 .trace-image-container {
   position: relative;
   display: inline-block;
+  line-height: 0; /* Removes extra space below image */
+}
+
+.trace-bitmap {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  height: auto;
+  width: auto;
 }
 
 .trace-svg-overlay {
@@ -1083,6 +1092,7 @@ input:checked + .toggle-slider:before {
 .trace-svg-overlay svg {
   width: 100%;
   height: 100%;
+  display: block;
 }
 
 /* Plotter Tab */
