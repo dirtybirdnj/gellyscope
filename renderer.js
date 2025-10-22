@@ -1801,7 +1801,6 @@ switchTab = function(tabName) {
 // Eject tab page sizing variables
 let ejectPageSize = 'A4';
 let ejectPageBackgroundElement = null;
-let ejectOutputScale = 100;
 
 // Function to load SVG into Eject tab
 function loadEjectTab() {
@@ -1817,6 +1816,10 @@ function loadEjectTab() {
     ejectSvgContainer.style.display = 'flex';
     ejectInfoBar.style.display = 'flex';
     ejectOutputToolbar.style.display = 'flex';
+
+    // Auto-populate fixed dimensions on initial load
+    populateFixedDimensions(ejectPageSize);
+
     ejectSvgContainer.innerHTML = currentSVGData.content;
 
     // Apply proper sizing to the SVG
@@ -2024,18 +2027,16 @@ function updateEjectPageBackground() {
       debugLog('MM to pixel ratio:', mmToPixelRatio);
       debugLog('Calculated scaled size:', scaledWidth + 'px × ' + scaledHeight + 'px');
     } else {
-      debugLog('Invalid fixed dimensions, falling back to scaled output');
-      // Fall back to scaled output if inputs are invalid
-      const scaleFactor = ejectOutputScale / 100;
-      scaledWidth = displayWidth * scaleFactor;
-      scaledHeight = displayHeight * scaleFactor;
+      debugLog('Invalid fixed dimensions, using full page size');
+      // Use full page size if inputs are invalid
+      scaledWidth = displayWidth;
+      scaledHeight = displayHeight;
     }
   } else {
-    // Apply output scale to the svg container
-    const scaleFactor = ejectOutputScale / 100;
-    scaledWidth = displayWidth * scaleFactor;
-    scaledHeight = displayHeight * scaleFactor;
-    debugLog('Using output scale:', scaleFactor * 100 + '%', '→', scaledWidth + 'px × ' + scaledHeight + 'px');
+    // Use full page size when fixed output is not enabled
+    scaledWidth = displayWidth;
+    scaledHeight = displayHeight;
+    debugLog('Using full page size:', scaledWidth + 'px × ' + scaledHeight + 'px');
   }
 
   // Scale the svg container to fit the page
@@ -2044,7 +2045,7 @@ function updateEjectPageBackground() {
   ejectSvgContainer.style.maxWidth = scaledWidth + 'px';
   ejectSvgContainer.style.maxHeight = scaledHeight + 'px';
 
-  debugLog('Eject page background updated:', ejectPageSize, widthMm + 'mm × ' + heightMm + 'mm', 'scale:', ejectOutputScale + '%');
+  debugLog('Eject page background updated:', ejectPageSize, widthMm + 'mm × ' + heightMm + 'mm');
 }
 
 function removeEjectPageBackground() {
@@ -2065,22 +2066,27 @@ function removeEjectPageBackground() {
   }
 }
 
-// Eject output scale slider handler
-const ejectOutputScaleSlider = document.getElementById('ejectOutputScaleSlider');
-const ejectOutputScaleValue = document.getElementById('ejectOutputScaleValue');
+// Helper function to populate fixed dimensions with 1/4 of page height
+function populateFixedDimensions(pageSize) {
+  const dimensions = PAGE_SIZES[pageSize];
+  if (!dimensions) return;
 
-if (ejectOutputScaleSlider && ejectOutputScaleValue) {
-  ejectOutputScaleSlider.addEventListener('input', (e) => {
-    ejectOutputScale = parseInt(e.target.value);
-    ejectOutputScaleValue.textContent = ejectOutputScale + '%';
+  const [widthMm, heightMm] = dimensions;
 
-    // Update page background with new scale
-    if (ejectPageBackgroundElement) {
-      updateEjectPageBackground();
-    }
+  // Calculate 1/4 of the height in inches
+  const quarterHeightMm = heightMm / 4;
+  const quarterHeightInches = quarterHeightMm / 25.4;
 
-    debugLog('Eject output scale changed:', ejectOutputScale + '%');
-  });
+  // Calculate proportional width based on aspect ratio
+  const aspectRatio = widthMm / heightMm;
+  const quarterWidthMm = quarterHeightMm * aspectRatio;
+  const quarterWidthInches = quarterWidthMm / 25.4;
+
+  // Populate the inputs (rounded to 2 decimal places)
+  document.getElementById('ejectFixedWidth').value = quarterWidthInches.toFixed(2);
+  document.getElementById('ejectFixedHeight').value = quarterHeightInches.toFixed(2);
+
+  debugLog('Auto-populated fixed dimensions:', quarterWidthInches.toFixed(2) + '" × ' + quarterHeightInches.toFixed(2) + '"');
 }
 
 // Eject page size button handlers
@@ -2100,6 +2106,10 @@ document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
       ejectCustomInputs.style.display = 'flex';
     } else {
       ejectCustomInputs.style.display = 'none';
+
+      // Auto-populate fixed dimensions with 1/4 of page height
+      populateFixedDimensions(size);
+
       updateEjectPageBackground();
     }
 

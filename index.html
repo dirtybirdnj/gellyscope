@@ -372,7 +372,7 @@
             <select class="eject-dimension-unit" id="ejectFixedUnit">
               <option value="mm">mm</option>
               <option value="cm">cm</option>
-              <option value="in">inches</option>
+              <option value="in" selected>inches</option>
             </select>
           </div>
           <div class="eject-info-divider"></div>
@@ -395,12 +395,6 @@
         <!-- Output Toolbar -->
         <div class="output-toolbar" id="ejectOutputToolbar" style="display: none;">
           <div class="toolbar-section">
-            <label class="toolbar-label">Output Scale</label>
-            <input type="range" class="output-scale-slider" id="ejectOutputScaleSlider" min="10" max="100" value="100" step="5">
-            <span class="toolbar-value" id="ejectOutputScaleValue">100%</span>
-
-            <div class="toolbar-divider"></div>
-
             <label class="toolbar-label">Page Size</label>
             <div class="page-size-group">
               <button class="page-size-btn eject-page-size-btn" data-size="A0">A0</button>
