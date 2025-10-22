@@ -196,6 +196,20 @@ ipcMain.handle('read-file-base64', async (event, filePath) => {
   }
 });
 
+// IPC Handler for reading text files
+ipcMain.handle('read-file-text', async (event, filePath) => {
+  try {
+    const data = fs.readFileSync(filePath, 'utf8');
+    return {
+      success: true,
+      data: data
+    };
+  } catch (error) {
+    console.error('Error reading text file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // IPC Handler for deleting files
 ipcMain.handle('delete-file', async (event, filePath) => {
   try {

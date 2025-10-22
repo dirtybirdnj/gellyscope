@@ -1663,7 +1663,11 @@ async function loadVectors() {
     for (const file of result.files) {
       const vectorItem = document.createElement('div');
       vectorItem.className = 'vector-item';
-      vectorItem.title = file.name;
+
+      // Create image preview container
+      const previewContainer = document.createElement('div');
+      previewContainer.className = 'vector-preview';
+      previewContainer.title = file.name;
 
       // Read the SVG file as base64
       const fileData = await window.electronAPI.readFileBase64(file.path);
@@ -1675,15 +1679,39 @@ async function loadVectors() {
         img.style.width = '100%';
         img.style.height = '100%';
         img.style.objectFit = 'contain';
-        vectorItem.appendChild(img);
+        previewContainer.appendChild(img);
       } else {
-        vectorItem.textContent = '❌';
-        vectorItem.title = `Error loading ${file.name}`;
+        previewContainer.textContent = '❌';
+        previewContainer.title = `Error loading ${file.name}`;
       }
 
-      vectorItem.addEventListener('click', () => {
-        alert(`Vector: ${file.name}\nPath: ${file.path}`);
+      vectorItem.appendChild(previewContainer);
+
+      // Create buttons container
+      const buttonsContainer = document.createElement('div');
+      buttonsContainer.className = 'vector-buttons';
+
+      // Create Eject button
+      const ejectBtn = document.createElement('button');
+      ejectBtn.className = 'vector-btn eject-btn';
+      ejectBtn.textContent = 'Eject';
+      ejectBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await handleVectorEject(file.path);
       });
+
+      // Create Delete button
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'vector-btn delete-btn';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await handleVectorDelete(file.path, file.name);
+      });
+
+      buttonsContainer.appendChild(ejectBtn);
+      buttonsContainer.appendChild(deleteBtn);
+      vectorItem.appendChild(buttonsContainer);
 
       vectorGrid.appendChild(vectorItem);
     }
@@ -1692,6 +1720,65 @@ async function loadVectors() {
   } catch (error) {
     console.error('Error loading vectors:', error);
     vectorGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">Error loading vectors</div>';
+  }
+}
+
+// Handle Eject button - loads vector and switches to Eject tab
+async function handleVectorEject(filePath) {
+  try {
+    debugLog('Ejecting vector:', filePath);
+
+    // Read the file content
+    const fileContent = await window.electronAPI.readFileText(filePath);
+
+    if (!fileContent.success) {
+      alert('Error loading vector file: ' + fileContent.error);
+      return;
+    }
+
+    // Parse the SVG
+    const result = await window.electronAPI.parseSVG(filePath, fileContent.data);
+
+    if (result.success) {
+      currentSVGData = result.data;
+      debugLog('Vector loaded for eject:', currentSVGData);
+
+      // Switch to eject tab
+      switchTab('eject');
+    } else {
+      alert('Error parsing SVG: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Error ejecting vector:', error);
+    alert('Error loading vector: ' + error.message);
+  }
+}
+
+// Handle Delete button - deletes vector file with confirmation
+async function handleVectorDelete(filePath, fileName) {
+  try {
+    // Show confirmation dialog
+    const confirmed = confirm(`Are you sure you want to delete "${fileName}"?\n\nThis action cannot be undone.`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    debugLog('Deleting vector:', filePath);
+
+    // Delete the file
+    const result = await window.electronAPI.deleteFile(filePath);
+
+    if (result.success) {
+      debugLog('Vector deleted successfully');
+      // Reload the vectors grid
+      await loadVectors();
+    } else {
+      alert('Error deleting file: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Error deleting vector:', error);
+    alert('Error deleting file: ' + error.message);
   }
 }
 

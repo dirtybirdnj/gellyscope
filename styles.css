@@ -766,21 +766,71 @@ body {
 }
 
 .vector-item {
-  aspect-ratio: 1;
   background: #f0f0f0;
   border-radius: 8px;
   overflow: hidden;
-  cursor: pointer;
   transition: transform 0.2s;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 60px;
+  flex-direction: column;
   border: 1px solid #d0d0d0;
 }
 
 .vector-item:hover {
   transform: scale(1.05);
+}
+
+.vector-preview {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60px;
+  flex-shrink: 0;
+}
+
+.vector-buttons {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: #ffffff;
+  border-top: 1px solid #e0e0e0;
+}
+
+.vector-btn {
+  flex: 1;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.vector-btn:hover {
+  transform: translateY(-1px);
+}
+
+.vector-btn:active {
+  transform: translateY(0);
+}
+
+.eject-btn {
+  background: #007acc;
+  color: #ffffff;
+}
+
+.eject-btn:hover {
+  background: #005a9e;
+}
+
+.delete-btn {
+  background: #e74c3c;
+  color: #ffffff;
+}
+
+.delete-btn:hover {
+  background: #c0392b;
 }
 
 /* Trace Tab */
