@@ -1796,18 +1796,27 @@ switchTab = function(tabName) {
   }
 };
 
+// ============ EJECT TAB ============
+
+// Eject tab page sizing variables
+let ejectPageSize = 'A4';
+let ejectPageBackgroundElement = null;
+let ejectOutputScale = 100;
+
 // Function to load SVG into Eject tab
 function loadEjectTab() {
   const ejectMessage = document.getElementById('ejectMessage');
   const ejectSvgContainer = document.getElementById('ejectSvgContainer');
   const ejectInfoBar = document.getElementById('ejectInfoBar');
   const ejectDimensions = document.getElementById('ejectDimensions');
+  const ejectOutputToolbar = document.getElementById('ejectOutputToolbar');
 
   if (currentSVGData && currentSVGData.content) {
     // Hide message and show SVG container
     ejectMessage.style.display = 'none';
     ejectSvgContainer.style.display = 'flex';
     ejectInfoBar.style.display = 'flex';
+    ejectOutputToolbar.style.display = 'flex';
     ejectSvgContainer.innerHTML = currentSVGData.content;
 
     // Apply proper sizing to the SVG
@@ -1847,14 +1856,181 @@ function loadEjectTab() {
       svg.style.maxWidth = '100%';
       svg.style.maxHeight = '100%';
     }
+
+    // Update page background
+    updateEjectPageBackground();
   } else {
     // Show message and hide SVG container
     ejectMessage.style.display = 'block';
     ejectSvgContainer.style.display = 'none';
     ejectInfoBar.style.display = 'none';
+    ejectOutputToolbar.style.display = 'none';
     ejectMessage.textContent = 'No vector image loaded';
   }
 }
+
+// Get eject page dimensions in mm
+function getEjectPageDimensions() {
+  if (ejectPageSize === 'custom') {
+    const width = parseFloat(document.getElementById('ejectCustomWidth').value);
+    const height = parseFloat(document.getElementById('ejectCustomHeight').value);
+    const unit = document.getElementById('ejectCustomUnit').value;
+
+    if (isNaN(width) || isNaN(height)) {
+      return null;
+    }
+
+    return [toMm(width, unit), toMm(height, unit)];
+  } else {
+    return PAGE_SIZES[ejectPageSize];
+  }
+}
+
+// Create or update eject page background
+function updateEjectPageBackground() {
+  const ejectViewer = document.getElementById('ejectViewer');
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+
+  if (!ejectSvgContainer || ejectSvgContainer.style.display === 'none') {
+    return;
+  }
+
+  const dimensions = getEjectPageDimensions();
+  if (!dimensions) {
+    removeEjectPageBackground();
+    return;
+  }
+
+  const [widthMm, heightMm] = dimensions;
+  const aspectRatio = widthMm / heightMm;
+
+  // Remove existing background
+  if (ejectPageBackgroundElement) {
+    ejectPageBackgroundElement.remove();
+  }
+
+  // Create new page background
+  ejectPageBackgroundElement = document.createElement('div');
+  ejectPageBackgroundElement.className = 'page-background';
+
+  // Calculate size to fit in viewer while maintaining aspect ratio
+  const viewerRect = ejectViewer.getBoundingClientRect();
+  const maxWidth = viewerRect.width * 0.85;
+  const maxHeight = viewerRect.height * 0.85;
+
+  let displayWidth, displayHeight;
+
+  if (maxWidth / maxHeight > aspectRatio) {
+    // Constrained by height
+    displayHeight = maxHeight;
+    displayWidth = displayHeight * aspectRatio;
+  } else {
+    // Constrained by width
+    displayWidth = maxWidth;
+    displayHeight = displayWidth / aspectRatio;
+  }
+
+  ejectPageBackgroundElement.style.width = displayWidth + 'px';
+  ejectPageBackgroundElement.style.height = displayHeight + 'px';
+  ejectPageBackgroundElement.style.left = '50%';
+  ejectPageBackgroundElement.style.top = '50%';
+  ejectPageBackgroundElement.style.transform = 'translate(-50%, -50%)';
+
+  // Insert into viewer before the svg container
+  ejectViewer.insertBefore(ejectPageBackgroundElement, ejectSvgContainer);
+
+  // Apply output scale to the svg container
+  const scaleFactor = ejectOutputScale / 100;
+  const scaledWidth = displayWidth * scaleFactor;
+  const scaledHeight = displayHeight * scaleFactor;
+
+  // Scale the svg container to fit the page
+  ejectSvgContainer.style.width = scaledWidth + 'px';
+  ejectSvgContainer.style.height = scaledHeight + 'px';
+  ejectSvgContainer.style.maxWidth = scaledWidth + 'px';
+  ejectSvgContainer.style.maxHeight = scaledHeight + 'px';
+
+  debugLog('Eject page background updated:', ejectPageSize, widthMm + 'mm × ' + heightMm + 'mm', 'scale:', ejectOutputScale + '%');
+}
+
+function removeEjectPageBackground() {
+  if (ejectPageBackgroundElement) {
+    ejectPageBackgroundElement.remove();
+    ejectPageBackgroundElement = null;
+  }
+
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+  if (ejectSvgContainer) {
+    ejectSvgContainer.style.width = '';
+    ejectSvgContainer.style.height = '';
+    ejectSvgContainer.style.maxWidth = '';
+    ejectSvgContainer.style.maxHeight = '';
+  }
+}
+
+// Eject output scale slider handler
+const ejectOutputScaleSlider = document.getElementById('ejectOutputScaleSlider');
+const ejectOutputScaleValue = document.getElementById('ejectOutputScaleValue');
+
+if (ejectOutputScaleSlider && ejectOutputScaleValue) {
+  ejectOutputScaleSlider.addEventListener('input', (e) => {
+    ejectOutputScale = parseInt(e.target.value);
+    ejectOutputScaleValue.textContent = ejectOutputScale + '%';
+
+    // Update page background with new scale
+    if (ejectPageBackgroundElement) {
+      updateEjectPageBackground();
+    }
+
+    debugLog('Eject output scale changed:', ejectOutputScale + '%');
+  });
+}
+
+// Eject page size button handlers
+document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const size = btn.dataset.size;
+
+    // Update active state
+    document.querySelectorAll('.eject-page-size-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    ejectPageSize = size;
+
+    // Show/hide custom inputs
+    const ejectCustomInputs = document.getElementById('ejectCustomSizeInputs');
+    if (size === 'custom') {
+      ejectCustomInputs.style.display = 'flex';
+    } else {
+      ejectCustomInputs.style.display = 'none';
+      updateEjectPageBackground();
+    }
+
+    debugLog('Eject page size selected:', size);
+  });
+});
+
+// Eject custom size input handlers
+const ejectCustomWidth = document.getElementById('ejectCustomWidth');
+const ejectCustomHeight = document.getElementById('ejectCustomHeight');
+const ejectCustomUnit = document.getElementById('ejectCustomUnit');
+
+[ejectCustomWidth, ejectCustomHeight, ejectCustomUnit].forEach(input => {
+  if (input) {
+    input.addEventListener('input', () => {
+      if (ejectPageSize === 'custom') {
+        updateEjectPageBackground();
+      }
+    });
+  }
+});
+
+// Update eject page background on window resize
+window.addEventListener('resize', () => {
+  if (ejectPageBackgroundElement) {
+    updateEjectPageBackground();
+  }
+});
 
 // ============ CAMERA TAB ============
 const cameraVideo = document.getElementById('cameraVideo');
