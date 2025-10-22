@@ -89,25 +89,41 @@
 
               <div class="control-group">
                 <label class="control-label">Brightness</label>
-                <input type="range" class="control-slider" id="brightnessSlider" min="-100" max="100" value="0">
+                <div class="control-slider-wrapper">
+                  <button class="arrow-btn" data-target="brightnessSlider" data-direction="-1">◄</button>
+                  <input type="range" class="control-slider" id="brightnessSlider" min="-100" max="100" value="0" step="1">
+                  <button class="arrow-btn" data-target="brightnessSlider" data-direction="1">►</button>
+                </div>
                 <span class="control-value" id="brightnessValue">0</span>
               </div>
 
               <div class="control-group">
                 <label class="control-label">Contrast</label>
-                <input type="range" class="control-slider" id="contrastSlider" min="-100" max="100" value="0">
+                <div class="control-slider-wrapper">
+                  <button class="arrow-btn" data-target="contrastSlider" data-direction="-1">◄</button>
+                  <input type="range" class="control-slider" id="contrastSlider" min="-100" max="100" value="0" step="1">
+                  <button class="arrow-btn" data-target="contrastSlider" data-direction="1">►</button>
+                </div>
                 <span class="control-value" id="contrastValue">0</span>
               </div>
 
               <div class="control-group">
                 <label class="control-label">Saturation</label>
-                <input type="range" class="control-slider" id="saturationSlider" min="-100" max="100" value="0">
+                <div class="control-slider-wrapper">
+                  <button class="arrow-btn" data-target="saturationSlider" data-direction="-1">◄</button>
+                  <input type="range" class="control-slider" id="saturationSlider" min="-100" max="100" value="0" step="1">
+                  <button class="arrow-btn" data-target="saturationSlider" data-direction="1">►</button>
+                </div>
                 <span class="control-value" id="saturationValue">0</span>
               </div>
 
               <div class="control-group">
                 <label class="control-label">Hue Rotation</label>
-                <input type="range" class="control-slider" id="hueSlider" min="0" max="360" value="0">
+                <div class="control-slider-wrapper">
+                  <button class="arrow-btn" data-target="hueSlider" data-direction="-1">◄</button>
+                  <input type="range" class="control-slider" id="hueSlider" min="0" max="360" value="0" step="1">
+                  <button class="arrow-btn" data-target="hueSlider" data-direction="1">►</button>
+                </div>
                 <span class="control-value" id="hueValue">0°</span>
               </div>
 
@@ -146,19 +162,31 @@
 
               <div class="control-group">
                 <label class="control-label">Turd Size</label>
-                <input type="range" class="control-slider" id="turdSizeSlider" min="1" max="20" value="2">
+                <div class="control-slider-wrapper">
+                  <button class="arrow-btn" data-target="turdSizeSlider" data-direction="-1">◄</button>
+                  <input type="range" class="control-slider" id="turdSizeSlider" min="1" max="20" value="2" step="1">
+                  <button class="arrow-btn" data-target="turdSizeSlider" data-direction="1">►</button>
+                </div>
                 <span class="control-value" id="turdSizeValue">2</span>
               </div>
 
               <div class="control-group">
                 <label class="control-label">Alpha Max</label>
-                <input type="range" class="control-slider" id="alphaMaxSlider" min="0" max="2" step="0.1" value="1">
+                <div class="control-slider-wrapper">
+                  <button class="arrow-btn" data-target="alphaMaxSlider" data-direction="-1">◄</button>
+                  <input type="range" class="control-slider" id="alphaMaxSlider" min="0" max="2" step="0.1" value="1">
+                  <button class="arrow-btn" data-target="alphaMaxSlider" data-direction="1">►</button>
+                </div>
                 <span class="control-value" id="alphaMaxValue">1.0</span>
               </div>
 
               <div class="control-group">
                 <label class="control-label">Opt Tolerance</label>
-                <input type="range" class="control-slider" id="optToleranceSlider" min="0" max="1" step="0.05" value="0.2">
+                <div class="control-slider-wrapper">
+                  <button class="arrow-btn" data-target="optToleranceSlider" data-direction="-1">◄</button>
+                  <input type="range" class="control-slider" id="optToleranceSlider" min="0" max="1" step="0.05" value="0.2">
+                  <button class="arrow-btn" data-target="optToleranceSlider" data-direction="1">►</button>
+                </div>
                 <span class="control-value" id="optToleranceValue">0.20</span>
               </div>
 
@@ -168,6 +196,36 @@
                   <input type="checkbox" id="optCurveToggle" checked>
                   <span class="toggle-slider"></span>
                 </label>
+              </div>
+            </div>
+
+            <!-- Path Options Section -->
+            <div class="pipeline-section">
+              <div class="section-header">Path Options</div>
+
+              <div class="control-group">
+                <label class="control-label">Fill</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="fillToggle">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div id="strokeControls">
+                <div class="control-group">
+                  <label class="control-label">Stroke Color</label>
+                  <input type="color" class="control-color" id="strokeColorPicker" value="#000000">
+                </div>
+
+                <div class="control-group">
+                  <label class="control-label">Stroke Width</label>
+                  <div class="control-slider-wrapper">
+                    <button class="arrow-btn" data-target="strokeWidthSlider" data-direction="-1">◄</button>
+                    <input type="range" class="control-slider" id="strokeWidthSlider" min="0.1" max="10" step="0.1" value="1">
+                    <button class="arrow-btn" data-target="strokeWidthSlider" data-direction="1">►</button>
+                  </div>
+                  <span class="control-value" id="strokeWidthValue">1.0</span>
+                </div>
               </div>
             </div>
 

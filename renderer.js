@@ -1182,7 +1182,34 @@ async function performTrace() {
     // Process the image
     Potrace.process(() => {
       // Get SVG output
-      const svgString = Potrace.getSVG(1);
+      let svgString = Potrace.getSVG(1);
+
+      // Apply fill/stroke options
+      const useFill = document.getElementById('fillToggle').checked;
+      const strokeColor = document.getElementById('strokeColorPicker').value;
+      const strokeWidth = document.getElementById('strokeWidthSlider').value;
+
+      // Parse SVG to modify path attributes
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
+      const paths = svgDoc.querySelectorAll('path');
+
+      paths.forEach(path => {
+        if (useFill) {
+          // Fill mode: black fill, no stroke
+          path.setAttribute('fill', '#000000');
+          path.setAttribute('stroke', 'none');
+        } else {
+          // Stroke mode: no fill, custom stroke
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', strokeColor);
+          path.setAttribute('stroke-width', strokeWidth);
+        }
+      });
+
+      // Serialize back to string
+      const serializer = new XMLSerializer();
+      svgString = serializer.serializeToString(svgDoc);
 
       // Store the SVG data
       window.currentTraceImage.svgData = svgString;
@@ -1202,7 +1229,7 @@ async function performTrace() {
         traceActionBtn.textContent = 'Trace';
       }
 
-      debugLog('Trace completed successfully');
+      debugLog('Trace completed successfully with fill:', useFill);
     });
   } catch (error) {
     console.error('Error tracing image:', error);
@@ -1649,3 +1676,78 @@ stopCameraBtn.addEventListener('click', () => {
     debugLog('Camera stopped');
   }
 });
+
+// ============ ARROW BUTTON CONTROLS ============
+// Handle all arrow button clicks for slider adjustments
+document.querySelectorAll('.arrow-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const targetId = btn.dataset.target;
+    const direction = parseInt(btn.dataset.direction);
+    const slider = document.getElementById(targetId);
+
+    if (!slider) return;
+
+    const step = parseFloat(slider.step) || 1;
+    const min = parseFloat(slider.min);
+    const max = parseFloat(slider.max);
+    const currentValue = parseFloat(slider.value);
+
+    // Calculate new value
+    const newValue = currentValue + (step * direction);
+
+    // Clamp to min/max range
+    slider.value = Math.max(min, Math.min(max, newValue));
+
+    // Trigger input event to update display and trace
+    slider.dispatchEvent(new Event('input'));
+
+    debugLog(`Arrow button: ${targetId} ${direction > 0 ? '+' : '-'}${step} = ${slider.value}`);
+  });
+});
+
+// ============ PATH OPTIONS CONTROLS ============
+
+// Fill toggle - show/hide stroke controls
+const fillToggle = document.getElementById('fillToggle');
+const strokeControls = document.getElementById('strokeControls');
+
+if (fillToggle && strokeControls) {
+  // Set initial state (fill is OFF by default, so show stroke controls)
+  strokeControls.style.display = fillToggle.checked ? 'none' : 'block';
+
+  fillToggle.addEventListener('change', (e) => {
+    strokeControls.style.display = e.target.checked ? 'none' : 'block';
+
+    // Re-trace with new fill/stroke settings
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+
+    debugLog('Fill toggle:', e.target.checked);
+  });
+}
+
+// Stroke color picker
+const strokeColorPicker = document.getElementById('strokeColorPicker');
+
+if (strokeColorPicker) {
+  strokeColorPicker.addEventListener('input', (e) => {
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+    debugLog('Stroke color:', e.target.value);
+  });
+}
+
+// Stroke width slider
+const strokeWidthSlider = document.getElementById('strokeWidthSlider');
+const strokeWidthValue = document.getElementById('strokeWidthValue');
+
+if (strokeWidthSlider && strokeWidthValue) {
+  strokeWidthSlider.addEventListener('input', (e) => {
+    strokeWidthValue.textContent = parseFloat(e.target.value).toFixed(1);
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
