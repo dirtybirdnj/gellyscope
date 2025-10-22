@@ -1886,6 +1886,47 @@ function getEjectPageDimensions() {
   }
 }
 
+// Convert mm to other units
+function mmToInches(mm) {
+  return (mm / 25.4).toFixed(2);
+}
+
+function mmToCm(mm) {
+  return (mm / 10).toFixed(1);
+}
+
+// Create dimension lines for eject page
+function createEjectDimensionLines(viewer, displayWidth, displayHeight, widthMm, heightMm, svgContainer) {
+  // Remove existing dimension lines
+  document.querySelectorAll('.eject-dimension-line').forEach(el => el.remove());
+
+  // Format dimension text
+  const widthText = `${mmToInches(widthMm)}" / ${mmToCm(widthMm)}cm / ${widthMm.toFixed(0)}mm`;
+  const heightText = `${mmToInches(heightMm)}" / ${mmToCm(heightMm)}cm / ${heightMm.toFixed(0)}mm`;
+
+  // Create top dimension line (for width)
+  const topDimension = document.createElement('div');
+  topDimension.className = 'eject-dimension-line eject-dimension-top';
+  topDimension.innerHTML = `
+    <div class="dimension-line-segment"></div>
+    <div class="dimension-text">${widthText}</div>
+    <div class="dimension-line-segment"></div>
+  `;
+  topDimension.style.width = displayWidth + 'px';
+  viewer.appendChild(topDimension);
+
+  // Create right dimension line (for height)
+  const rightDimension = document.createElement('div');
+  rightDimension.className = 'eject-dimension-line eject-dimension-right';
+  rightDimension.innerHTML = `
+    <div class="dimension-line-segment"></div>
+    <div class="dimension-text dimension-text-vertical">${heightText}</div>
+    <div class="dimension-line-segment"></div>
+  `;
+  rightDimension.style.height = displayHeight + 'px';
+  viewer.appendChild(rightDimension);
+}
+
 // Create or update eject page background
 function updateEjectPageBackground() {
   const ejectViewer = document.getElementById('ejectViewer');
@@ -1939,6 +1980,9 @@ function updateEjectPageBackground() {
   // Insert into viewer before the svg container
   ejectViewer.insertBefore(ejectPageBackgroundElement, ejectSvgContainer);
 
+  // Create dimension lines
+  createEjectDimensionLines(ejectViewer, displayWidth, displayHeight, widthMm, heightMm, ejectSvgContainer);
+
   // Apply output scale to the svg container
   const scaleFactor = ejectOutputScale / 100;
   const scaledWidth = displayWidth * scaleFactor;
@@ -1958,6 +2002,9 @@ function removeEjectPageBackground() {
     ejectPageBackgroundElement.remove();
     ejectPageBackgroundElement = null;
   }
+
+  // Remove dimension lines
+  document.querySelectorAll('.eject-dimension-line').forEach(el => el.remove());
 
   const ejectSvgContainer = document.getElementById('ejectSvgContainer');
   if (ejectSvgContainer) {
