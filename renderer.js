@@ -1085,6 +1085,84 @@ function showImageInTraceTab(imageSrc, fileName) {
 
 // ============ TRACE TAB CONTROLS ============
 
+let capturedLayers = [];
+let traceDebounceTimer = null;
+
+// Debounced trace function
+function performTrace() {
+  if (!window.currentTraceImage || !window.currentTraceImage.src) {
+    return;
+  }
+
+  try {
+    const traceActionBtn = document.getElementById('traceActionBtn');
+    if (traceActionBtn) {
+      traceActionBtn.disabled = true;
+      traceActionBtn.textContent = 'Tracing...';
+    }
+
+    // Set potrace parameters based on sliders
+    const contrastSlider = document.getElementById('contrastSlider');
+    const dotSizeSlider = document.getElementById('dotSizeSlider');
+    const threshold = parseInt(contrastSlider.value) * 2.55; // Convert 0-100 to 0-255
+    const turdsize = parseInt(dotSizeSlider.value);
+
+    Potrace.setParameter({
+      turdsize: turdsize,
+      turnpolicy: 'minority',
+      optcurve: true,
+      alphamax: 1,
+      opttolerance: 0.2
+    });
+
+    // Load image into potrace
+    Potrace.loadImageFromUrl(window.currentTraceImage.src);
+
+    // Process the image
+    Potrace.process(() => {
+      // Get SVG output
+      const svgString = Potrace.getSVG(1);
+
+      // Store the SVG data
+      window.currentTraceImage.svgData = svgString;
+
+      // Display the SVG overlay
+      const traceSvgOverlay = document.getElementById('traceSvgOverlay');
+      traceSvgOverlay.innerHTML = svgString;
+
+      // Enable capture button
+      const captureBtn = document.getElementById('captureTraceBtn');
+      if (captureBtn) {
+        captureBtn.disabled = false;
+      }
+
+      if (traceActionBtn) {
+        traceActionBtn.disabled = false;
+        traceActionBtn.textContent = 'Trace';
+      }
+
+      debugLog('Trace completed successfully');
+    });
+  } catch (error) {
+    console.error('Error tracing image:', error);
+    const traceActionBtn = document.getElementById('traceActionBtn');
+    if (traceActionBtn) {
+      traceActionBtn.disabled = false;
+      traceActionBtn.textContent = 'Trace';
+    }
+  }
+}
+
+// Debounced trace trigger
+function triggerAutoTrace() {
+  if (traceDebounceTimer) {
+    clearTimeout(traceDebounceTimer);
+  }
+  traceDebounceTimer = setTimeout(() => {
+    performTrace();
+  }, 500); // Wait 500ms after last change
+}
+
 // Contrast slider
 const contrastSlider = document.getElementById('contrastSlider');
 const contrastValue = document.getElementById('contrastValue');
@@ -1093,6 +1171,10 @@ if (contrastSlider && contrastValue) {
   contrastSlider.addEventListener('input', (e) => {
     contrastValue.textContent = e.target.value;
     debugLog('Contrast:', e.target.value);
+    // Auto re-trace on change
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
   });
 }
 
@@ -1104,17 +1186,23 @@ if (dotSizeSlider && dotSizeValue) {
   dotSizeSlider.addEventListener('input', (e) => {
     dotSizeValue.textContent = e.target.value;
     debugLog('Dot Size:', e.target.value);
+    // Auto re-trace on change
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
   });
 }
 
-// Show bitmap toggle
+// Show bitmap toggle - only affects bitmap, not SVG overlay
 const showBitmapToggle = document.getElementById('showBitmapToggle');
-const traceImage = document.getElementById('traceImage');
 
-if (showBitmapToggle && traceImage) {
+if (showBitmapToggle) {
   showBitmapToggle.addEventListener('change', (e) => {
-    traceImage.style.display = e.target.checked ? 'block' : 'none';
-    debugLog('Show bitmap:', e.target.checked);
+    const traceImage = document.getElementById('traceImage');
+    if (traceImage) {
+      traceImage.style.opacity = e.target.checked ? '1' : '0';
+      debugLog('Show bitmap:', e.target.checked);
+    }
   });
 }
 
@@ -1122,66 +1210,17 @@ if (showBitmapToggle && traceImage) {
 const traceActionBtn = document.getElementById('traceActionBtn');
 
 if (traceActionBtn) {
-  traceActionBtn.addEventListener('click', async () => {
+  traceActionBtn.addEventListener('click', () => {
     if (!window.currentTraceImage || !window.currentTraceImage.src) {
       alert('Please select an image first');
       return;
     }
-
-    try {
-      traceActionBtn.disabled = true;
-      traceActionBtn.textContent = 'Tracing...';
-
-      // Set potrace parameters based on sliders
-      const threshold = parseInt(contrastSlider.value) * 2.55; // Convert 0-100 to 0-255
-      const turdsize = parseInt(dotSizeSlider.value);
-
-      Potrace.setParameter({
-        turdsize: turdsize,
-        turnpolicy: 'minority',
-        optcurve: true,
-        alphamax: 1,
-        opttolerance: 0.2
-      });
-
-      // Load image into potrace
-      Potrace.loadImageFromUrl(window.currentTraceImage.src);
-
-      // Process the image
-      Potrace.process(() => {
-        // Get SVG output
-        const svgString = Potrace.getSVG(1);
-
-        // Store the SVG data
-        window.currentTraceImage.svgData = svgString;
-
-        // Display the SVG overlay
-        const traceSvgOverlay = document.getElementById('traceSvgOverlay');
-        traceSvgOverlay.innerHTML = svgString;
-
-        // Enable capture button
-        const captureBtn = document.getElementById('captureTraceBtn');
-        if (captureBtn) {
-          captureBtn.disabled = false;
-        }
-
-        traceActionBtn.disabled = false;
-        traceActionBtn.textContent = 'Trace';
-
-        debugLog('Trace completed successfully');
-      });
-    } catch (error) {
-      console.error('Error tracing image:', error);
-      alert('Error tracing image: ' + error.message);
-      traceActionBtn.disabled = false;
-      traceActionBtn.textContent = 'Trace';
-    }
+    performTrace();
   });
 }
 
-// Capture trace button
+// Capture trace button with loading spinner
 const captureTraceBtn = document.getElementById('captureTraceBtn');
-let capturedLayers = [];
 
 if (captureTraceBtn) {
   captureTraceBtn.addEventListener('click', () => {
@@ -1190,21 +1229,33 @@ if (captureTraceBtn) {
       return;
     }
 
-    // Create a new layer
-    const layerName = `Layer ${capturedLayers.length + 1}`;
-    const layer = {
-      id: Date.now(),
-      name: layerName,
-      svgData: window.currentTraceImage.svgData,
-      visible: true
-    };
+    // Disable button and show loading spinner
+    captureTraceBtn.disabled = true;
+    const originalText = captureTraceBtn.textContent;
+    captureTraceBtn.innerHTML = 'Capturing<span class="spinner"></span>';
 
-    capturedLayers.push(layer);
+    // Simulate processing time (potrace processing happens sync, so we use setTimeout to show spinner)
+    setTimeout(() => {
+      // Create a new layer
+      const layerName = `Layer ${capturedLayers.length + 1}`;
+      const layer = {
+        id: Date.now(),
+        name: layerName,
+        svgData: window.currentTraceImage.svgData,
+        visible: true
+      };
 
-    // Add to layers list
-    updateLayersList();
+      capturedLayers.push(layer);
 
-    debugLog('Captured trace as:', layerName);
+      // Add to layers list
+      updateLayersList();
+
+      // Re-enable button and remove spinner
+      captureTraceBtn.disabled = false;
+      captureTraceBtn.textContent = originalText;
+
+      debugLog('Captured trace as:', layerName);
+    }, 300);
   });
 }
 
@@ -1232,8 +1283,11 @@ function updateLayersList() {
     deleteBtn.style.cssText = 'background: none; border: none; font-size: 20px; color: #d32f2f; cursor: pointer; padding: 0; width: 24px; height: 24px;';
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      // Remove from array
       capturedLayers.splice(index, 1);
+      // Update the list display
       updateLayersList();
+      debugLog('Deleted layer:', layer.name);
     });
 
     layerItem.appendChild(layerName);
