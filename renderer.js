@@ -2353,7 +2353,7 @@ if (ejectToGcodeBtn) {
           downloadGcodeBtn.disabled = false;
         }
 
-        alert(`G-code generated successfully!\n\nSaved to app's gcode directory.`);
+        alert(`G-code generated successfully!\n\nSaved to ~/gellyroller directory.`);
         debugLog('G-code file created:', result.gcodeFilePath);
       } else {
         alert(`Failed to generate G-code:\n\n${result.error}\n\n${result.stderr || ''}`);

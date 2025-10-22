@@ -308,11 +308,12 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
     svgContent = svgContent.replace(/width=["'][^"']+["']/, `width="${widthMm}mm"`);
     svgContent = svgContent.replace(/height=["'][^"']+["']/, `height="${heightMm}mm"`);
 
-    // Create gcode directory in app directory if it doesn't exist
-    const gcodePath = path.join(__dirname, 'gcode');
+    // Use gellyroller directory in user's home for G-code output
+    const homeDir = os.homedir();
+    const gcodePath = path.join(homeDir, 'gellyroller');
     if (!fs.existsSync(gcodePath)) {
       fs.mkdirSync(gcodePath, { recursive: true });
-      debugLog('Created gcode directory:', gcodePath);
+      debugLog('Created gellyroller directory:', gcodePath);
     }
 
     // Write scaled SVG to temporary file
