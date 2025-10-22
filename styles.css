@@ -1171,6 +1171,55 @@ input:checked + .toggle-slider:before {
   white-space: nowrap;
 }
 
+.toolbar-value {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666666;
+  min-width: 45px;
+  text-align: center;
+}
+
+/* Output Scale Slider */
+.output-scale-slider {
+  width: 150px;
+  height: 6px;
+  border-radius: 3px;
+  background: #d0d0d0;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.output-scale-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #007acc;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.output-scale-slider::-webkit-slider-thumb:hover {
+  background: #005a9e;
+}
+
+.output-scale-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #007acc;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+
+.output-scale-slider::-moz-range-thumb:hover {
+  background: #005a9e;
+}
+
 /* Page Size Segmented Control */
 .page-size-group {
   display: flex;

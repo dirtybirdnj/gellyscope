@@ -1919,6 +1919,7 @@ const PAGE_SIZES = {
 
 let currentPageSize = 'A4';
 let pageBackgroundElement = null;
+let outputScale = 100; // Output scale percentage
 
 // Convert units to mm
 function toMm(value, unit) {
@@ -2000,13 +2001,18 @@ function updatePageBackground() {
   // Insert into viewer before the image container
   traceViewer.insertBefore(pageBackgroundElement, traceImageContainer);
 
-  // Scale the image container to fit the page
-  traceImageContainer.style.width = displayWidth + 'px';
-  traceImageContainer.style.height = displayHeight + 'px';
-  traceImageContainer.style.maxWidth = displayWidth + 'px';
-  traceImageContainer.style.maxHeight = displayHeight + 'px';
+  // Apply output scale to the image container
+  const scaleFactor = outputScale / 100;
+  const scaledWidth = displayWidth * scaleFactor;
+  const scaledHeight = displayHeight * scaleFactor;
 
-  debugLog('Page background updated:', currentPageSize, widthMm + 'mm × ' + heightMm + 'mm');
+  // Scale the image container to fit the page
+  traceImageContainer.style.width = scaledWidth + 'px';
+  traceImageContainer.style.height = scaledHeight + 'px';
+  traceImageContainer.style.maxWidth = scaledWidth + 'px';
+  traceImageContainer.style.maxHeight = scaledHeight + 'px';
+
+  debugLog('Page background updated:', currentPageSize, widthMm + 'mm × ' + heightMm + 'mm', 'scale:', outputScale + '%');
 }
 
 function removePageBackground() {
@@ -2022,6 +2028,24 @@ function removePageBackground() {
     traceImageContainer.style.maxWidth = '';
     traceImageContainer.style.maxHeight = '';
   }
+}
+
+// Output scale slider handler
+const outputScaleSlider = document.getElementById('outputScaleSlider');
+const outputScaleValue = document.getElementById('outputScaleValue');
+
+if (outputScaleSlider && outputScaleValue) {
+  outputScaleSlider.addEventListener('input', (e) => {
+    outputScale = parseInt(e.target.value);
+    outputScaleValue.textContent = outputScale + '%';
+
+    // Update page background with new scale
+    if (pageBackgroundElement) {
+      updatePageBackground();
+    }
+
+    debugLog('Output scale changed:', outputScale + '%');
+  });
 }
 
 // Page size button handlers
