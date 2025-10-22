@@ -1993,6 +1993,11 @@ function updateEjectPageBackground() {
   const fixedOutputCheckbox = document.getElementById('ejectFixedOutput');
   const isFixedOutput = fixedOutputCheckbox && fixedOutputCheckbox.checked;
 
+  debugLog('=== Scaling Calculation ===');
+  debugLog('Fixed output enabled:', isFixedOutput);
+  debugLog('Page size:', ejectPageSize, '→', widthMm + 'mm × ' + heightMm + 'mm');
+  debugLog('Display size:', displayWidth + 'px × ' + displayHeight + 'px');
+
   let scaledWidth, scaledHeight;
 
   if (isFixedOutput) {
@@ -2000,6 +2005,8 @@ function updateEjectPageBackground() {
     const fixedWidth = parseFloat(document.getElementById('ejectFixedWidth').value);
     const fixedHeight = parseFloat(document.getElementById('ejectFixedHeight').value);
     const fixedUnit = document.getElementById('ejectFixedUnit').value;
+
+    debugLog('Fixed inputs:', fixedWidth, '×', fixedHeight, fixedUnit);
 
     if (!isNaN(fixedWidth) && !isNaN(fixedHeight)) {
       // Convert fixed dimensions to mm
@@ -2013,8 +2020,11 @@ function updateEjectPageBackground() {
       scaledWidth = fixedWidthMm * mmToPixelRatio;
       scaledHeight = fixedHeightMm * mmToPixelRatio;
 
-      debugLog('Fixed output mode:', fixedWidthMm + 'mm × ' + fixedHeightMm + 'mm', '→', scaledWidth + 'px × ' + scaledHeight + 'px');
+      debugLog('Fixed dimensions in mm:', fixedWidthMm + 'mm × ' + fixedHeightMm + 'mm');
+      debugLog('MM to pixel ratio:', mmToPixelRatio);
+      debugLog('Calculated scaled size:', scaledWidth + 'px × ' + scaledHeight + 'px');
     } else {
+      debugLog('Invalid fixed dimensions, falling back to scaled output');
       // Fall back to scaled output if inputs are invalid
       const scaleFactor = ejectOutputScale / 100;
       scaledWidth = displayWidth * scaleFactor;
@@ -2025,6 +2035,7 @@ function updateEjectPageBackground() {
     const scaleFactor = ejectOutputScale / 100;
     scaledWidth = displayWidth * scaleFactor;
     scaledHeight = displayHeight * scaleFactor;
+    debugLog('Using output scale:', scaleFactor * 100 + '%', '→', scaledWidth + 'px × ' + scaledHeight + 'px');
   }
 
   // Scale the svg container to fit the page
