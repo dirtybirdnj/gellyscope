@@ -1077,6 +1077,12 @@ function showImageInTraceTab(imageSrc, fileName) {
   traceImageContainer.style.display = 'block';
   traceMessage.style.display = 'none';
 
+  // Show the output toolbar
+  const outputToolbar = document.getElementById('outputToolbar');
+  if (outputToolbar) {
+    outputToolbar.style.display = 'flex';
+  }
+
   // Switch to trace tab
   switchTab('trace');
 
@@ -1243,6 +1249,11 @@ async function performTrace() {
         traceActionBtn.disabled = false;
         traceActionBtn.textContent = 'Trace';
       }
+
+      // Update page background after trace
+      setTimeout(() => {
+        updatePageBackground();
+      }, 100);
 
       debugLog('Trace completed successfully with fill:', useFill);
     });
@@ -1810,3 +1821,327 @@ document.querySelectorAll('.section-header').forEach(header => {
     }
   });
 });
+
+// ============ OUTPUT SCALING & PAGE SIZE ============
+
+// Page sizes in mm (width × height)
+const PAGE_SIZES = {
+  'A0': [841, 1189],
+  'A1': [594, 841],
+  'A2': [420, 594],
+  'A3': [297, 420],
+  'A4': [210, 297],
+  'A5': [148, 210],
+  'A6': [105, 148],
+  'A7': [74, 105]
+};
+
+let currentPageSize = 'A4';
+let pageBackgroundElement = null;
+
+// Convert units to mm
+function toMm(value, unit) {
+  switch (unit) {
+    case 'mm': return value;
+    case 'cm': return value * 10;
+    case 'in': return value * 25.4;
+    default: return value;
+  }
+}
+
+// Get page dimensions in mm
+function getPageDimensions() {
+  if (currentPageSize === 'custom') {
+    const width = parseFloat(document.getElementById('customWidth').value);
+    const height = parseFloat(document.getElementById('customHeight').value);
+    const unit = document.getElementById('customUnit').value;
+
+    if (isNaN(width) || isNaN(height)) {
+      return null;
+    }
+
+    return [toMm(width, unit), toMm(height, unit)];
+  } else {
+    return PAGE_SIZES[currentPageSize];
+  }
+}
+
+// Create or update page background
+function updatePageBackground() {
+  const traceViewer = document.getElementById('traceViewer');
+  const traceImageContainer = document.getElementById('traceImageContainer');
+
+  if (!traceImageContainer || traceImageContainer.style.display === 'none') {
+    return;
+  }
+
+  const dimensions = getPageDimensions();
+  if (!dimensions) {
+    removePageBackground();
+    return;
+  }
+
+  const [widthMm, heightMm] = dimensions;
+  const aspectRatio = widthMm / heightMm;
+
+  // Remove existing background
+  if (pageBackgroundElement) {
+    pageBackgroundElement.remove();
+  }
+
+  // Create new page background
+  pageBackgroundElement = document.createElement('div');
+  pageBackgroundElement.className = 'page-background';
+
+  // Calculate size to fit in viewer while maintaining aspect ratio
+  const viewerRect = traceViewer.getBoundingClientRect();
+  const maxWidth = viewerRect.width * 0.9;
+  const maxHeight = viewerRect.height * 0.9;
+
+  let displayWidth, displayHeight;
+
+  if (maxWidth / maxHeight > aspectRatio) {
+    // Constrained by height
+    displayHeight = maxHeight;
+    displayWidth = displayHeight * aspectRatio;
+  } else {
+    // Constrained by width
+    displayWidth = maxWidth;
+    displayHeight = displayWidth / aspectRatio;
+  }
+
+  pageBackgroundElement.style.width = displayWidth + 'px';
+  pageBackgroundElement.style.height = displayHeight + 'px';
+
+  // Position it behind the image container
+  traceImageContainer.appendChild(pageBackgroundElement);
+
+  // Scale the image container to fit the page
+  traceImageContainer.style.maxWidth = displayWidth + 'px';
+  traceImageContainer.style.maxHeight = displayHeight + 'px';
+
+  debugLog('Page background updated:', currentPageSize, widthMm + 'mm × ' + heightMm + 'mm');
+}
+
+function removePageBackground() {
+  if (pageBackgroundElement) {
+    pageBackgroundElement.remove();
+    pageBackgroundElement = null;
+  }
+
+  const traceImageContainer = document.getElementById('traceImageContainer');
+  if (traceImageContainer) {
+    traceImageContainer.style.maxWidth = '';
+    traceImageContainer.style.maxHeight = '';
+  }
+}
+
+// Page size button handlers
+document.querySelectorAll('.page-size-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const size = btn.dataset.size;
+
+    // Update active state
+    document.querySelectorAll('.page-size-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    currentPageSize = size;
+
+    // Show/hide custom inputs
+    const customInputs = document.getElementById('customSizeInputs');
+    if (size === 'custom') {
+      customInputs.style.display = 'flex';
+    } else {
+      customInputs.style.display = 'none';
+      updatePageBackground();
+    }
+
+    debugLog('Page size selected:', size);
+  });
+});
+
+// Custom size input handlers
+const customWidth = document.getElementById('customWidth');
+const customHeight = document.getElementById('customHeight');
+const customUnit = document.getElementById('customUnit');
+
+[customWidth, customHeight, customUnit].forEach(input => {
+  if (input) {
+    input.addEventListener('input', () => {
+      if (currentPageSize === 'custom') {
+        updatePageBackground();
+      }
+    });
+  }
+});
+
+// Update page background on window resize
+window.addEventListener('resize', () => {
+  if (pageBackgroundElement) {
+    updatePageBackground();
+  }
+});
+
+// Initialize page background for A4
+setTimeout(() => {
+  if (window.currentTraceImage && window.currentTraceImage.src) {
+    updatePageBackground();
+  }
+}, 100);
+
+// ============ SAVE FUNCTIONALITY ============
+
+// Save SVG button
+const saveSvgBtn = document.getElementById('saveSvgBtn');
+if (saveSvgBtn) {
+  saveSvgBtn.addEventListener('click', async () => {
+    if (!window.currentTraceImage || !window.currentTraceImage.svgData) {
+      alert('No SVG data to save. Please trace an image first.');
+      return;
+    }
+
+    try {
+      saveSvgBtn.disabled = true;
+      const originalText = saveSvgBtn.innerHTML;
+      saveSvgBtn.innerHTML = '<span>⏳</span> Saving...';
+
+      // Generate filename from original image name
+      const baseName = window.currentTraceImage.fileName.replace(/\.[^/.]+$/, '');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const filename = `${baseName}_trace_${timestamp}.svg`;
+
+      // Convert SVG string to data URL
+      const svgBlob = new Blob([window.currentTraceImage.svgData], { type: 'image/svg+xml' });
+      const reader = new FileReader();
+
+      reader.onload = async function() {
+        const dataUrl = reader.result;
+
+        // Save using existing saveImage method (works for SVG too)
+        const result = await window.electronAPI.saveImage(dataUrl, filename);
+
+        if (result.success) {
+          debugLog('SVG saved:', result.path);
+
+          // Switch to vectors tab
+          switchTab('vectors');
+
+          // Show success message briefly
+          saveSvgBtn.innerHTML = '<span>✓</span> Saved!';
+          setTimeout(() => {
+            saveSvgBtn.innerHTML = originalText;
+            saveSvgBtn.disabled = false;
+          }, 2000);
+        } else {
+          throw new Error(result.error);
+        }
+      };
+
+      reader.readAsDataURL(svgBlob);
+
+    } catch (error) {
+      console.error('Error saving SVG:', error);
+      alert('Error saving SVG: ' + error.message);
+      saveSvgBtn.disabled = false;
+      saveSvgBtn.innerHTML = '<span>💾</span> Save SVG';
+    }
+  });
+}
+
+// Save Image button
+const saveImageBtn = document.getElementById('saveImageBtn');
+if (saveImageBtn) {
+  saveImageBtn.addEventListener('click', async () => {
+    const traceImageContainer = document.getElementById('traceImageContainer');
+    const traceSvgOverlay = document.getElementById('traceSvgOverlay');
+
+    if (!traceSvgOverlay || !traceSvgOverlay.innerHTML) {
+      alert('No trace to save. Please trace an image first.');
+      return;
+    }
+
+    try {
+      saveImageBtn.disabled = true;
+      const originalText = saveImageBtn.innerHTML;
+      saveImageBtn.innerHTML = '<span>⏳</span> Saving...';
+
+      // Create a canvas to render the composite image
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Get the container dimensions
+      const containerRect = traceImageContainer.getBoundingClientRect();
+      canvas.width = containerRect.width;
+      canvas.height = containerRect.height;
+
+      // Draw white background if page background exists
+      if (pageBackgroundElement) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Draw the bitmap image
+      const traceImage = document.getElementById('traceImage');
+      const bitmapOpacity = parseFloat(document.getElementById('bitmapOpacitySlider').value) / 100;
+      const showBitmap = document.getElementById('showBitmapToggle').checked;
+
+      if (showBitmap && bitmapOpacity > 0) {
+        ctx.globalAlpha = bitmapOpacity;
+        ctx.drawImage(traceImage, 0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1.0;
+      }
+
+      // Draw the SVG
+      const svgElement = traceSvgOverlay.querySelector('svg');
+      if (svgElement) {
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const svgUrl = URL.createObjectURL(svgBlob);
+
+        const img = new Image();
+        img.onload = function() {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(svgUrl);
+
+          // Convert canvas to JPEG
+          canvas.toBlob(async (blob) => {
+            const reader = new FileReader();
+            reader.onload = async function() {
+              const dataUrl = reader.result;
+
+              // Generate filename
+              const baseName = window.currentTraceImage.fileName.replace(/\.[^/.]+$/, '');
+              const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+              const filename = `${baseName}_traced_${timestamp}.jpg`;
+
+              // Trigger download
+              const a = document.createElement('a');
+              a.href = dataUrl;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+
+              debugLog('Image downloaded:', filename);
+
+              // Show success message
+              saveImageBtn.innerHTML = '<span>✓</span> Downloaded!';
+              setTimeout(() => {
+                saveImageBtn.innerHTML = originalText;
+                saveImageBtn.disabled = false;
+              }, 2000);
+            };
+            reader.readAsDataURL(blob);
+          }, 'image/jpeg', 0.95);
+        };
+        img.src = svgUrl;
+      }
+
+    } catch (error) {
+      console.error('Error saving image:', error);
+      alert('Error saving image: ' + error.message);
+      saveImageBtn.disabled = false;
+      saveImageBtn.innerHTML = '<span>📷</span> Save Image';
+    }
+  });
+}

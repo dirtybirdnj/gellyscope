@@ -76,6 +76,43 @@
               <div id="traceSvgOverlay" class="trace-svg-overlay"></div>
             </div>
           </div>
+
+          <!-- Output Toolbar -->
+          <div class="output-toolbar" id="outputToolbar" style="display: none;">
+            <div class="toolbar-section">
+              <label class="toolbar-label">Page Size</label>
+              <div class="page-size-group">
+                <button class="page-size-btn" data-size="A0">A0</button>
+                <button class="page-size-btn" data-size="A1">A1</button>
+                <button class="page-size-btn" data-size="A2">A2</button>
+                <button class="page-size-btn" data-size="A3">A3</button>
+                <button class="page-size-btn active" data-size="A4">A4</button>
+                <button class="page-size-btn" data-size="A5">A5</button>
+                <button class="page-size-btn" data-size="A6">A6</button>
+                <button class="page-size-btn" data-size="A7">A7</button>
+                <button class="page-size-btn" data-size="custom">Custom</button>
+              </div>
+              <div class="custom-size-inputs" id="customSizeInputs" style="display: none;">
+                <input type="number" class="custom-input" id="customWidth" placeholder="Width" min="1" step="0.1">
+                <span class="custom-separator">×</span>
+                <input type="number" class="custom-input" id="customHeight" placeholder="Height" min="1" step="0.1">
+                <select class="custom-unit" id="customUnit">
+                  <option value="mm">mm</option>
+                  <option value="cm">cm</option>
+                  <option value="in">inches</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="toolbar-section">
+              <button class="toolbar-action-btn save-svg-btn" id="saveSvgBtn">
+                <span>💾</span> Save SVG
+              </button>
+              <button class="toolbar-action-btn save-image-btn" id="saveImageBtn">
+                <span>📷</span> Save Image
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Right Panel: Controls -->
