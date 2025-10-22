@@ -1802,6 +1802,7 @@ switchTab = function(tabName) {
 let ejectPageSize = 'A4';
 let ejectPageBackgroundElement = null;
 let ejectOriginalAspectRatio = 1; // Store original SVG aspect ratio
+let ejectPreviousUnit = 'in'; // Track previous unit for conversion
 
 // Function to load SVG into Eject tab
 function loadEjectTab() {
@@ -1888,6 +1889,9 @@ function loadEjectTab() {
 
     // Update page background
     updateEjectPageBackground();
+
+    // Update page size buttons based on output dimensions
+    updateEjectPageSizeButtons();
   } else {
     // Show message and hide SVG container
     ejectMessage.style.display = 'block';
@@ -1922,6 +1926,16 @@ function mmToInches(mm) {
 
 function mmToCm(mm) {
   return (mm / 10).toFixed(1);
+}
+
+// Convert from mm to any unit
+function fromMm(mm, unit) {
+  switch (unit) {
+    case 'mm': return mm;
+    case 'cm': return mm / 10;
+    case 'in': return mm / 25.4;
+    default: return mm;
+  }
 }
 
 // Create dimension lines for eject page
@@ -2080,6 +2094,62 @@ function removeEjectPageBackground() {
   }
 }
 
+// Update page size button states based on output dimensions
+function updateEjectPageSizeButtons() {
+  const outputWidth = parseFloat(document.getElementById('ejectFixedWidth').value);
+  const outputHeight = parseFloat(document.getElementById('ejectFixedHeight').value);
+  const outputUnit = document.getElementById('ejectFixedUnit').value;
+
+  // If no valid dimensions, enable all buttons
+  if (isNaN(outputWidth) || isNaN(outputHeight) || outputWidth <= 0 || outputHeight <= 0) {
+    document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+    });
+    return;
+  }
+
+  // Convert output dimensions to mm
+  const outputWidthMm = toMm(outputWidth, outputUnit);
+  const outputHeightMm = toMm(outputHeight, outputUnit);
+
+  debugLog('Checking page sizes for output:', outputWidthMm + 'mm × ' + outputHeightMm + 'mm');
+
+  // Check each page size button
+  document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
+    const size = btn.dataset.size;
+
+    // Custom size is always enabled
+    if (size === 'custom') {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+      return;
+    }
+
+    // Get page dimensions for this size
+    const pageDimensions = PAGE_SIZES[size];
+    if (!pageDimensions) {
+      return;
+    }
+
+    const [pageWidthMm, pageHeightMm] = pageDimensions;
+
+    // Check if output fits on this page size (considering both orientations)
+    const fitsPortrait = outputWidthMm <= pageWidthMm && outputHeightMm <= pageHeightMm;
+    const fitsLandscape = outputWidthMm <= pageHeightMm && outputHeightMm <= pageWidthMm;
+    const fits = fitsPortrait || fitsLandscape;
+
+    // Enable or disable button
+    btn.disabled = !fits;
+    btn.style.opacity = fits ? '1' : '0.3';
+    btn.style.cursor = fits ? 'pointer' : 'not-allowed';
+
+    debugLog(`  ${size}: ${fits ? 'fits' : 'too large'} (${pageWidthMm}×${pageHeightMm}mm)`);
+  });
+}
+
 // Eject page size button handlers
 document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -2138,6 +2208,7 @@ if (ejectFixedWidth) {
     if (ejectPageBackgroundElement) {
       updateEjectPageBackground();
     }
+    updateEjectPageSizeButtons();
   });
 }
 
@@ -2153,15 +2224,47 @@ if (ejectFixedHeight) {
     if (ejectPageBackgroundElement) {
       updateEjectPageBackground();
     }
+    updateEjectPageSizeButtons();
   });
 }
 
-// Unit change - just update the background
+// Unit change - convert values to new unit and update
 if (ejectFixedUnit) {
-  ejectFixedUnit.addEventListener('input', () => {
+  ejectFixedUnit.addEventListener('change', () => {
+    const newUnit = ejectFixedUnit.value;
+    const oldUnit = ejectPreviousUnit;
+
+    // Get current values
+    const currentWidth = parseFloat(ejectFixedWidth.value);
+    const currentHeight = parseFloat(ejectFixedHeight.value);
+
+    if (!isNaN(currentWidth) && !isNaN(currentHeight)) {
+      // Convert to mm first, then to new unit
+      const widthMm = toMm(currentWidth, oldUnit);
+      const heightMm = toMm(currentHeight, oldUnit);
+
+      const newWidth = fromMm(widthMm, newUnit);
+      const newHeight = fromMm(heightMm, newUnit);
+
+      // Update input values with appropriate precision
+      let precision = 2;
+      if (newUnit === 'mm') precision = 0;
+      else if (newUnit === 'cm') precision = 1;
+
+      ejectFixedWidth.value = newWidth.toFixed(precision);
+      ejectFixedHeight.value = newHeight.toFixed(precision);
+
+      debugLog(`Unit changed from ${oldUnit} to ${newUnit}:`,
+        `${currentWidth}${oldUnit} → ${newWidth.toFixed(precision)}${newUnit}`);
+    }
+
+    // Update previous unit tracker
+    ejectPreviousUnit = newUnit;
+
     if (ejectPageBackgroundElement) {
       updateEjectPageBackground();
     }
+    updateEjectPageSizeButtons();
   });
 }
 
