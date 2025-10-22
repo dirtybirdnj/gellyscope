@@ -1617,6 +1617,35 @@ input[type="file"] {
   border-color: #007acc;
 }
 
+.eject-action-btn {
+  padding: 10px 20px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.eject-action-btn:hover {
+  background: #218838;
+}
+
+.eject-action-btn:active {
+  background: #1e7e34;
+}
+
+.eject-action-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  color: #888888;
+}
+
 .eject-checkbox-label {
   display: flex;
   align-items: center;

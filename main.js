@@ -4,6 +4,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { spawn } = require('child_process');
 const { parseString } = require('xml2js');
 require('dotenv').config();
 
@@ -233,6 +234,111 @@ ipcMain.handle('delete-file', async (event, filePath) => {
     return { success: true };
   } catch (error) {
     console.error('Error deleting file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC Handler for converting SVG to G-code using vpype
+ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputHeight, unit) => {
+  try {
+    debugLog('=== EJECT-TO-GCODE HANDLER CALLED ===');
+    debugLog('SVG file path:', svgFilePath);
+    debugLog('Output dimensions:', outputWidth, 'x', outputHeight, unit);
+
+    // Verify the file exists
+    if (!fs.existsSync(svgFilePath)) {
+      return { success: false, error: 'SVG file does not exist' };
+    }
+
+    // Convert dimensions to mm for vpype
+    const toMm = (value, unit) => {
+      switch (unit) {
+        case 'mm': return value;
+        case 'cm': return value * 10;
+        case 'in': return value * 25.4;
+        default: return value;
+      }
+    };
+
+    const widthMm = toMm(outputWidth, unit);
+    const heightMm = toMm(outputHeight, unit);
+
+    debugLog('Converted dimensions to mm:', widthMm, 'x', heightMm);
+
+    // Generate output filename
+    const homeDir = os.homedir();
+    const gellyrollerPath = path.join(homeDir, 'gellyroller');
+    const baseName = path.basename(svgFilePath, path.extname(svgFilePath));
+    const timestamp = Date.now();
+    const gcodeFilePath = path.join(gellyrollerPath, `${baseName}_${timestamp}.gcode`);
+
+    debugLog('Output G-code path:', gcodeFilePath);
+
+    // Build vpype command
+    // vpype read input.svg scale to dimensions gwrite output.gcode
+    const vpypeArgs = [
+      'read', svgFilePath,
+      'scaleto', `${widthMm}mm`, `${heightMm}mm`,
+      'gwrite', gcodeFilePath
+    ];
+
+    debugLog('Executing vpype command:', 'vpype', vpypeArgs.join(' '));
+
+    // Execute vpype command
+    return new Promise((resolve, reject) => {
+      const vpype = spawn('vpype', vpypeArgs);
+
+      let stdout = '';
+      let stderr = '';
+
+      vpype.stdout.on('data', (data) => {
+        stdout += data.toString();
+        debugLog('vpype stdout:', data.toString());
+      });
+
+      vpype.stderr.on('data', (data) => {
+        stderr += data.toString();
+        debugLog('vpype stderr:', data.toString());
+      });
+
+      vpype.on('close', (code) => {
+        debugLog('vpype process exited with code:', code);
+
+        if (code === 0) {
+          // Check if output file was created
+          if (fs.existsSync(gcodeFilePath)) {
+            debugLog('G-code file created successfully:', gcodeFilePath);
+            resolve({
+              success: true,
+              gcodeFilePath: gcodeFilePath,
+              message: 'G-code generated successfully'
+            });
+          } else {
+            resolve({
+              success: false,
+              error: 'G-code file was not created'
+            });
+          }
+        } else {
+          resolve({
+            success: false,
+            error: `vpype exited with code ${code}`,
+            stderr: stderr
+          });
+        }
+      });
+
+      vpype.on('error', (err) => {
+        console.error('Error spawning vpype:', err);
+        resolve({
+          success: false,
+          error: 'Failed to execute vpype. Make sure vpype and vpype-gcode are installed.',
+          details: err.message
+        });
+      });
+    });
+  } catch (error) {
+    console.error('Error in eject-to-gcode handler:', error);
     return { success: false, error: error.message };
   }
 });

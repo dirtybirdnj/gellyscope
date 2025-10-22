@@ -2275,6 +2275,66 @@ window.addEventListener('resize', () => {
   }
 });
 
+// Eject to G-code button handler
+const ejectToGcodeBtn = document.getElementById('ejectToGcodeBtn');
+if (ejectToGcodeBtn) {
+  ejectToGcodeBtn.addEventListener('click', async () => {
+    debugLog('=== EJECT TO G-CODE CLICKED ===');
+
+    // Verify we have a loaded SVG
+    if (!currentSVGData || !currentSVGData.path) {
+      alert('No vector file loaded. Please load a vector file first.');
+      return;
+    }
+
+    // Get output dimensions
+    const outputWidth = parseFloat(document.getElementById('ejectFixedWidth').value);
+    const outputHeight = parseFloat(document.getElementById('ejectFixedHeight').value);
+    const outputUnit = document.getElementById('ejectFixedUnit').value;
+
+    // Validate dimensions
+    if (isNaN(outputWidth) || isNaN(outputHeight) || outputWidth <= 0 || outputHeight <= 0) {
+      alert('Please enter valid output dimensions.');
+      return;
+    }
+
+    debugLog('Current SVG path:', currentSVGData.path);
+    debugLog('Output dimensions:', outputWidth, 'x', outputHeight, outputUnit);
+
+    // Disable button and show loading state
+    ejectToGcodeBtn.disabled = true;
+    const originalText = ejectToGcodeBtn.innerHTML;
+    ejectToGcodeBtn.innerHTML = '<span>⏳</span> Generating G-code...';
+
+    try {
+      // Call the backend to convert SVG to G-code
+      const result = await window.electronAPI.ejectToGcode(
+        currentSVGData.path,
+        outputWidth,
+        outputHeight,
+        outputUnit
+      );
+
+      debugLog('Eject result:', result);
+
+      if (result.success) {
+        alert(`G-code generated successfully!\n\nSaved to: ${result.gcodeFilePath}`);
+        debugLog('G-code file created:', result.gcodeFilePath);
+      } else {
+        alert(`Failed to generate G-code:\n\n${result.error}\n\n${result.stderr || ''}`);
+        console.error('Eject failed:', result);
+      }
+    } catch (error) {
+      console.error('Error ejecting to G-code:', error);
+      alert(`Error generating G-code:\n\n${error.message}`);
+    } finally {
+      // Re-enable button and restore text
+      ejectToGcodeBtn.disabled = false;
+      ejectToGcodeBtn.innerHTML = originalText;
+    }
+  });
+}
+
 // ============ CAMERA TAB ============
 const cameraVideo = document.getElementById('cameraVideo');
 const captureCanvas = document.getElementById('captureCanvas');
