@@ -1,4 +1,4 @@
-// main.js - v13
+// main.js - v14
 // Electron Main Process
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
@@ -192,6 +192,40 @@ ipcMain.handle('read-file-base64', async (event, filePath) => {
     };
   } catch (error) {
     console.error('Error reading file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC Handler for saving captured images
+ipcMain.handle('save-image', async (event, imageData, filename) => {
+  const homeDir = os.homedir();
+  const gellyrollerPath = path.join(homeDir, 'gellyroller');
+
+  try {
+    // Ensure directory exists
+    if (!fs.existsSync(gellyrollerPath)) {
+      fs.mkdirSync(gellyrollerPath, { recursive: true });
+    }
+
+    // Remove data URL prefix if present (e.g., "data:image/png;base64,")
+    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
+
+    // Generate filename if not provided
+    const finalFilename = filename || `capture_${Date.now()}.png`;
+    const filePath = path.join(gellyrollerPath, finalFilename);
+
+    // Write the file
+    fs.writeFileSync(filePath, base64Data, 'base64');
+
+    debugLog('Image saved successfully:', filePath);
+
+    return {
+      success: true,
+      path: filePath,
+      filename: finalFilename
+    };
+  } catch (error) {
+    console.error('Error saving image:', error);
     return { success: false, error: error.message };
   }
 });

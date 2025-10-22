@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- index.html - v40 -->
+<!-- index.html - v41 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -21,10 +21,12 @@
     <div class="tab-content" id="cameraTab">
       <div class="camera-container">
         <div class="camera-preview" id="cameraPreview">
-          Camera Preview - Not Configured
+          <video id="cameraVideo" autoplay playsinline></video>
+          <canvas id="captureCanvas" style="display: none;"></canvas>
+          <div class="camera-message" id="cameraMessage">Click "Start Camera" to begin</div>
         </div>
         <div class="camera-controls">
-          <button class="control-btn" id="startCamera" disabled>Start Camera</button>
+          <button class="control-btn" id="startCamera">Start Camera</button>
           <button class="control-btn" id="capturePhoto" disabled>Capture Photo</button>
           <button class="control-btn" id="stopCamera" disabled>Stop Camera</button>
         </div>
