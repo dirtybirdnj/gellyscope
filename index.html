@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- index.html - v39 -->
+<!-- index.html - v41 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -12,7 +12,8 @@
     <!-- Tab Navigation -->
     <div class="tab-nav">
       <button class="tab-button" data-tab="camera">Camera</button>
-      <button class="tab-button" data-tab="photos">Photos</button>
+      <button class="tab-button" data-tab="images">Images</button>
+      <button class="tab-button" data-tab="vectors">Vectors</button>
       <button class="tab-button active" data-tab="trace">Scope</button>
     </div>
 
@@ -20,21 +21,32 @@
     <div class="tab-content" id="cameraTab">
       <div class="camera-container">
         <div class="camera-preview" id="cameraPreview">
-          Camera Preview - Not Configured
+          <video id="cameraVideo" autoplay playsinline></video>
+          <canvas id="captureCanvas" style="display: none;"></canvas>
+          <div class="camera-message" id="cameraMessage">Click "Start Camera" to begin</div>
         </div>
         <div class="camera-controls">
-          <button class="control-btn" id="startCamera" disabled>Start Camera</button>
+          <button class="control-btn" id="startCamera">Start Camera</button>
           <button class="control-btn" id="capturePhoto" disabled>Capture Photo</button>
           <button class="control-btn" id="stopCamera" disabled>Stop Camera</button>
         </div>
       </div>
     </div>
 
-    <!-- Photos Tab -->
-    <div class="tab-content" id="photosTab">
-      <div class="photos-container">
-        <div class="photo-grid" id="photoGrid">
+    <!-- Images Tab -->
+    <div class="tab-content" id="imagesTab">
+      <div class="images-container">
+        <div class="image-grid" id="imageGrid">
           <!-- Jellyfish placeholders -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Vectors Tab -->
+    <div class="tab-content" id="vectorsTab">
+      <div class="vectors-container">
+        <div class="vector-grid" id="vectorGrid">
+          <!-- Vector files will appear here -->
         </div>
       </div>
     </div>

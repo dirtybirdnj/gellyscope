@@ -1,4 +1,4 @@
-// renderer.js - v21
+// renderer.js - v24
 // Frontend Logic
 
 // Check if debug mode is enabled (fallback to false if not set)
@@ -10,6 +10,32 @@ function debugLog(...args) {
     console.log(...args);
   }
 }
+
+// Ensure gellyroller directory exists on app startup
+async function initializeGellyroller() {
+  try {
+    const result = await window.electronAPI.ensureGellyrollerDirectory();
+    if (result.success) {
+      debugLog('Gellyroller directory ready at:', result.path);
+      if (result.existed) {
+        debugLog('Directory already existed');
+      } else {
+        debugLog('Directory was created');
+      }
+    } else if (result.cancelled) {
+      debugLog('User cancelled directory creation');
+    } else {
+      console.error('Failed to setup gellyroller directory:', result.error);
+    }
+  } catch (error) {
+    console.error('Error initializing gellyroller:', error);
+  }
+}
+
+// Initialize on page load
+window.addEventListener('DOMContentLoaded', () => {
+  initializeGellyroller();
+});
 
 let currentSVGData = null;
 let currentSelectedElement = null;
@@ -900,16 +926,238 @@ function hideCropOverlay() {
   }
 }
 
-// ============ PHOTOS TAB ============
-const photoGrid = document.getElementById('photoGrid');
+// ============ IMAGES TAB ============
+const imageGrid = document.getElementById('imageGrid');
 
-// Generate jellyfish placeholder gallery
-for (let i = 0; i < 12; i++) {
-  const photoItem = document.createElement('div');
-  photoItem.className = 'photo-item';
-  photoItem.textContent = '🪼';
-  photoItem.addEventListener('click', () => {
-    alert(`Jellyfish photo ${i + 1} clicked!`);
-  });
-  photoGrid.appendChild(photoItem);
+async function loadImages() {
+  try {
+    const result = await window.electronAPI.listImages();
+
+    if (!result.success) {
+      imageGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">No images found or directory not accessible</div>';
+      return;
+    }
+
+    if (result.files.length === 0) {
+      imageGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">No images in gellyroller directory</div>';
+      return;
+    }
+
+    // Clear existing items
+    imageGrid.innerHTML = '';
+
+    // Load each image
+    for (const file of result.files) {
+      const imageItem = document.createElement('div');
+      imageItem.className = 'image-item';
+      imageItem.title = file.name;
+
+      // Read the file as base64
+      const fileData = await window.electronAPI.readFileBase64(file.path);
+
+      if (fileData.success) {
+        const img = document.createElement('img');
+        img.src = `data:${fileData.mimeType};base64,${fileData.data}`;
+        img.alt = file.name;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+        imageItem.appendChild(img);
+      } else {
+        imageItem.textContent = '❌';
+        imageItem.title = `Error loading ${file.name}`;
+      }
+
+      imageItem.addEventListener('click', () => {
+        alert(`Image: ${file.name}\nPath: ${file.path}`);
+      });
+
+      imageGrid.appendChild(imageItem);
+    }
+
+    debugLog('Loaded', result.files.length, 'images');
+  } catch (error) {
+    console.error('Error loading images:', error);
+    imageGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">Error loading images</div>';
+  }
 }
+
+// ============ VECTORS TAB ============
+const vectorGrid = document.getElementById('vectorGrid');
+
+async function loadVectors() {
+  try {
+    const result = await window.electronAPI.listVectors();
+
+    if (!result.success) {
+      vectorGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">No vectors found or directory not accessible</div>';
+      return;
+    }
+
+    if (result.files.length === 0) {
+      vectorGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">No SVG files in gellyroller directory</div>';
+      return;
+    }
+
+    // Clear existing items
+    vectorGrid.innerHTML = '';
+
+    // Load each vector
+    for (const file of result.files) {
+      const vectorItem = document.createElement('div');
+      vectorItem.className = 'vector-item';
+      vectorItem.title = file.name;
+
+      // Read the SVG file as base64
+      const fileData = await window.electronAPI.readFileBase64(file.path);
+
+      if (fileData.success) {
+        const img = document.createElement('img');
+        img.src = `data:${fileData.mimeType};base64,${fileData.data}`;
+        img.alt = file.name;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'contain';
+        vectorItem.appendChild(img);
+      } else {
+        vectorItem.textContent = '❌';
+        vectorItem.title = `Error loading ${file.name}`;
+      }
+
+      vectorItem.addEventListener('click', () => {
+        alert(`Vector: ${file.name}\nPath: ${file.path}`);
+      });
+
+      vectorGrid.appendChild(vectorItem);
+    }
+
+    debugLog('Loaded', result.files.length, 'vectors');
+  } catch (error) {
+    console.error('Error loading vectors:', error);
+    vectorGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">Error loading vectors</div>';
+  }
+}
+
+// Load files when switching to the respective tabs
+const originalSwitchTab = switchTab;
+switchTab = function(tabName) {
+  originalSwitchTab(tabName);
+
+  if (tabName === 'images') {
+    loadImages();
+  } else if (tabName === 'vectors') {
+    loadVectors();
+  }
+};
+
+// ============ CAMERA TAB ============
+const cameraVideo = document.getElementById('cameraVideo');
+const captureCanvas = document.getElementById('captureCanvas');
+const cameraMessage = document.getElementById('cameraMessage');
+const startCameraBtn = document.getElementById('startCamera');
+const capturePhotoBtn = document.getElementById('capturePhoto');
+const stopCameraBtn = document.getElementById('stopCamera');
+
+let cameraStream = null;
+
+// Start camera
+startCameraBtn.addEventListener('click', async () => {
+  try {
+    cameraMessage.textContent = 'Requesting camera access...';
+
+    // Request camera access
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      },
+      audio: false
+    });
+
+    // Set video source
+    cameraVideo.srcObject = cameraStream;
+    cameraVideo.classList.add('active');
+    cameraMessage.classList.add('hidden');
+
+    // Enable/disable buttons
+    startCameraBtn.disabled = true;
+    capturePhotoBtn.disabled = false;
+    stopCameraBtn.disabled = false;
+
+    debugLog('Camera started successfully');
+  } catch (error) {
+    console.error('Error accessing camera:', error);
+    cameraMessage.textContent = 'Error: Unable to access camera. Please check permissions.';
+    cameraMessage.classList.remove('hidden');
+  }
+});
+
+// Capture photo
+capturePhotoBtn.addEventListener('click', async () => {
+  try {
+    if (!cameraStream) {
+      alert('Camera is not active');
+      return;
+    }
+
+    // Set canvas size to match video
+    captureCanvas.width = cameraVideo.videoWidth;
+    captureCanvas.height = cameraVideo.videoHeight;
+
+    // Draw video frame to canvas
+    const ctx = captureCanvas.getContext('2d');
+    ctx.drawImage(cameraVideo, 0, 0, captureCanvas.width, captureCanvas.height);
+
+    // Convert to base64
+    const imageData = captureCanvas.toDataURL('image/png');
+
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const filename = `capture_${timestamp}.png`;
+
+    // Save to gellyroller directory
+    const result = await window.electronAPI.saveImage(imageData, filename);
+
+    if (result.success) {
+      debugLog('Photo saved:', result.path);
+
+      // Show success message
+      const originalText = capturePhotoBtn.textContent;
+      capturePhotoBtn.textContent = '✓ Photo Saved!';
+      capturePhotoBtn.style.background = '#4caf50';
+
+      setTimeout(() => {
+        capturePhotoBtn.textContent = originalText;
+        capturePhotoBtn.style.background = '';
+      }, 2000);
+    } else {
+      console.error('Error saving photo:', result.error);
+      alert('Error saving photo: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Error capturing photo:', error);
+    alert('Error capturing photo: ' + error.message);
+  }
+});
+
+// Stop camera
+stopCameraBtn.addEventListener('click', () => {
+  if (cameraStream) {
+    // Stop all tracks
+    cameraStream.getTracks().forEach(track => track.stop());
+    cameraStream = null;
+
+    // Reset UI
+    cameraVideo.srcObject = null;
+    cameraVideo.classList.remove('active');
+    cameraMessage.textContent = 'Click "Start Camera" to begin';
+    cameraMessage.classList.remove('hidden');
+
+    // Enable/disable buttons
+    startCameraBtn.disabled = false;
+    capturePhotoBtn.disabled = true;
+    stopCameraBtn.disabled = true;
+
+    debugLog('Camera stopped');
+  }
+});
