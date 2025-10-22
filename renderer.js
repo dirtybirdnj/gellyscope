@@ -1800,16 +1800,46 @@ switchTab = function(tabName) {
 function loadEjectTab() {
   const ejectMessage = document.getElementById('ejectMessage');
   const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+  const ejectInfoBar = document.getElementById('ejectInfoBar');
+  const ejectDimensions = document.getElementById('ejectDimensions');
 
   if (currentSVGData && currentSVGData.content) {
     // Hide message and show SVG container
     ejectMessage.style.display = 'none';
     ejectSvgContainer.style.display = 'flex';
+    ejectInfoBar.style.display = 'flex';
     ejectSvgContainer.innerHTML = currentSVGData.content;
 
     // Apply proper sizing to the SVG
     const svg = ejectSvgContainer.querySelector('svg');
     if (svg) {
+      // Extract dimensions from viewBox or width/height attributes
+      let width, height;
+
+      const viewBox = svg.getAttribute('viewBox');
+      if (viewBox) {
+        const viewBoxValues = viewBox.split(/\s+/);
+        width = parseFloat(viewBoxValues[2]);
+        height = parseFloat(viewBoxValues[3]);
+      } else {
+        width = parseFloat(svg.getAttribute('width')) || 0;
+        height = parseFloat(svg.getAttribute('height')) || 0;
+      }
+
+      // Display dimensions
+      if (width && height) {
+        ejectDimensions.textContent = `${width} × ${height}`;
+      } else {
+        ejectDimensions.textContent = 'Unknown';
+      }
+
+      // Apply black stroke to all paths
+      const paths = svg.querySelectorAll('path');
+      paths.forEach(path => {
+        path.style.stroke = '#000000';
+        path.style.strokeWidth = '1';
+      });
+
       svg.removeAttribute('width');
       svg.removeAttribute('height');
       svg.style.width = '100%';
@@ -1821,6 +1851,7 @@ function loadEjectTab() {
     // Show message and hide SVG container
     ejectMessage.style.display = 'block';
     ejectSvgContainer.style.display = 'none';
+    ejectInfoBar.style.display = 'none';
     ejectMessage.textContent = 'No vector image loaded';
   }
 }
