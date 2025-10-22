@@ -1904,6 +1904,10 @@ function createEjectDimensionLines(viewer, displayWidth, displayHeight, widthMm,
   const widthText = `${mmToInches(widthMm)}" / ${mmToCm(widthMm)}cm / ${widthMm.toFixed(0)}mm`;
   const heightText = `${mmToInches(heightMm)}" / ${mmToCm(heightMm)}cm / ${heightMm.toFixed(0)}mm`;
 
+  // Calculate offsets to position lines outside page border
+  const topOffset = (displayHeight / 2) + 30; // 30px gap from top edge of page
+  const rightOffset = (displayWidth / 2) + 30; // 30px gap from right edge of page
+
   // Create top dimension line (for width)
   const topDimension = document.createElement('div');
   topDimension.className = 'eject-dimension-line eject-dimension-top';
@@ -1913,6 +1917,7 @@ function createEjectDimensionLines(viewer, displayWidth, displayHeight, widthMm,
     <div class="dimension-line-segment"></div>
   `;
   topDimension.style.width = displayWidth + 'px';
+  topDimension.style.transform = `translate(-50%, calc(-50% - ${topOffset}px))`;
   viewer.appendChild(topDimension);
 
   // Create right dimension line (for height)
@@ -1924,6 +1929,7 @@ function createEjectDimensionLines(viewer, displayWidth, displayHeight, widthMm,
     <div class="dimension-line-segment"></div>
   `;
   rightDimension.style.height = displayHeight + 'px';
+  rightDimension.style.transform = `translate(calc(-50% + ${rightOffset}px), -50%)`;
   viewer.appendChild(rightDimension);
 }
 

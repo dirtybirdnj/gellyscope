@@ -1628,15 +1628,15 @@ input[type="file"] {
 .eject-dimension-top {
   top: 50%;
   left: 50%;
-  transform: translate(-50%, calc(-50% - 140px));
   flex-direction: row;
+  /* transform set dynamically in JavaScript */
 }
 
 .eject-dimension-right {
   top: 50%;
   left: 50%;
-  transform: translate(calc(-50% + 140px), -50%);
   flex-direction: column;
+  /* transform set dynamically in JavaScript */
 }
 
 .dimension-line-segment {
