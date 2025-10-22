@@ -961,12 +961,18 @@ async function loadImages() {
 
       if (fileData.success) {
         const img = document.createElement('img');
-        img.src = `data:${fileData.mimeType};base64,${fileData.data}`;
+        const imageSrc = `data:${fileData.mimeType};base64,${fileData.data}`;
+        img.src = imageSrc;
         img.alt = file.name;
         img.style.width = '100%';
         img.style.height = '100%';
         img.style.objectFit = 'cover';
         imageWrapper.appendChild(img);
+
+        // Add click handler to show image in Trace tab
+        imageWrapper.addEventListener('click', () => {
+          showImageInTraceTab(imageSrc, file.name);
+        });
       } else {
         imageWrapper.textContent = '❌';
         imageWrapper.title = `Error loading ${file.name}`;
@@ -1048,6 +1054,23 @@ async function handleTraceImage(filePath, fileName) {
   // 2. Running it through a tracing algorithm (like potrace)
   // 3. Saving the resulting SVG to the gellyroller directory
   // 4. Switching to the Trace tab to show the result
+}
+
+// Show image in Trace tab
+function showImageInTraceTab(imageSrc, fileName) {
+  // Get trace tab elements
+  const traceImage = document.getElementById('traceImage');
+  const traceMessage = document.getElementById('traceMessage');
+
+  // Set the image
+  traceImage.src = imageSrc;
+  traceImage.style.display = 'block';
+  traceMessage.style.display = 'none';
+
+  // Switch to trace tab
+  switchTab('trace');
+
+  debugLog('Showing image in Trace tab:', fileName);
 }
 
 // ============ VECTORS TAB ============

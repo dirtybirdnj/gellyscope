@@ -14,7 +14,8 @@
       <button class="tab-button" data-tab="camera">Camera</button>
       <button class="tab-button" data-tab="images">Images</button>
       <button class="tab-button" data-tab="vectors">Vectors</button>
-      <button class="tab-button active" data-tab="trace">Trace</button>
+      <button class="tab-button" data-tab="trace">Trace</button>
+      <button class="tab-button active" data-tab="scope">Scope</button>
     </div>
 
     <!-- Camera Tab -->
@@ -52,7 +53,19 @@
     </div>
 
     <!-- Trace Tab -->
-    <div class="tab-content active" id="traceTab">
+    <div class="tab-content" id="traceTab">
+      <div class="trace-container">
+        <div class="trace-viewer" id="traceViewer">
+          <div class="trace-message" id="traceMessage">
+            Select an image from the Images tab to trace it
+          </div>
+          <img id="traceImage" style="display: none; max-width: 100%; max-height: 100%; object-fit: contain;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Scope Tab -->
+    <div class="tab-content active" id="scopeTab">
       <div class="container">
         <!-- Left Panel: Tree Structure -->
         <div class="left-panel">
