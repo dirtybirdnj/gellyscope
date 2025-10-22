@@ -973,6 +973,10 @@ async function loadImages() {
         imageWrapper.addEventListener('click', () => {
           showImageInTraceTab(imageSrc, file.name);
         });
+
+        // Store imageSrc on the item for button access
+        imageItem.dataset.imageSrc = imageSrc;
+        imageItem.dataset.fileName = file.name;
       } else {
         imageWrapper.textContent = '❌';
         imageWrapper.title = `Error loading ${file.name}`;
@@ -997,9 +1001,13 @@ async function loadImages() {
       const traceBtn = document.createElement('button');
       traceBtn.className = 'image-action-btn trace-btn';
       traceBtn.textContent = 'Trace';
-      traceBtn.addEventListener('click', async (e) => {
+      traceBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        await handleTraceImage(file.path, file.name);
+        const imageSrc = imageItem.dataset.imageSrc;
+        const fileName = imageItem.dataset.fileName;
+        if (imageSrc) {
+          showImageInTraceTab(imageSrc, fileName);
+        }
       });
 
       buttonsContainer.appendChild(deleteBtn);
@@ -1040,20 +1048,6 @@ async function handleDeleteImage(filePath, fileName) {
     console.error('Error deleting file:', error);
     alert('An error occurred while deleting the file.');
   }
-}
-
-// Handle image tracing (convert to vector)
-async function handleTraceImage(filePath, fileName) {
-  // For now, show a message that this feature is coming soon
-  // In the future, this could use potrace or similar to convert bitmap to SVG
-  alert(`Trace feature coming soon!\n\nThis will convert "${fileName}" to a vector (SVG) file.`);
-
-  // TODO: Implement actual tracing functionality
-  // This would typically involve:
-  // 1. Reading the image file
-  // 2. Running it through a tracing algorithm (like potrace)
-  // 3. Saving the resulting SVG to the gellyroller directory
-  // 4. Switching to the Trace tab to show the result
 }
 
 // Show image in Trace tab
