@@ -1,7 +1,9 @@
-// main.js - v11
+// main.js - v12
 // Electron Main Process
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const { parseString } = require('xml2js');
 require('dotenv').config();
 
@@ -46,6 +48,66 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
+});
+
+// Check and create gellyroller directory
+async function ensureGellyrollerDirectory() {
+  const homeDir = os.homedir();
+  const gellyrollerPath = path.join(homeDir, 'gellyroller');
+
+  debugLog('Checking for gellyroller directory at:', gellyrollerPath);
+
+  try {
+    // Check if directory exists
+    if (!fs.existsSync(gellyrollerPath)) {
+      debugLog('Gellyroller directory does not exist');
+
+      // Prompt user to create directory
+      const result = await dialog.showMessageBox(mainWindow, {
+        type: 'question',
+        buttons: ['Create Directory', 'Cancel'],
+        defaultId: 0,
+        title: 'Gellyroller Directory',
+        message: 'The gellyroller directory does not exist in your home folder.',
+        detail: `Would you like to create it at:\n${gellyrollerPath}?`
+      });
+
+      if (result.response === 0) {
+        // User chose to create directory
+        fs.mkdirSync(gellyrollerPath, { recursive: true });
+        debugLog('Gellyroller directory created successfully');
+
+        // Store the directory path using safeStorage if available
+        if (safeStorage.isEncryptionAvailable()) {
+          const encryptedPath = safeStorage.encryptString(gellyrollerPath);
+          debugLog('Directory path encrypted and stored');
+          // You could store this encrypted path in app config if needed
+        }
+
+        return { success: true, path: gellyrollerPath };
+      } else {
+        debugLog('User cancelled directory creation');
+        return { success: false, cancelled: true };
+      }
+    } else {
+      debugLog('Gellyroller directory already exists');
+      return { success: true, path: gellyrollerPath, existed: true };
+    }
+  } catch (error) {
+    console.error('Error ensuring gellyroller directory:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// IPC Handler for checking/creating gellyroller directory
+ipcMain.handle('ensure-gellyroller-directory', async () => {
+  return await ensureGellyrollerDirectory();
+});
+
+// IPC Handler for getting gellyroller directory path
+ipcMain.handle('get-gellyroller-path', () => {
+  const homeDir = os.homedir();
+  return path.join(homeDir, 'gellyroller');
 });
 
 // IPC Handler for parsing SVG files

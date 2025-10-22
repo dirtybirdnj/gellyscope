@@ -1,4 +1,4 @@
-// renderer.js - v21
+// renderer.js - v22
 // Frontend Logic
 
 // Check if debug mode is enabled (fallback to false if not set)
@@ -10,6 +10,32 @@ function debugLog(...args) {
     console.log(...args);
   }
 }
+
+// Ensure gellyroller directory exists on app startup
+async function initializeGellyroller() {
+  try {
+    const result = await window.electronAPI.ensureGellyrollerDirectory();
+    if (result.success) {
+      debugLog('Gellyroller directory ready at:', result.path);
+      if (result.existed) {
+        debugLog('Directory already existed');
+      } else {
+        debugLog('Directory was created');
+      }
+    } else if (result.cancelled) {
+      debugLog('User cancelled directory creation');
+    } else {
+      console.error('Failed to setup gellyroller directory:', result.error);
+    }
+  } catch (error) {
+    console.error('Error initializing gellyroller:', error);
+  }
+}
+
+// Initialize on page load
+window.addEventListener('DOMContentLoaded', () => {
+  initializeGellyroller();
+});
 
 let currentSVGData = null;
 let currentSelectedElement = null;
@@ -900,16 +926,30 @@ function hideCropOverlay() {
   }
 }
 
-// ============ PHOTOS TAB ============
-const photoGrid = document.getElementById('photoGrid');
+// ============ IMAGES TAB ============
+const imageGrid = document.getElementById('imageGrid');
 
 // Generate jellyfish placeholder gallery
 for (let i = 0; i < 12; i++) {
-  const photoItem = document.createElement('div');
-  photoItem.className = 'photo-item';
-  photoItem.textContent = '🪼';
-  photoItem.addEventListener('click', () => {
-    alert(`Jellyfish photo ${i + 1} clicked!`);
+  const imageItem = document.createElement('div');
+  imageItem.className = 'image-item';
+  imageItem.textContent = '🪼';
+  imageItem.addEventListener('click', () => {
+    alert(`Jellyfish image ${i + 1} clicked!`);
   });
-  photoGrid.appendChild(photoItem);
+  imageGrid.appendChild(imageItem);
+}
+
+// ============ VECTORS TAB ============
+const vectorGrid = document.getElementById('vectorGrid');
+
+// Generate vector placeholder gallery
+for (let i = 0; i < 12; i++) {
+  const vectorItem = document.createElement('div');
+  vectorItem.className = 'vector-item';
+  vectorItem.textContent = '🔷';
+  vectorItem.addEventListener('click', () => {
+    alert(`Vector file ${i + 1} clicked!`);
+  });
+  vectorGrid.appendChild(vectorItem);
 }

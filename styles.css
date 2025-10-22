@@ -643,20 +643,20 @@ body {
   color: #888888;
 }
 
-/* Photos Tab */
-.photos-container {
+/* Images Tab */
+.images-container {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
 }
 
-.photo-grid {
+.image-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 16px;
 }
 
-.photo-item {
+.image-item {
   aspect-ratio: 1;
   background: #f0f0f0;
   border-radius: 8px;
@@ -670,7 +670,38 @@ body {
   border: 1px solid #d0d0d0;
 }
 
-.photo-item:hover {
+.image-item:hover {
+  transform: scale(1.05);
+}
+
+/* Vectors Tab */
+.vectors-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.vector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.vector-item {
+  aspect-ratio: 1;
+  background: #f0f0f0;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60px;
+  border: 1px solid #d0d0d0;
+}
+
+.vector-item:hover {
   transform: scale(1.05);
 }
 
