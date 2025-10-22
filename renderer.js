@@ -1088,8 +1088,65 @@ function showImageInTraceTab(imageSrc, fileName) {
 let capturedLayers = [];
 let traceDebounceTimer = null;
 
+// Apply image processing filters and return processed image URL
+function applyImageProcessing(originalSrc) {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      // Get current control values
+      const brightness = parseInt(document.getElementById('brightnessSlider').value);
+      const contrast = parseInt(document.getElementById('contrastSlider').value);
+      const saturation = parseInt(document.getElementById('saturationSlider').value);
+      const hue = parseInt(document.getElementById('hueSlider').value);
+      const greyscale = document.getElementById('greyscaleToggle').checked;
+      const sepia = document.getElementById('sepiaToggle').checked;
+
+      // Build CSS filter string
+      let filters = [];
+
+      if (brightness !== 0) {
+        filters.push(`brightness(${1 + brightness / 100})`);
+      }
+      if (contrast !== 0) {
+        filters.push(`contrast(${1 + contrast / 100})`);
+      }
+      if (saturation !== 0) {
+        filters.push(`saturate(${1 + saturation / 100})`);
+      }
+      if (hue !== 0) {
+        filters.push(`hue-rotate(${hue}deg)`);
+      }
+      if (greyscale) {
+        filters.push('grayscale(100%)');
+      }
+      if (sepia) {
+        filters.push('sepia(100%)');
+      }
+
+      // Apply filters
+      if (filters.length > 0) {
+        ctx.filter = filters.join(' ');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+      }
+
+      // Return processed image as data URL
+      resolve(canvas.toDataURL());
+    };
+
+    img.src = originalSrc;
+  });
+}
+
 // Debounced trace function
-function performTrace() {
+async function performTrace() {
   if (!window.currentTraceImage || !window.currentTraceImage.src) {
     return;
   }
@@ -1098,25 +1155,29 @@ function performTrace() {
     const traceActionBtn = document.getElementById('traceActionBtn');
     if (traceActionBtn) {
       traceActionBtn.disabled = true;
-      traceActionBtn.textContent = 'Tracing...';
+      traceActionBtn.textContent = 'Processing...';
     }
 
-    // Set potrace parameters based on sliders
-    const contrastSlider = document.getElementById('contrastSlider');
-    const dotSizeSlider = document.getElementById('dotSizeSlider');
-    const threshold = parseInt(contrastSlider.value) * 2.55; // Convert 0-100 to 0-255
-    const turdsize = parseInt(dotSizeSlider.value);
+    // Apply image processing filters first
+    const processedImageSrc = await applyImageProcessing(window.currentTraceImage.src);
+
+    // Get potrace parameters
+    const turnPolicy = document.getElementById('turnPolicySelect').value;
+    const turdSize = parseInt(document.getElementById('turdSizeSlider').value);
+    const alphaMax = parseFloat(document.getElementById('alphaMaxSlider').value);
+    const optTolerance = parseFloat(document.getElementById('optToleranceSlider').value);
+    const optCurve = document.getElementById('optCurveToggle').checked;
 
     Potrace.setParameter({
-      turdsize: turdsize,
-      turnpolicy: 'minority',
-      optcurve: true,
-      alphamax: 1,
-      opttolerance: 0.2
+      turnpolicy: turnPolicy,
+      turdsize: turdSize,
+      optcurve: optCurve,
+      alphamax: alphaMax,
+      opttolerance: optTolerance
     });
 
-    // Load image into potrace
-    Potrace.loadImageFromUrl(window.currentTraceImage.src);
+    // Load processed image into potrace
+    Potrace.loadImageFromUrl(processedImageSrc);
 
     // Process the image
     Potrace.process(() => {
@@ -1163,35 +1224,146 @@ function triggerAutoTrace() {
   }, 500); // Wait 500ms after last change
 }
 
-// Contrast slider
+// ========== IMAGE PROCESSING CONTROLS ==========
+
+// Brightness
+const brightnessSlider = document.getElementById('brightnessSlider');
+const brightnessValue = document.getElementById('brightnessValue');
+
+if (brightnessSlider && brightnessValue) {
+  brightnessSlider.addEventListener('input', (e) => {
+    brightnessValue.textContent = e.target.value;
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Contrast
 const contrastSlider = document.getElementById('contrastSlider');
 const contrastValue = document.getElementById('contrastValue');
 
 if (contrastSlider && contrastValue) {
   contrastSlider.addEventListener('input', (e) => {
     contrastValue.textContent = e.target.value;
-    debugLog('Contrast:', e.target.value);
-    // Auto re-trace on change
     if (window.currentTraceImage && window.currentTraceImage.src) {
       triggerAutoTrace();
     }
   });
 }
 
-// Dot size slider
-const dotSizeSlider = document.getElementById('dotSizeSlider');
-const dotSizeValue = document.getElementById('dotSizeValue');
+// Saturation
+const saturationSlider = document.getElementById('saturationSlider');
+const saturationValue = document.getElementById('saturationValue');
 
-if (dotSizeSlider && dotSizeValue) {
-  dotSizeSlider.addEventListener('input', (e) => {
-    dotSizeValue.textContent = e.target.value;
-    debugLog('Dot Size:', e.target.value);
-    // Auto re-trace on change
+if (saturationSlider && saturationValue) {
+  saturationSlider.addEventListener('input', (e) => {
+    saturationValue.textContent = e.target.value;
     if (window.currentTraceImage && window.currentTraceImage.src) {
       triggerAutoTrace();
     }
   });
 }
+
+// Hue
+const hueSlider = document.getElementById('hueSlider');
+const hueValue = document.getElementById('hueValue');
+
+if (hueSlider && hueValue) {
+  hueSlider.addEventListener('input', (e) => {
+    hueValue.textContent = e.target.value + '°';
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Greyscale
+const greyscaleToggle = document.getElementById('greyscaleToggle');
+
+if (greyscaleToggle) {
+  greyscaleToggle.addEventListener('change', (e) => {
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Sepia
+const sepiaToggle = document.getElementById('sepiaToggle');
+
+if (sepiaToggle) {
+  sepiaToggle.addEventListener('change', (e) => {
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// ========== POTRACE PARAMETERS CONTROLS ==========
+
+// Turn Policy
+const turnPolicySelect = document.getElementById('turnPolicySelect');
+
+if (turnPolicySelect) {
+  turnPolicySelect.addEventListener('change', (e) => {
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Turd Size
+const turdSizeSlider = document.getElementById('turdSizeSlider');
+const turdSizeValue = document.getElementById('turdSizeValue');
+
+if (turdSizeSlider && turdSizeValue) {
+  turdSizeSlider.addEventListener('input', (e) => {
+    turdSizeValue.textContent = e.target.value;
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Alpha Max
+const alphaMaxSlider = document.getElementById('alphaMaxSlider');
+const alphaMaxValue = document.getElementById('alphaMaxValue');
+
+if (alphaMaxSlider && alphaMaxValue) {
+  alphaMaxSlider.addEventListener('input', (e) => {
+    alphaMaxValue.textContent = parseFloat(e.target.value).toFixed(1);
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Opt Tolerance
+const optToleranceSlider = document.getElementById('optToleranceSlider');
+const optToleranceValue = document.getElementById('optToleranceValue');
+
+if (optToleranceSlider && optToleranceValue) {
+  optToleranceSlider.addEventListener('input', (e) => {
+    optToleranceValue.textContent = parseFloat(e.target.value).toFixed(2);
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// Curve Optimization
+const optCurveToggle = document.getElementById('optCurveToggle');
+
+if (optCurveToggle) {
+  optCurveToggle.addEventListener('change', (e) => {
+    if (window.currentTraceImage && window.currentTraceImage.src) {
+      triggerAutoTrace();
+    }
+  });
+}
+
+// ========== DISPLAY CONTROLS ==========
 
 // Show bitmap toggle - only affects bitmap, not SVG overlay
 const showBitmapToggle = document.getElementById('showBitmapToggle');
@@ -1205,6 +1377,8 @@ if (showBitmapToggle) {
     }
   });
 }
+
+// ========== ACTION BUTTONS ==========
 
 // Trace action button
 const traceActionBtn = document.getElementById('traceActionBtn');

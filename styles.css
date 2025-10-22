@@ -811,14 +811,39 @@ body {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
   height: 100%;
+  overflow-y: auto;
+}
+
+/* Pipeline Sections */
+.pipeline-section {
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.section-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666666;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+  letter-spacing: 0.5px;
 }
 
 .control-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: 12px;
+}
+
+.control-group:last-child {
+  margin-bottom: 0;
 }
 
 .control-label {
@@ -870,6 +895,27 @@ body {
   font-size: 13px;
   color: #666666;
   text-align: right;
+}
+
+.control-select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  background: #ffffff;
+  font-size: 13px;
+  color: #333333;
+  cursor: pointer;
+  outline: none;
+}
+
+.control-select:hover {
+  border-color: #007acc;
+}
+
+.control-select:focus {
+  border-color: #007acc;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1);
 }
 
 .trace-action-btn {
