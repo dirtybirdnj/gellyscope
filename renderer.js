@@ -1073,6 +1073,43 @@ function showImageInTraceTab(imageSrc, fileName) {
   debugLog('Showing image in Trace tab:', fileName);
 }
 
+// ============ TRACE TAB CONTROLS ============
+
+// Contrast slider
+const contrastSlider = document.getElementById('contrastSlider');
+const contrastValue = document.getElementById('contrastValue');
+
+if (contrastSlider && contrastValue) {
+  contrastSlider.addEventListener('input', (e) => {
+    contrastValue.textContent = e.target.value;
+    // TODO: Apply contrast to image
+    debugLog('Contrast:', e.target.value);
+  });
+}
+
+// Dot size slider
+const dotSizeSlider = document.getElementById('dotSizeSlider');
+const dotSizeValue = document.getElementById('dotSizeValue');
+
+if (dotSizeSlider && dotSizeValue) {
+  dotSizeSlider.addEventListener('input', (e) => {
+    dotSizeValue.textContent = e.target.value;
+    // TODO: Apply dot size to tracing algorithm
+    debugLog('Dot Size:', e.target.value);
+  });
+}
+
+// Trace action button
+const traceActionBtn = document.getElementById('traceActionBtn');
+
+if (traceActionBtn) {
+  traceActionBtn.addEventListener('click', () => {
+    // TODO: Implement actual tracing functionality
+    alert('Trace functionality coming soon!\n\nThis will convert the image to a vector (SVG) using the current settings.');
+    debugLog('Trace button clicked - contrast:', contrastSlider.value, 'dotSize:', dotSizeSlider.value);
+  });
+}
+
 // ============ VECTORS TAB ============
 const vectorGrid = document.getElementById('vectorGrid');
 

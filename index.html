@@ -54,12 +54,48 @@
 
     <!-- Trace Tab -->
     <div class="tab-content" id="traceTab">
-      <div class="trace-container">
-        <div class="trace-viewer" id="traceViewer">
-          <div class="trace-message" id="traceMessage">
-            Select an image from the Images tab to trace it
+      <div class="container">
+        <!-- Left Panel: Layers -->
+        <div class="left-panel">
+          <div class="panel-header">Layers</div>
+          <div class="layers-list" id="traceLayersList">
+            <div style="padding: 16px; text-align: center; opacity: 0.5; font-size: 13px;">
+              No layers
+            </div>
           </div>
-          <img id="traceImage" style="display: none; max-width: 100%; max-height: 100%; object-fit: contain;">
+        </div>
+
+        <!-- Center: Image Viewer -->
+        <div class="canvas-area">
+          <div class="trace-viewer" id="traceViewer">
+            <div class="trace-message" id="traceMessage">
+              Select an image from the Images tab to trace it
+            </div>
+            <img id="traceImage" style="display: none; max-width: 100%; max-height: 100%; object-fit: contain;">
+          </div>
+        </div>
+
+        <!-- Right Panel: Controls -->
+        <div class="right-panel">
+          <div class="panel-header">Trace Controls</div>
+          <div class="trace-controls" id="traceControls">
+            <!-- Contrast Slider -->
+            <div class="control-group">
+              <label class="control-label">Contrast</label>
+              <input type="range" class="control-slider" id="contrastSlider" min="0" max="100" value="50">
+              <span class="control-value" id="contrastValue">50</span>
+            </div>
+
+            <!-- Dot Size Slider -->
+            <div class="control-group">
+              <label class="control-label">Dot Size</label>
+              <input type="range" class="control-slider" id="dotSizeSlider" min="1" max="20" value="5">
+              <span class="control-value" id="dotSizeValue">5</span>
+            </div>
+
+            <!-- Trace Button -->
+            <button class="trace-action-btn" id="traceActionBtn">Trace</button>
+          </div>
         </div>
       </div>
     </div>
