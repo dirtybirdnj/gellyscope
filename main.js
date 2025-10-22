@@ -1,6 +1,6 @@
-// main.js - v12
+// main.js - v13
 // Electron Main Process
-const { app, BrowserWindow, ipcMain, safeStorage, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -76,14 +76,6 @@ async function ensureGellyrollerDirectory() {
         // User chose to create directory
         fs.mkdirSync(gellyrollerPath, { recursive: true });
         debugLog('Gellyroller directory created successfully');
-
-        // Store the directory path using safeStorage if available
-        if (safeStorage.isEncryptionAvailable()) {
-          const encryptedPath = safeStorage.encryptString(gellyrollerPath);
-          debugLog('Directory path encrypted and stored');
-          // You could store this encrypted path in app config if needed
-        }
-
         return { success: true, path: gellyrollerPath };
       } else {
         debugLog('User cancelled directory creation');
@@ -108,6 +100,100 @@ ipcMain.handle('ensure-gellyroller-directory', async () => {
 ipcMain.handle('get-gellyroller-path', () => {
   const homeDir = os.homedir();
   return path.join(homeDir, 'gellyroller');
+});
+
+// IPC Handler for listing image files
+ipcMain.handle('list-images', async () => {
+  const homeDir = os.homedir();
+  const gellyrollerPath = path.join(homeDir, 'gellyroller');
+
+  try {
+    // Check if directory exists
+    if (!fs.existsSync(gellyrollerPath)) {
+      return { success: false, files: [] };
+    }
+
+    // Read directory contents
+    const files = fs.readdirSync(gellyrollerPath);
+
+    // Filter for image files (bitmap formats)
+    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.tiff', '.tif'];
+    const imageFiles = files.filter(file => {
+      const ext = path.extname(file).toLowerCase();
+      return imageExtensions.includes(ext);
+    }).map(file => ({
+      name: file,
+      path: path.join(gellyrollerPath, file)
+    }));
+
+    debugLog('Found', imageFiles.length, 'image files');
+    return { success: true, files: imageFiles };
+  } catch (error) {
+    console.error('Error listing images:', error);
+    return { success: false, error: error.message, files: [] };
+  }
+});
+
+// IPC Handler for listing vector files
+ipcMain.handle('list-vectors', async () => {
+  const homeDir = os.homedir();
+  const gellyrollerPath = path.join(homeDir, 'gellyroller');
+
+  try {
+    // Check if directory exists
+    if (!fs.existsSync(gellyrollerPath)) {
+      return { success: false, files: [] };
+    }
+
+    // Read directory contents
+    const files = fs.readdirSync(gellyrollerPath);
+
+    // Filter for SVG files
+    const vectorFiles = files.filter(file => {
+      const ext = path.extname(file).toLowerCase();
+      return ext === '.svg';
+    }).map(file => ({
+      name: file,
+      path: path.join(gellyrollerPath, file)
+    }));
+
+    debugLog('Found', vectorFiles.length, 'vector files');
+    return { success: true, files: vectorFiles };
+  } catch (error) {
+    console.error('Error listing vectors:', error);
+    return { success: false, error: error.message, files: [] };
+  }
+});
+
+// IPC Handler for reading file as base64 (for displaying images)
+ipcMain.handle('read-file-base64', async (event, filePath) => {
+  try {
+    const data = fs.readFileSync(filePath);
+    const base64 = data.toString('base64');
+    const ext = path.extname(filePath).toLowerCase();
+
+    // Determine MIME type
+    const mimeTypes = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.bmp': 'image/bmp',
+      '.webp': 'image/webp',
+      '.svg': 'image/svg+xml'
+    };
+
+    const mimeType = mimeTypes[ext] || 'application/octet-stream';
+
+    return {
+      success: true,
+      data: base64,
+      mimeType: mimeType
+    };
+  } catch (error) {
+    console.error('Error reading file:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 // IPC Handler for parsing SVG files

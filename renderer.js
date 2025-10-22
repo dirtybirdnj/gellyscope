@@ -1,4 +1,4 @@
-// renderer.js - v22
+// renderer.js - v23
 // Frontend Logic
 
 // Check if debug mode is enabled (fallback to false if not set)
@@ -929,27 +929,123 @@ function hideCropOverlay() {
 // ============ IMAGES TAB ============
 const imageGrid = document.getElementById('imageGrid');
 
-// Generate jellyfish placeholder gallery
-for (let i = 0; i < 12; i++) {
-  const imageItem = document.createElement('div');
-  imageItem.className = 'image-item';
-  imageItem.textContent = '🪼';
-  imageItem.addEventListener('click', () => {
-    alert(`Jellyfish image ${i + 1} clicked!`);
-  });
-  imageGrid.appendChild(imageItem);
+async function loadImages() {
+  try {
+    const result = await window.electronAPI.listImages();
+
+    if (!result.success) {
+      imageGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">No images found or directory not accessible</div>';
+      return;
+    }
+
+    if (result.files.length === 0) {
+      imageGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">No images in gellyroller directory</div>';
+      return;
+    }
+
+    // Clear existing items
+    imageGrid.innerHTML = '';
+
+    // Load each image
+    for (const file of result.files) {
+      const imageItem = document.createElement('div');
+      imageItem.className = 'image-item';
+      imageItem.title = file.name;
+
+      // Read the file as base64
+      const fileData = await window.electronAPI.readFileBase64(file.path);
+
+      if (fileData.success) {
+        const img = document.createElement('img');
+        img.src = `data:${fileData.mimeType};base64,${fileData.data}`;
+        img.alt = file.name;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+        imageItem.appendChild(img);
+      } else {
+        imageItem.textContent = '❌';
+        imageItem.title = `Error loading ${file.name}`;
+      }
+
+      imageItem.addEventListener('click', () => {
+        alert(`Image: ${file.name}\nPath: ${file.path}`);
+      });
+
+      imageGrid.appendChild(imageItem);
+    }
+
+    debugLog('Loaded', result.files.length, 'images');
+  } catch (error) {
+    console.error('Error loading images:', error);
+    imageGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">Error loading images</div>';
+  }
 }
 
 // ============ VECTORS TAB ============
 const vectorGrid = document.getElementById('vectorGrid');
 
-// Generate vector placeholder gallery
-for (let i = 0; i < 12; i++) {
-  const vectorItem = document.createElement('div');
-  vectorItem.className = 'vector-item';
-  vectorItem.textContent = '🔷';
-  vectorItem.addEventListener('click', () => {
-    alert(`Vector file ${i + 1} clicked!`);
-  });
-  vectorGrid.appendChild(vectorItem);
+async function loadVectors() {
+  try {
+    const result = await window.electronAPI.listVectors();
+
+    if (!result.success) {
+      vectorGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">No vectors found or directory not accessible</div>';
+      return;
+    }
+
+    if (result.files.length === 0) {
+      vectorGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">No SVG files in gellyroller directory</div>';
+      return;
+    }
+
+    // Clear existing items
+    vectorGrid.innerHTML = '';
+
+    // Load each vector
+    for (const file of result.files) {
+      const vectorItem = document.createElement('div');
+      vectorItem.className = 'vector-item';
+      vectorItem.title = file.name;
+
+      // Read the SVG file as base64
+      const fileData = await window.electronAPI.readFileBase64(file.path);
+
+      if (fileData.success) {
+        const img = document.createElement('img');
+        img.src = `data:${fileData.mimeType};base64,${fileData.data}`;
+        img.alt = file.name;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'contain';
+        vectorItem.appendChild(img);
+      } else {
+        vectorItem.textContent = '❌';
+        vectorItem.title = `Error loading ${file.name}`;
+      }
+
+      vectorItem.addEventListener('click', () => {
+        alert(`Vector: ${file.name}\nPath: ${file.path}`);
+      });
+
+      vectorGrid.appendChild(vectorItem);
+    }
+
+    debugLog('Loaded', result.files.length, 'vectors');
+  } catch (error) {
+    console.error('Error loading vectors:', error);
+    vectorGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">Error loading vectors</div>';
+  }
 }
+
+// Load files when switching to the respective tabs
+const originalSwitchTab = switchTab;
+switchTab = function(tabName) {
+  originalSwitchTab(tabName);
+
+  if (tabName === 'images') {
+    loadImages();
+  } else if (tabName === 'vectors') {
+    loadVectors();
+  }
+};
