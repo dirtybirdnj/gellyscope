@@ -1074,7 +1074,8 @@ function showImageInTraceTab(imageSrc, fileName) {
     processedSrc: null,  // Will store the processed image
     scale: 100,  // Current scale percentage
     originalWidth: 0,
-    originalHeight: 0
+    originalHeight: 0,
+    isInitialLoad: true  // Flag to prevent infinite loop on trace updates
   };
 
   // Set the image
@@ -1092,16 +1093,22 @@ function showImageInTraceTab(imageSrc, fileName) {
   switchTab('trace');
 
   // Automatically run the trace process after image loads
+  // Only run this for the initial load, not when we update the processed image
   traceImage.onload = () => {
-    // Store original dimensions
-    window.currentTraceImage.originalWidth = traceImage.naturalWidth;
-    window.currentTraceImage.originalHeight = traceImage.naturalHeight;
+    if (window.currentTraceImage && window.currentTraceImage.isInitialLoad) {
+      // Store original dimensions
+      window.currentTraceImage.originalWidth = traceImage.naturalWidth;
+      window.currentTraceImage.originalHeight = traceImage.naturalHeight;
+      
+      // Mark that initial load is complete
+      window.currentTraceImage.isInitialLoad = false;
 
-    // Update dimension display
-    updateDimensionDisplay();
+      // Update dimension display
+      updateDimensionDisplay();
 
-    // Run initial trace
-    performTrace();
+      // Run initial trace
+      performTrace();
+    }
   };
 
   debugLog('Showing image in Trace tab:', fileName);
@@ -2279,4 +2286,4 @@ if (saveImageBtn) {
       saveImageBtn.innerHTML = '<span>📷</span> Save Image';
     }
   });
-}
+} 
