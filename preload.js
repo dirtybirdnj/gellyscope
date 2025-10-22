@@ -1,4 +1,4 @@
-// preload.js - v6
+// preload.js - v7
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGellyrollerPath: () => ipcRenderer.invoke('get-gellyroller-path'),
   listImages: () => ipcRenderer.invoke('list-images'),
   listVectors: () => ipcRenderer.invoke('list-vectors'),
+  listGcodeFiles: () => ipcRenderer.invoke('list-gcode'),
   readFileBase64: (filePath) => ipcRenderer.invoke('read-file-base64', filePath),
   readFileText: (filePath) => ipcRenderer.invoke('read-file-text', filePath),
   saveImage: (imageData, filename) => ipcRenderer.invoke('save-image', imageData, filename),

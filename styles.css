@@ -1751,6 +1751,110 @@ input[type="file"] {
   padding: 12px 0;
 }
 
+/* ============ RENDER TAB ============ */
+
+.render-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  background: #fafafa;
+}
+
+.render-sidebar {
+  width: 300px;
+  background: #ffffff;
+  border-right: 1px solid #d0d0d0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.gcode-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.gcode-item {
+  background: #f5f5f5;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gcode-item:hover {
+  background: #e8e8e8;
+  border-color: #b0b0b0;
+  transform: translateX(2px);
+}
+
+.gcode-item.active {
+  background: #007acc;
+  border-color: #005a9e;
+  color: white;
+}
+
+.gcode-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.gcode-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gcode-item.active .gcode-item-name {
+  color: white;
+}
+
+.gcode-item-info {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.gcode-item.active .gcode-item-info {
+  opacity: 0.9;
+}
+
+.gcode-item-size,
+.gcode-item-date {
+  font-family: monospace;
+}
+
+.render-viewer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1a1a1a;
+  position: relative;
+  overflow: hidden;
+}
+
+.render-message {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+}
+
+#renderCanvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 /* Scrollbar Styles */
 ::-webkit-scrollbar {
   width: 10px;
