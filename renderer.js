@@ -1069,7 +1069,8 @@ function showImageInTraceTab(imageSrc, fileName) {
   window.currentTraceImage = {
     src: imageSrc,
     fileName: fileName,
-    svgData: null
+    svgData: null,
+    processedSrc: null  // Will store the processed image
   };
 
   // Set the image
@@ -1166,6 +1167,13 @@ async function performTrace() {
 
     // Apply image processing filters first
     const processedImageSrc = await applyImageProcessing(window.currentTraceImage.src);
+
+    // Store the processed image and update the display
+    window.currentTraceImage.processedSrc = processedImageSrc;
+    const traceImage = document.getElementById('traceImage');
+    if (traceImage) {
+      traceImage.src = processedImageSrc;
+    }
 
     // Get potrace parameters
     const turnPolicy = document.getElementById('turnPolicySelect').value;
@@ -2080,16 +2088,11 @@ if (saveImageBtn) {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      // Draw the bitmap image
+      // Draw the processed bitmap image at full opacity
+      // (ignore display opacity settings - always save at 100%)
       const traceImage = document.getElementById('traceImage');
-      const bitmapOpacity = parseFloat(document.getElementById('bitmapOpacitySlider').value) / 100;
-      const showBitmap = document.getElementById('showBitmapToggle').checked;
-
-      if (showBitmap && bitmapOpacity > 0) {
-        ctx.globalAlpha = bitmapOpacity;
-        ctx.drawImage(traceImage, 0, 0, canvas.width, canvas.height);
-        ctx.globalAlpha = 1.0;
-      }
+      ctx.globalAlpha = 1.0;
+      ctx.drawImage(traceImage, 0, 0, canvas.width, canvas.height);
 
       // Draw the SVG
       const svgElement = traceSvgOverlay.querySelector('svg');
