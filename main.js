@@ -329,7 +329,7 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
     // Build vpype command - use scaled SVG without scaleto
     const vpypeArgs = [
       'read', tempFilePath,
-      'gwrite', gcodeFilePath
+      'gwrite', '-p', 'johnny5', gcodeFilePath
     ];
 
     debugLog('Executing vpype command:', 'vpype', vpypeArgs.join(' '));
