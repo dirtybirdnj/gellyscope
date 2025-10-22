@@ -16,15 +16,20 @@ function debugLog(...args) {
   }
 }
 
-// Enable live reload in development
+// Enable live reload in development (disabled - electron-reloader not installed)
+// If you want hot reload, install electron-reloader:
+// npm install --save-dev electron-reloader
+// Then uncomment the code below:
+/*
 try {
   require('electron-reloader')(module, {
     debug: true,
     watchRenderer: true
   });
-} catch (_) { 
+} catch (_) {
   // electron-reloader not installed - running without hot reload
 }
+*/
 
 let mainWindow;
 let serialPort = null;
