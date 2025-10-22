@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- index.html - v38 -->
+<!-- index.html - v39 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -14,7 +14,6 @@
       <button class="tab-button" data-tab="camera">Camera</button>
       <button class="tab-button" data-tab="photos">Photos</button>
       <button class="tab-button active" data-tab="trace">Scope</button>
-      <button class="tab-button" data-tab="plotter">Plotter</button>
     </div>
 
     <!-- Camera Tab -->
@@ -156,36 +155,8 @@
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Plotter Tab -->
-    <div class="tab-content" id="plotterTab">
-      <div class="plotter-container">
-        <div class="plotter-header">
-          <div class="connection-status">
-            <div class="status-indicator" id="statusIndicator"></div>
-            <span id="statusText">Disconnected</span>
-          </div>
-
-          <div class="serial-config">
-            <div class="config-group">
-              <label class="config-label">Port</label>
-              <select class="config-select" id="portSelect">
-                <option value="">Select Port...</option>
-              </select>
-            </div>
-            <div class="config-group">
-              <label class="config-label">Baud Rate</label>
-              <select class="config-select" id="baudRate">
-                <option value="9600">9600</option>
-                <option value="19200">19200</option>
-                <option value="38400">38400</option>
-                <option value="57600">57600</option>
-                <option value="115200" selected>115200</option>
-              </select>
-            </div>
-            <div class="config-group">
-              <label class="config-label">Data Bits</label>
-              <select class="config-select" id="dataBits">
-                <option value="7">7</option>
-                <option value="8" selected>8</option>
-              </select
+  <script src="renderer.js"></script>
+</body>
+</html>

@@ -17,7 +17,6 @@
   "license": "MIT",
   "dependencies": {
     "xml2js": "^0.6.2",
-    "serialport": "^12.0.0",
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
