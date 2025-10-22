@@ -950,7 +950,11 @@ async function loadImages() {
     for (const file of result.files) {
       const imageItem = document.createElement('div');
       imageItem.className = 'image-item';
-      imageItem.title = file.name;
+
+      // Create image wrapper
+      const imageWrapper = document.createElement('div');
+      imageWrapper.className = 'image-wrapper';
+      imageWrapper.title = file.name;
 
       // Read the file as base64
       const fileData = await window.electronAPI.readFileBase64(file.path);
@@ -962,15 +966,39 @@ async function loadImages() {
         img.style.width = '100%';
         img.style.height = '100%';
         img.style.objectFit = 'cover';
-        imageItem.appendChild(img);
+        imageWrapper.appendChild(img);
       } else {
-        imageItem.textContent = '❌';
-        imageItem.title = `Error loading ${file.name}`;
+        imageWrapper.textContent = '❌';
+        imageWrapper.title = `Error loading ${file.name}`;
       }
 
-      imageItem.addEventListener('click', () => {
-        alert(`Image: ${file.name}\nPath: ${file.path}`);
+      imageItem.appendChild(imageWrapper);
+
+      // Create buttons container
+      const buttonsContainer = document.createElement('div');
+      buttonsContainer.className = 'image-actions';
+
+      // Create Delete button
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'image-action-btn delete-btn';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await handleDeleteImage(file.path, file.name);
       });
+
+      // Create Trace button
+      const traceBtn = document.createElement('button');
+      traceBtn.className = 'image-action-btn trace-btn';
+      traceBtn.textContent = 'Trace';
+      traceBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await handleTraceImage(file.path, file.name);
+      });
+
+      buttonsContainer.appendChild(deleteBtn);
+      buttonsContainer.appendChild(traceBtn);
+      imageItem.appendChild(buttonsContainer);
 
       imageGrid.appendChild(imageItem);
     }
@@ -980,6 +1008,46 @@ async function loadImages() {
     console.error('Error loading images:', error);
     imageGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">Error loading images</div>';
   }
+}
+
+// Handle image deletion
+async function handleDeleteImage(filePath, fileName) {
+  // Confirm deletion
+  const confirmed = confirm(`Are you sure you want to delete "${fileName}"?`);
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const result = await window.electronAPI.deleteFile(filePath);
+
+    if (result.success) {
+      debugLog('File deleted successfully:', fileName);
+      // Reload the images grid
+      await loadImages();
+    } else {
+      alert(`Failed to delete file: ${result.error}`);
+      console.error('Delete error:', result.error);
+    }
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    alert('An error occurred while deleting the file.');
+  }
+}
+
+// Handle image tracing (convert to vector)
+async function handleTraceImage(filePath, fileName) {
+  // For now, show a message that this feature is coming soon
+  // In the future, this could use potrace or similar to convert bitmap to SVG
+  alert(`Trace feature coming soon!\n\nThis will convert "${fileName}" to a vector (SVG) file.`);
+
+  // TODO: Implement actual tracing functionality
+  // This would typically involve:
+  // 1. Reading the image file
+  // 2. Running it through a tracing algorithm (like potrace)
+  // 3. Saving the resulting SVG to the gellyroller directory
+  // 4. Switching to the Trace tab to show the result
 }
 
 // ============ VECTORS TAB ============

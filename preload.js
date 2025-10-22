@@ -8,5 +8,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listImages: () => ipcRenderer.invoke('list-images'),
   listVectors: () => ipcRenderer.invoke('list-vectors'),
   readFileBase64: (filePath) => ipcRenderer.invoke('read-file-base64', filePath),
-  saveImage: (imageData, filename) => ipcRenderer.invoke('save-image', imageData, filename)
+  saveImage: (imageData, filename) => ipcRenderer.invoke('save-image', imageData, filename),
+  deleteFile: (filePath) => ipcRenderer.invoke('delete-file', filePath)
 });
