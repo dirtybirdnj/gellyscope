@@ -1064,7 +1064,8 @@ if (window.electronAPI.onSerialData) {
   });
 }
 
-// Initialize ports on load
-setTimeout(() => {
-  refreshPorts.click();
-}, 500);
+// Don't auto-refresh ports on load - can cause app to freeze
+// User can manually click the refresh button when needed
+// setTimeout(() => {
+//   refreshPorts.click();
+// }, 500);

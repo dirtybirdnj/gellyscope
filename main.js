@@ -16,21 +16,6 @@ function debugLog(...args) {
   }
 }
 
-// Enable live reload in development (disabled - electron-reloader not installed)
-// If you want hot reload, install electron-reloader:
-// npm install --save-dev electron-reloader
-// Then uncomment the code below:
-/*
-try {
-  require('electron-reloader')(module, {
-    debug: true,
-    watchRenderer: true
-  });
-} catch (_) {
-  // electron-reloader not installed - running without hot reload
-}
-*/
-
 let mainWindow;
 let serialPort = null;
 
@@ -46,9 +31,9 @@ function createWindow() {
   });
 
   mainWindow.loadFile('index.html');
-  
-  // Open DevTools in development
-  // mainWindow.webContents.openDevTools();
+
+  // Open DevTools for debugging
+  mainWindow.webContents.openDevTools();
 }
 
 app.whenReady().then(createWindow);

@@ -34,7 +34,8 @@
       "main.js",
       "preload.js",
       "renderer.js",
-      "index.html"
+      "index.html",
+      "styles.css"
     ],
     "mac": {
       "category": "public.app-category.graphics-design",
