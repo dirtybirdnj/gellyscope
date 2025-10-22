@@ -1087,6 +1087,11 @@ function showImageInTraceTab(imageSrc, fileName) {
   // Switch to trace tab
   switchTab('trace');
 
+  // Automatically run the trace process after image loads
+  traceImage.onload = () => {
+    performTrace();
+  };
+
   debugLog('Showing image in Trace tab:', fileName);
 }
 
