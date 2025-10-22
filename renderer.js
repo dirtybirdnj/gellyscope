@@ -1,4 +1,4 @@
-// renderer.js - v27
+// renderer.js - v28
 // Frontend Logic
 
 // Check if debug mode is enabled (fallback to false if not set)
@@ -1957,8 +1957,9 @@ function renderGcode(gcodeText) {
           }
           isPenDown = false;
         } else if (sValue === 0) {
-          // Pen down
+          // Pen down - start new path at current position
           isPenDown = true;
+          currentPath.push({ x: currentX, y: currentY });
         }
       }
     }
