@@ -1055,10 +1055,26 @@ function showImageInTraceTab(imageSrc, fileName) {
   // Get trace tab elements
   const traceImage = document.getElementById('traceImage');
   const traceMessage = document.getElementById('traceMessage');
+  const traceImageContainer = document.getElementById('traceImageContainer');
+  const traceSvgOverlay = document.getElementById('traceSvgOverlay');
+
+  // Clear any previous trace
+  traceSvgOverlay.innerHTML = '';
+  const captureBtn = document.getElementById('captureTraceBtn');
+  if (captureBtn) {
+    captureBtn.disabled = true;
+  }
+
+  // Store current image info
+  window.currentTraceImage = {
+    src: imageSrc,
+    fileName: fileName,
+    svgData: null
+  };
 
   // Set the image
   traceImage.src = imageSrc;
-  traceImage.style.display = 'block';
+  traceImageContainer.style.display = 'block';
   traceMessage.style.display = 'none';
 
   // Switch to trace tab
@@ -1076,7 +1092,6 @@ const contrastValue = document.getElementById('contrastValue');
 if (contrastSlider && contrastValue) {
   contrastSlider.addEventListener('input', (e) => {
     contrastValue.textContent = e.target.value;
-    // TODO: Apply contrast to image
     debugLog('Contrast:', e.target.value);
   });
 }
@@ -1088,8 +1103,18 @@ const dotSizeValue = document.getElementById('dotSizeValue');
 if (dotSizeSlider && dotSizeValue) {
   dotSizeSlider.addEventListener('input', (e) => {
     dotSizeValue.textContent = e.target.value;
-    // TODO: Apply dot size to tracing algorithm
     debugLog('Dot Size:', e.target.value);
+  });
+}
+
+// Show bitmap toggle
+const showBitmapToggle = document.getElementById('showBitmapToggle');
+const traceImage = document.getElementById('traceImage');
+
+if (showBitmapToggle && traceImage) {
+  showBitmapToggle.addEventListener('change', (e) => {
+    traceImage.style.display = e.target.checked ? 'block' : 'none';
+    debugLog('Show bitmap:', e.target.checked);
   });
 }
 
@@ -1097,10 +1122,123 @@ if (dotSizeSlider && dotSizeValue) {
 const traceActionBtn = document.getElementById('traceActionBtn');
 
 if (traceActionBtn) {
-  traceActionBtn.addEventListener('click', () => {
-    // TODO: Implement actual tracing functionality
-    alert('Trace functionality coming soon!\n\nThis will convert the image to a vector (SVG) using the current settings.');
-    debugLog('Trace button clicked - contrast:', contrastSlider.value, 'dotSize:', dotSizeSlider.value);
+  traceActionBtn.addEventListener('click', async () => {
+    if (!window.currentTraceImage || !window.currentTraceImage.src) {
+      alert('Please select an image first');
+      return;
+    }
+
+    try {
+      traceActionBtn.disabled = true;
+      traceActionBtn.textContent = 'Tracing...';
+
+      // Set potrace parameters based on sliders
+      const threshold = parseInt(contrastSlider.value) * 2.55; // Convert 0-100 to 0-255
+      const turdsize = parseInt(dotSizeSlider.value);
+
+      Potrace.setParameter({
+        turdsize: turdsize,
+        turnpolicy: 'minority',
+        optcurve: true,
+        alphamax: 1,
+        opttolerance: 0.2
+      });
+
+      // Load image into potrace
+      Potrace.loadImageFromUrl(window.currentTraceImage.src);
+
+      // Process the image
+      Potrace.process(() => {
+        // Get SVG output
+        const svgString = Potrace.getSVG(1);
+
+        // Store the SVG data
+        window.currentTraceImage.svgData = svgString;
+
+        // Display the SVG overlay
+        const traceSvgOverlay = document.getElementById('traceSvgOverlay');
+        traceSvgOverlay.innerHTML = svgString;
+
+        // Enable capture button
+        const captureBtn = document.getElementById('captureTraceBtn');
+        if (captureBtn) {
+          captureBtn.disabled = false;
+        }
+
+        traceActionBtn.disabled = false;
+        traceActionBtn.textContent = 'Trace';
+
+        debugLog('Trace completed successfully');
+      });
+    } catch (error) {
+      console.error('Error tracing image:', error);
+      alert('Error tracing image: ' + error.message);
+      traceActionBtn.disabled = false;
+      traceActionBtn.textContent = 'Trace';
+    }
+  });
+}
+
+// Capture trace button
+const captureTraceBtn = document.getElementById('captureTraceBtn');
+let capturedLayers = [];
+
+if (captureTraceBtn) {
+  captureTraceBtn.addEventListener('click', () => {
+    if (!window.currentTraceImage || !window.currentTraceImage.svgData) {
+      alert('No trace data to capture');
+      return;
+    }
+
+    // Create a new layer
+    const layerName = `Layer ${capturedLayers.length + 1}`;
+    const layer = {
+      id: Date.now(),
+      name: layerName,
+      svgData: window.currentTraceImage.svgData,
+      visible: true
+    };
+
+    capturedLayers.push(layer);
+
+    // Add to layers list
+    updateLayersList();
+
+    debugLog('Captured trace as:', layerName);
+  });
+}
+
+function updateLayersList() {
+  const layersList = document.getElementById('traceLayersList');
+
+  if (capturedLayers.length === 0) {
+    layersList.innerHTML = '<div style="padding: 16px; text-align: center; opacity: 0.5; font-size: 13px;">No layers</div>';
+    return;
+  }
+
+  layersList.innerHTML = '';
+
+  capturedLayers.forEach((layer, index) => {
+    const layerItem = document.createElement('div');
+    layerItem.className = 'layer-item';
+    layerItem.style.cssText = 'padding: 8px 12px; border-bottom: 1px solid #e0e0e0; cursor: pointer; display: flex; justify-content: space-between; align-items: center;';
+
+    const layerName = document.createElement('span');
+    layerName.textContent = layer.name;
+    layerName.style.fontSize = '13px';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = '×';
+    deleteBtn.style.cssText = 'background: none; border: none; font-size: 20px; color: #d32f2f; cursor: pointer; padding: 0; width: 24px; height: 24px;';
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      capturedLayers.splice(index, 1);
+      updateLayersList();
+    });
+
+    layerItem.appendChild(layerName);
+    layerItem.appendChild(deleteBtn);
+    layersList.appendChild(layerItem);
   });
 }
 

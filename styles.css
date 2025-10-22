@@ -873,7 +873,6 @@ body {
 }
 
 .trace-action-btn {
-  margin-top: auto;
   padding: 12px 24px;
   background: #007acc;
   color: white;
@@ -891,6 +890,82 @@ body {
 
 .trace-action-btn:active {
   background: #004578;
+}
+
+.trace-action-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  color: #888888;
+}
+
+.trace-action-btn.capture-btn {
+  margin-top: 8px;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: #007acc;
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(24px);
+}
+
+/* Trace Image Container */
+.trace-image-container {
+  position: relative;
+  display: inline-block;
+}
+
+.trace-svg-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.trace-svg-overlay svg {
+  width: 100%;
+  height: 100%;
 }
 
 /* Plotter Tab */

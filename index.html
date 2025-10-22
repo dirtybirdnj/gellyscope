@@ -71,7 +71,10 @@
             <div class="trace-message" id="traceMessage">
               Select an image from the Images tab to trace it
             </div>
-            <img id="traceImage" style="display: none; max-width: 100%; max-height: 100%; object-fit: contain;">
+            <div class="trace-image-container" id="traceImageContainer" style="display: none; position: relative; max-width: 100%; max-height: 100%;">
+              <img id="traceImage" class="trace-bitmap" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+              <div id="traceSvgOverlay" class="trace-svg-overlay"></div>
+            </div>
           </div>
         </div>
 
@@ -93,8 +96,20 @@
               <span class="control-value" id="dotSizeValue">5</span>
             </div>
 
+            <!-- Show Bitmap Toggle -->
+            <div class="control-group">
+              <label class="control-label">Show Bitmap</label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="showBitmapToggle" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
             <!-- Trace Button -->
             <button class="trace-action-btn" id="traceActionBtn">Trace</button>
+
+            <!-- Capture Trace Button -->
+            <button class="trace-action-btn capture-btn" id="captureTraceBtn" disabled>Capture Trace</button>
           </div>
         </div>
       </div>
@@ -218,6 +233,7 @@
     </div>
   </div>
 
+  <script src="potrace.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>
