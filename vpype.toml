@@ -1,0 +1,13 @@
+# vpype configuration for Gellyscope
+# This file contains gwrite profiles for G-code generation
+
+[gwrite.johnny5]
+unit = "mm"
+document_start = "G21\nG90\nM42 P0 S1\nG0 X100 Y100\n"
+document_end = "M42 P0 S1\nG0 X200 Y200\n"
+segment = "G1 X{x:.4f} Y{y:.4f}\n"
+segment_first = "G1 X{x:.4f} Y{y:.4f}\nM42 P0 S0\n"
+segment_last = "G1 X{x:.4f} Y{y:.4f}\nM42 P0 S0\n"
+line_join = "\nM42 P0 S1\n"
+vertical_flip = false
+info = "This gcode profile is for the j5 plotter bot"

@@ -4,6 +4,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { spawn } = require('child_process');
 const { parseString } = require('xml2js');
 require('dotenv').config();
 
@@ -196,6 +197,20 @@ ipcMain.handle('read-file-base64', async (event, filePath) => {
   }
 });
 
+// IPC Handler for reading text files
+ipcMain.handle('read-file-text', async (event, filePath) => {
+  try {
+    const data = fs.readFileSync(filePath, 'utf8');
+    return {
+      success: true,
+      data: data
+    };
+  } catch (error) {
+    console.error('Error reading text file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // IPC Handler for deleting files
 ipcMain.handle('delete-file', async (event, filePath) => {
   try {
@@ -219,6 +234,237 @@ ipcMain.handle('delete-file', async (event, filePath) => {
     return { success: true };
   } catch (error) {
     console.error('Error deleting file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC Handler for converting SVG to G-code using vpype
+ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputHeight, unit) => {
+  let tempFilePath = null;
+
+  try {
+    debugLog('=== EJECT-TO-GCODE HANDLER CALLED ===');
+    debugLog('SVG file path:', svgFilePath);
+    debugLog('Output dimensions:', outputWidth, 'x', outputHeight, unit);
+
+    // Verify the file exists
+    if (!fs.existsSync(svgFilePath)) {
+      return { success: false, error: 'SVG file does not exist' };
+    }
+
+    // Convert dimensions to mm for vpype
+    const toMm = (value, unit) => {
+      switch (unit) {
+        case 'mm': return value;
+        case 'cm': return value * 10;
+        case 'in': return value * 25.4;
+        default: return value;
+      }
+    };
+
+    const widthMm = toMm(outputWidth, unit);
+    const heightMm = toMm(outputHeight, unit);
+
+    debugLog('Converted dimensions to mm:', widthMm, 'x', heightMm);
+
+    // Read and scale the SVG content
+    let svgContent = fs.readFileSync(svgFilePath, 'utf8');
+    debugLog('Original SVG length:', svgContent.length);
+
+    // Parse SVG to modify viewBox
+    // Match viewBox attribute
+    const viewBoxMatch = svgContent.match(/viewBox=["']([^"']+)["']/);
+
+    if (viewBoxMatch) {
+      const viewBoxValues = viewBoxMatch[1].split(/\s+/).map(parseFloat);
+      const [minX, minY, origWidth, origHeight] = viewBoxValues;
+
+      debugLog('Original viewBox:', viewBoxValues);
+      debugLog('Scaling to:', widthMm, 'x', heightMm, 'mm');
+
+      // Create new viewBox with target dimensions in mm
+      const newViewBox = `${minX} ${minY} ${widthMm} ${heightMm}`;
+      svgContent = svgContent.replace(/viewBox=["'][^"']+["']/, `viewBox="${newViewBox}"`);
+
+      debugLog('New viewBox:', newViewBox);
+    } else {
+      // If no viewBox, try to add one based on width/height attributes
+      const widthMatch = svgContent.match(/width=["']([^"']+)["']/);
+      const heightMatch = svgContent.match(/height=["']([^"']+)["']/);
+
+      if (widthMatch && heightMatch) {
+        const origWidth = parseFloat(widthMatch[1]);
+        const origHeight = parseFloat(heightMatch[1]);
+
+        // Insert viewBox after opening svg tag
+        const viewBox = `viewBox="0 0 ${widthMm} ${heightMm}"`;
+        svgContent = svgContent.replace(/<svg/, `<svg ${viewBox}`);
+
+        debugLog('Added viewBox:', viewBox);
+      }
+    }
+
+    // Also set width and height attributes to mm
+    svgContent = svgContent.replace(/width=["'][^"']+["']/, `width="${widthMm}mm"`);
+    svgContent = svgContent.replace(/height=["'][^"']+["']/, `height="${heightMm}mm"`);
+
+    // Use gellyroller directory in user's home for G-code output
+    const homeDir = os.homedir();
+    const gcodePath = path.join(homeDir, 'gellyroller');
+    if (!fs.existsSync(gcodePath)) {
+      fs.mkdirSync(gcodePath, { recursive: true });
+      debugLog('Created gellyroller directory:', gcodePath);
+    }
+
+    // Write scaled SVG to temporary file
+    const baseName = path.basename(svgFilePath, path.extname(svgFilePath));
+    const timestamp = Date.now();
+    tempFilePath = path.join(gcodePath, `${baseName}_${timestamp}_scaled.svg`);
+    fs.writeFileSync(tempFilePath, svgContent, 'utf8');
+    debugLog('Scaled SVG written to:', tempFilePath);
+
+    // Generate output filename
+    const gcodeFilePath = path.join(gcodePath, `${baseName}_${timestamp}.gcode`);
+    debugLog('Output G-code path:', gcodeFilePath);
+
+    // Path to project vpype config file
+    const vpypeConfigPath = path.join(__dirname, 'vpype.toml');
+    debugLog('vpype config path:', vpypeConfigPath);
+
+    // Build vpype command - use project config and scaled SVG
+    const vpypeArgs = [
+      '--config', vpypeConfigPath,
+      'read', tempFilePath,
+      'gwrite', '-p', 'johnny5', gcodeFilePath
+    ];
+
+    debugLog('Executing vpype command:', 'vpype', vpypeArgs.join(' '));
+
+    // Execute vpype command
+    return new Promise((resolve, reject) => {
+      const vpype = spawn('vpype', vpypeArgs);
+
+      let stdout = '';
+      let stderr = '';
+
+      vpype.stdout.on('data', (data) => {
+        stdout += data.toString();
+        debugLog('vpype stdout:', data.toString());
+      });
+
+      vpype.stderr.on('data', (data) => {
+        stderr += data.toString();
+        debugLog('vpype stderr:', data.toString());
+      });
+
+      vpype.on('close', (code) => {
+        debugLog('vpype process exited with code:', code);
+
+        // Clean up temporary file
+        if (tempFilePath && fs.existsSync(tempFilePath)) {
+          try {
+            fs.unlinkSync(tempFilePath);
+            debugLog('Cleaned up temp file:', tempFilePath);
+          } catch (err) {
+            console.error('Error cleaning up temp file:', err);
+          }
+        }
+
+        if (code === 0) {
+          // Check if output file was created
+          if (fs.existsSync(gcodeFilePath)) {
+            debugLog('G-code file created successfully:', gcodeFilePath);
+            resolve({
+              success: true,
+              gcodeFilePath: gcodeFilePath,
+              message: 'G-code generated successfully'
+            });
+          } else {
+            resolve({
+              success: false,
+              error: 'G-code file was not created'
+            });
+          }
+        } else {
+          resolve({
+            success: false,
+            error: `vpype exited with code ${code}`,
+            stderr: stderr
+          });
+        }
+      });
+
+      vpype.on('error', (err) => {
+        console.error('Error spawning vpype:', err);
+
+        // Clean up temporary file on error
+        if (tempFilePath && fs.existsSync(tempFilePath)) {
+          try {
+            fs.unlinkSync(tempFilePath);
+          } catch (cleanupErr) {
+            console.error('Error cleaning up temp file:', cleanupErr);
+          }
+        }
+
+        resolve({
+          success: false,
+          error: 'Failed to execute vpype. Make sure vpype and vpype-gcode are installed.',
+          details: err.message
+        });
+      });
+    });
+  } catch (error) {
+    console.error('Error in eject-to-gcode handler:', error);
+
+    // Clean up temporary file on error
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch (cleanupErr) {
+        console.error('Error cleaning up temp file:', cleanupErr);
+      }
+    }
+
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC Handler for downloading G-code file
+ipcMain.handle('download-gcode', async (event, gcodeFilePath) => {
+  try {
+    debugLog('=== DOWNLOAD-GCODE HANDLER CALLED ===');
+    debugLog('G-code file path:', gcodeFilePath);
+
+    // Verify the file exists
+    if (!fs.existsSync(gcodeFilePath)) {
+      return { success: false, error: 'G-code file does not exist' };
+    }
+
+    // Get the filename
+    const fileName = path.basename(gcodeFilePath);
+
+    // Show save dialog
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save G-code File',
+      defaultPath: fileName,
+      filters: [
+        { name: 'G-code Files', extensions: ['gcode', 'nc', 'txt'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (result.canceled) {
+      debugLog('Download canceled by user');
+      return { success: false, canceled: true };
+    }
+
+    // Copy the file to the selected location
+    fs.copyFileSync(gcodeFilePath, result.filePath);
+    debugLog('G-code file saved to:', result.filePath);
+
+    return { success: true, filePath: result.filePath };
+  } catch (error) {
+    console.error('Error downloading G-code:', error);
     return { success: false, error: error.message };
   }
 });

@@ -15,6 +15,7 @@
       <button class="tab-button" data-tab="images">Images</button>
       <button class="tab-button" data-tab="vectors">Vectors</button>
       <button class="tab-button" data-tab="trace">Trace</button>
+      <button class="tab-button" data-tab="eject">Eject</button>
       <button class="tab-button active" data-tab="scope">Scope</button>
     </div>
 
@@ -349,6 +350,72 @@
             <!-- Action Buttons -->
             <button class="trace-action-btn" id="traceActionBtn">Trace</button>
             <button class="trace-action-btn capture-btn" id="captureTraceBtn" disabled>Capture Trace</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Eject Tab -->
+    <div class="tab-content" id="ejectTab">
+      <div class="eject-container">
+        <div class="eject-info-bar" id="ejectInfoBar" style="display: none;">
+          <div class="eject-info-item">
+            <span class="eject-info-label">Input Dimensions:</span>
+            <span class="eject-info-value" id="ejectDimensions">—</span>
+          </div>
+          <div class="eject-info-divider"></div>
+          <div class="eject-info-item">
+            <span class="eject-info-label">Output Dimensions:</span>
+            <span class="eject-info-label" style="margin-left: 8px;">Width:</span>
+            <input type="number" class="eject-dimension-input" id="ejectFixedWidth" placeholder="Width" min="1" step="0.1">
+            <span class="eject-info-label" style="margin-left: 8px;">Height:</span>
+            <input type="number" class="eject-dimension-input" id="ejectFixedHeight" placeholder="Height" min="1" step="0.1">
+            <select class="eject-dimension-unit" id="ejectFixedUnit">
+              <option value="mm">mm</option>
+              <option value="cm">cm</option>
+              <option value="in" selected>inches</option>
+            </select>
+          </div>
+        </div>
+        <div class="eject-viewer" id="ejectViewer">
+          <div class="eject-message" id="ejectMessage">
+            No vector image loaded
+          </div>
+          <div class="eject-svg-container" id="ejectSvgContainer" style="display: none;">
+            <!-- SVG will be displayed here -->
+          </div>
+        </div>
+
+        <!-- Output Toolbar -->
+        <div class="output-toolbar" id="ejectOutputToolbar" style="display: none;">
+          <div class="toolbar-section">
+            <label class="toolbar-label">Page Size</label>
+            <div class="page-size-group">
+              <button class="page-size-btn eject-page-size-btn" data-size="A0">A0</button>
+              <button class="page-size-btn eject-page-size-btn" data-size="A1">A1</button>
+              <button class="page-size-btn eject-page-size-btn" data-size="A2">A2</button>
+              <button class="page-size-btn eject-page-size-btn" data-size="A3">A3</button>
+              <button class="page-size-btn eject-page-size-btn active" data-size="A4">A4</button>
+              <button class="page-size-btn eject-page-size-btn" data-size="A5">A5</button>
+              <button class="page-size-btn eject-page-size-btn" data-size="A6">A6</button>
+              <button class="page-size-btn eject-page-size-btn" data-size="A7">A7</button>
+              <button class="page-size-btn eject-page-size-btn" data-size="custom">Custom</button>
+            </div>
+            <div class="custom-size-inputs" id="ejectCustomSizeInputs" style="display: none;">
+              <input type="number" class="custom-input" id="ejectCustomWidth" placeholder="Width" min="1" step="0.1" value="12">
+              <span class="custom-separator">×</span>
+              <input type="number" class="custom-input" id="ejectCustomHeight" placeholder="Height" min="1" step="0.1" value="24">
+              <select class="custom-unit" id="ejectCustomUnit">
+                <option value="mm">mm</option>
+                <option value="cm">cm</option>
+                <option value="in" selected>inches</option>
+              </select>
+            </div>
+          </div>
+          <div class="toolbar-section toolbar-section-right">
+            <button class="eject-action-btn" id="ejectToGcodeBtn">
+              <span>🚀</span> Generate G-code
+            </button>
           </div>
         </div>
       </div>
