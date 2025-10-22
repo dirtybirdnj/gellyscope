@@ -326,8 +326,13 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
     const gcodeFilePath = path.join(gcodePath, `${baseName}_${timestamp}.gcode`);
     debugLog('Output G-code path:', gcodeFilePath);
 
-    // Build vpype command - use scaled SVG without scaleto
+    // Path to project vpype config file
+    const vpypeConfigPath = path.join(__dirname, 'vpype.toml');
+    debugLog('vpype config path:', vpypeConfigPath);
+
+    // Build vpype command - use project config and scaled SVG
     const vpypeArgs = [
+      '--config', vpypeConfigPath,
       'read', tempFilePath,
       'gwrite', '-p', 'johnny5', gcodeFilePath
     ];
