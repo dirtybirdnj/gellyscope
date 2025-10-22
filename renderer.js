@@ -1068,9 +1068,13 @@ function showImageInTraceTab(imageSrc, fileName) {
   // Store current image info
   window.currentTraceImage = {
     src: imageSrc,
+    originalSrc: imageSrc,  // Store original unscaled image
     fileName: fileName,
     svgData: null,
-    processedSrc: null  // Will store the processed image
+    processedSrc: null,  // Will store the processed image
+    scale: 100,  // Current scale percentage
+    originalWidth: 0,
+    originalHeight: 0
   };
 
   // Set the image
@@ -1089,6 +1093,14 @@ function showImageInTraceTab(imageSrc, fileName) {
 
   // Automatically run the trace process after image loads
   traceImage.onload = () => {
+    // Store original dimensions
+    window.currentTraceImage.originalWidth = traceImage.naturalWidth;
+    window.currentTraceImage.originalHeight = traceImage.naturalHeight;
+
+    // Update dimension display
+    updateDimensionDisplay();
+
+    // Run initial trace
     performTrace();
   };
 
@@ -1157,6 +1169,56 @@ function applyImageProcessing(originalSrc) {
   });
 }
 
+// Scale image based on percentage
+function scaleImage(imageSrc, scalePercent) {
+  return new Promise((resolve) => {
+    if (scalePercent === 100) {
+      resolve(imageSrc);
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.onload = () => {
+      const scale = scalePercent / 100;
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL());
+    };
+
+    img.src = imageSrc;
+  });
+}
+
+// Update dimension display
+function updateDimensionDisplay() {
+  const originalDimensions = document.getElementById('originalDimensions');
+  const scaledDimensions = document.getElementById('scaledDimensions');
+  const scaledDimensionsGroup = document.getElementById('scaledDimensionsGroup');
+
+  if (window.currentTraceImage) {
+    const width = window.currentTraceImage.originalWidth;
+    const height = window.currentTraceImage.originalHeight;
+
+    originalDimensions.textContent = `${width} × ${height} px`;
+
+    if (window.currentTraceImage.scale !== 100) {
+      const scale = window.currentTraceImage.scale / 100;
+      const scaledWidth = Math.round(width * scale);
+      const scaledHeight = Math.round(height * scale);
+
+      scaledDimensions.textContent = `${scaledWidth} × ${scaledHeight} px`;
+      scaledDimensionsGroup.style.display = 'block';
+    } else {
+      scaledDimensionsGroup.style.display = 'none';
+    }
+  }
+}
+
 // Debounced trace function
 async function performTrace() {
   if (!window.currentTraceImage || !window.currentTraceImage.src) {
@@ -1170,8 +1232,14 @@ async function performTrace() {
       traceActionBtn.textContent = 'Processing...';
     }
 
-    // Apply image processing filters first
-    const processedImageSrc = await applyImageProcessing(window.currentTraceImage.src);
+    // First scale the image if needed
+    const scaledImageSrc = await scaleImage(
+      window.currentTraceImage.originalSrc,
+      window.currentTraceImage.scale
+    );
+
+    // Then apply image processing filters to the scaled image
+    const processedImageSrc = await applyImageProcessing(scaledImageSrc);
 
     // Store the processed image and update the display
     window.currentTraceImage.processedSrc = processedImageSrc;
@@ -1993,6 +2061,34 @@ window.addEventListener('resize', () => {
   if (pageBackgroundElement) {
     updatePageBackground();
   }
+});
+
+// ============ IMAGE SCALING CONTROLS ============
+
+// Scale button handlers
+document.querySelectorAll('.scale-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const scale = parseInt(btn.dataset.scale);
+
+    // Update active state
+    document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    // Update scale in current image
+    if (window.currentTraceImage) {
+      window.currentTraceImage.scale = scale;
+
+      // Update dimension display
+      updateDimensionDisplay();
+
+      // Re-trace with new scale
+      if (window.currentTraceImage.originalSrc) {
+        triggerAutoTrace();
+      }
+    }
+
+    debugLog('Image scale changed:', scale + '%');
+  });
 });
 
 // Initialize page background for A4

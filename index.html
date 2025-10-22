@@ -120,6 +120,37 @@
           <div class="panel-header">Processing Pipeline</div>
           <div class="trace-controls" id="traceControls">
 
+            <!-- Image Scaling Section -->
+            <div class="pipeline-section">
+              <div class="section-header" data-section="image-scaling">
+                <span class="section-collapse-arrow">▼</span>
+                <span>Image Scaling</span>
+              </div>
+              <div class="section-content" data-section-content="image-scaling">
+
+                <div class="control-group">
+                  <label class="control-label">Original Dimensions</label>
+                  <div class="dimension-display" id="originalDimensions">-</div>
+                </div>
+
+                <div class="control-group">
+                  <label class="control-label">Scale</label>
+                  <div class="scale-btn-group">
+                    <button class="scale-btn active" data-scale="100">100%</button>
+                    <button class="scale-btn" data-scale="75">75%</button>
+                    <button class="scale-btn" data-scale="50">50%</button>
+                    <button class="scale-btn" data-scale="25">25%</button>
+                  </div>
+                </div>
+
+                <div class="control-group" id="scaledDimensionsGroup" style="display: none;">
+                  <label class="control-label">Scaled Dimensions</label>
+                  <div class="dimension-display scaled" id="scaledDimensions">-</div>
+                </div>
+
+              </div>
+            </div>
+
             <!-- Image Processing Section -->
             <div class="pipeline-section">
               <div class="section-header" data-section="image-processing">
