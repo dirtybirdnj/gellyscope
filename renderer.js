@@ -1801,6 +1801,7 @@ switchTab = function(tabName) {
 // Eject tab page sizing variables
 let ejectPageSize = 'A4';
 let ejectPageBackgroundElement = null;
+let ejectOriginalAspectRatio = 1; // Store original SVG aspect ratio
 
 // Function to load SVG into Eject tab
 function loadEjectTab() {
@@ -1839,23 +1840,26 @@ function loadEjectTab() {
       if (width && height) {
         ejectDimensions.textContent = `${width} × ${height}`;
 
+        // Store original aspect ratio for locked scaling
+        ejectOriginalAspectRatio = width / height;
+        debugLog('Stored original aspect ratio:', ejectOriginalAspectRatio);
+
         // Set default output dimensions if not already set
         // Default to 4 inches for the smaller dimension, maintaining aspect ratio
         const currentWidth = document.getElementById('ejectFixedWidth').value;
         const currentHeight = document.getElementById('ejectFixedHeight').value;
 
         if (!currentWidth || !currentHeight) {
-          const aspectRatio = width / height;
           let defaultWidth, defaultHeight;
 
           if (width < height) {
             // Portrait or square
             defaultWidth = 4;
-            defaultHeight = 4 / aspectRatio;
+            defaultHeight = 4 / ejectOriginalAspectRatio;
           } else {
             // Landscape
             defaultHeight = 4;
-            defaultWidth = 4 * aspectRatio;
+            defaultWidth = 4 * ejectOriginalAspectRatio;
           }
 
           document.getElementById('ejectFixedWidth').value = defaultWidth.toFixed(2);
@@ -2117,20 +2121,49 @@ const ejectCustomUnit = document.getElementById('ejectCustomUnit');
   }
 });
 
-// Output dimension input handlers
+// Output dimension input handlers with aspect ratio locking
 const ejectFixedWidth = document.getElementById('ejectFixedWidth');
 const ejectFixedHeight = document.getElementById('ejectFixedHeight');
 const ejectFixedUnit = document.getElementById('ejectFixedUnit');
 
-[ejectFixedWidth, ejectFixedHeight, ejectFixedUnit].forEach(input => {
-  if (input) {
-    input.addEventListener('input', () => {
-      if (ejectPageBackgroundElement) {
-        updateEjectPageBackground();
-      }
-    });
-  }
-});
+// Width input - automatically adjust height to maintain aspect ratio
+if (ejectFixedWidth) {
+  ejectFixedWidth.addEventListener('input', () => {
+    const width = parseFloat(ejectFixedWidth.value);
+    if (!isNaN(width) && width > 0 && ejectOriginalAspectRatio > 0) {
+      const newHeight = width / ejectOriginalAspectRatio;
+      ejectFixedHeight.value = newHeight.toFixed(2);
+      debugLog('Width changed, adjusted height:', newHeight.toFixed(2));
+    }
+    if (ejectPageBackgroundElement) {
+      updateEjectPageBackground();
+    }
+  });
+}
+
+// Height input - automatically adjust width to maintain aspect ratio
+if (ejectFixedHeight) {
+  ejectFixedHeight.addEventListener('input', () => {
+    const height = parseFloat(ejectFixedHeight.value);
+    if (!isNaN(height) && height > 0 && ejectOriginalAspectRatio > 0) {
+      const newWidth = height * ejectOriginalAspectRatio;
+      ejectFixedWidth.value = newWidth.toFixed(2);
+      debugLog('Height changed, adjusted width:', newWidth.toFixed(2));
+    }
+    if (ejectPageBackgroundElement) {
+      updateEjectPageBackground();
+    }
+  });
+}
+
+// Unit change - just update the background
+if (ejectFixedUnit) {
+  ejectFixedUnit.addEventListener('input', () => {
+    if (ejectPageBackgroundElement) {
+      updateEjectPageBackground();
+    }
+  });
+}
 
 // Update eject page background on window resize
 window.addEventListener('resize', () => {
