@@ -1835,10 +1835,17 @@ input[type="file"] {
 .render-viewer {
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
   background: #1a1a1a;
   position: relative;
+  overflow: hidden;
+}
+
+.render-preview-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
 }
 
@@ -1853,6 +1860,79 @@ input[type="file"] {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.render-gcode-section {
+  background: #252525;
+  border-top: 1px solid #404040;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.gcode-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #2a2a2a;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid #404040;
+}
+
+.gcode-header:hover {
+  background: #303030;
+}
+
+.gcode-header-title {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.gcode-collapse-arrow {
+  color: #888888;
+  font-size: 12px;
+  transition: transform 0.2s;
+}
+
+.gcode-text-container {
+  display: none;
+  max-height: 300px;
+  overflow: hidden;
+}
+
+.gcode-text {
+  width: 100%;
+  height: 300px;
+  background: #1e1e1e;
+  color: #00ff00;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  padding: 12px;
+  border: none;
+  resize: none;
+  outline: none;
+  line-height: 1.4;
+  overflow-y: auto;
+}
+
+.gcode-text::-webkit-scrollbar {
+  width: 8px;
+}
+
+.gcode-text::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.gcode-text::-webkit-scrollbar-thumb {
+  background: #404040;
+  border-radius: 4px;
+}
+
+.gcode-text::-webkit-scrollbar-thumb:hover {
+  background: #505050;
 }
 
 /* Scrollbar Styles */

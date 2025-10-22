@@ -1,4 +1,4 @@
-// renderer.js - v26
+// renderer.js - v27
 // Frontend Logic
 
 // Check if debug mode is enabled (fallback to false if not set)
@@ -1806,7 +1806,29 @@ switchTab = function(tabName) {
 const gcodeList = document.getElementById('gcodeList');
 const renderCanvas = document.getElementById('renderCanvas');
 const renderMessage = document.getElementById('renderMessage');
+const gcodeTextArea = document.getElementById('gcodeText');
+const gcodeSection = document.getElementById('renderGcodeSection');
+const gcodeHeader = document.getElementById('gcodeHeader');
+const gcodeTextContainer = document.getElementById('gcodeTextContainer');
+const gcodeCollapseArrow = document.getElementById('gcodeCollapseArrow');
 let currentGcodeFile = null;
+
+// Setup collapse/expand functionality for G-code text viewer
+if (gcodeHeader) {
+  gcodeHeader.addEventListener('click', () => {
+    const isExpanded = gcodeTextContainer.style.display !== 'none';
+
+    if (isExpanded) {
+      // Collapse
+      gcodeTextContainer.style.display = 'none';
+      gcodeCollapseArrow.textContent = '▼';
+    } else {
+      // Expand
+      gcodeTextContainer.style.display = 'block';
+      gcodeCollapseArrow.textContent = '▲';
+    }
+  });
+}
 
 async function loadGcodeFiles() {
   try {
@@ -1879,6 +1901,7 @@ async function loadGcodeFile(filePath) {
       renderMessage.textContent = 'Error loading G-code file';
       renderMessage.style.display = 'block';
       renderCanvas.style.display = 'none';
+      gcodeSection.style.display = 'none';
       return;
     }
 
@@ -1888,6 +1911,10 @@ async function loadGcodeFile(filePath) {
     renderMessage.style.display = 'none';
     renderCanvas.style.display = 'block';
 
+    // Show G-code section and populate textarea
+    gcodeSection.style.display = 'block';
+    gcodeTextArea.value = result.data;
+
     // Parse and render the G-code
     renderGcode(result.data);
   } catch (error) {
@@ -1895,6 +1922,7 @@ async function loadGcodeFile(filePath) {
     renderMessage.textContent = 'Error loading G-code file';
     renderMessage.style.display = 'block';
     renderCanvas.style.display = 'none';
+    gcodeSection.style.display = 'none';
   }
 }
 

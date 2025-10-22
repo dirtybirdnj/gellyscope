@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- index.html - v42 -->
+<!-- index.html - v43 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -434,10 +434,21 @@
           </div>
         </div>
         <div class="render-viewer">
-          <div class="render-message" id="renderMessage">
-            Select a G-code file to preview
+          <div class="render-preview-area">
+            <div class="render-message" id="renderMessage">
+              Select a G-code file to preview
+            </div>
+            <canvas id="renderCanvas" style="display: none;"></canvas>
           </div>
-          <canvas id="renderCanvas" style="display: none;"></canvas>
+          <div class="render-gcode-section" id="renderGcodeSection" style="display: none;">
+            <div class="gcode-header" id="gcodeHeader">
+              <span class="gcode-header-title">Raw G-code</span>
+              <span class="gcode-collapse-arrow" id="gcodeCollapseArrow">▼</span>
+            </div>
+            <div class="gcode-text-container" id="gcodeTextContainer" style="display: none;">
+              <textarea class="gcode-text" id="gcodeText" readonly></textarea>
+            </div>
+          </div>
         </div>
       </div>
     </div>
