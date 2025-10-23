@@ -3,7 +3,7 @@
 
 import { debugLog } from './shared/debug.js';
 import { state, setState } from './shared/state.js';
-import { toMm, fromMm } from './shared/utils.js';
+import { toMm, fromMm, mmToInches, mmToCm } from './shared/utils.js';
 import { PAGE_SIZES } from './hardware.js';
 
 // ============ MODULE STATE ============
@@ -151,21 +151,8 @@ function getEjectPageDimensions() {
   return dimensions;
 }
 
-/**
- * Convert mm to inches (for display)
- */
-function mmToInches(mm) {
-  return (mm / 25.4).toFixed(2);
-}
-
-/**
- * Convert mm to cm (for display)
- */
-function mmToCm(mm) {
-  return (mm / 10).toFixed(1);
-}
-
 // ============ PAGE VISUALIZATION ============
+// Note: mmToInches and mmToCm are imported from shared/utils.js
 
 /**
  * Create dimension lines for eject page
@@ -175,8 +162,8 @@ function createEjectDimensionLines(viewer, displayWidth, displayHeight, widthMm,
   document.querySelectorAll('.eject-dimension-line').forEach(el => el.remove());
 
   // Format dimension text
-  const widthText = `${mmToInches(widthMm)}" / ${mmToCm(widthMm)}cm / ${widthMm.toFixed(0)}mm`;
-  const heightText = `${mmToInches(heightMm)}" / ${mmToCm(heightMm)}cm / ${heightMm.toFixed(0)}mm`;
+  const widthText = `${mmToInches(widthMm).toFixed(2)}" / ${mmToCm(widthMm).toFixed(1)}cm / ${widthMm.toFixed(0)}mm`;
+  const heightText = `${mmToInches(heightMm).toFixed(2)}" / ${mmToCm(heightMm).toFixed(1)}cm / ${heightMm.toFixed(0)}mm`;
 
   // Calculate offsets to position lines outside page border
   const topOffset = (displayHeight / 2) + 30; // 30px gap from top edge of page

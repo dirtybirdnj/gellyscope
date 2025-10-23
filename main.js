@@ -26,6 +26,23 @@ function getGellyrollerPath() {
   return path.join(os.homedir(), 'gellyroller');
 }
 
+/**
+ * Convert value to millimeters from different units
+ * Note: This duplicates shared/utils.js toMm() but is kept separate
+ * due to CommonJS/ES6 module system differences
+ * @param {number} value - The value to convert
+ * @param {string} unit - The unit ('mm', 'cm', 'in')
+ * @returns {number} Value in millimeters
+ */
+function toMm(value, unit) {
+  switch (unit) {
+    case 'mm': return value;
+    case 'cm': return value * 10;
+    case 'in': return value * 25.4;
+    default: return value;
+  }
+}
+
 let mainWindow;
 
 function createWindow() {
@@ -259,15 +276,6 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
     }
 
     // Convert dimensions to mm for vpype
-    const toMm = (value, unit) => {
-      switch (unit) {
-        case 'mm': return value;
-        case 'cm': return value * 10;
-        case 'in': return value * 25.4;
-        default: return value;
-      }
-    };
-
     const widthMm = toMm(outputWidth, unit);
     const heightMm = toMm(outputHeight, unit);
 
