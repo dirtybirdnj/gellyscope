@@ -1799,6 +1799,40 @@ function updateLayersDisplay() {
   updateLayersAndCurrentTrace();
 }
 
+// Clear the trace interface (all layers and uploaded image)
+function clearTraceInterface() {
+  // Clear all captured layers
+  capturedLayers = [];
+
+  // Clear current trace image
+  window.currentTraceImage = null;
+
+  // Clear the trace image element
+  const traceImage = document.getElementById('traceImage');
+  if (traceImage) {
+    traceImage.src = '';
+    traceImage.style.display = 'none';
+  }
+
+  // Clear the trace image container background
+  const traceImageContainer = document.getElementById('traceImageContainer');
+  if (traceImageContainer) {
+    traceImageContainer.style.backgroundImage = '';
+  }
+
+  // Update displays
+  updateLayersList();
+  updateLayersDisplay();
+
+  // Disable capture button
+  const captureBtn = document.getElementById('captureTraceBtn');
+  if (captureBtn) {
+    captureBtn.disabled = true;
+  }
+
+  console.log('Trace interface cleared');
+}
+
 // Update the display to show all captured layers + current trace stacked together
 function updateLayersAndCurrentTrace() {
   const traceSvgOverlay = document.getElementById('traceSvgOverlay');
@@ -3505,6 +3539,9 @@ if (saveSvgBtn) {
 
           if (result.success) {
             console.log('[SVG Save] ✓ Combined SVG saved:', result.path, `(${capturedLayers.length} layers, ${widthMm}x${heightMm}mm)`);
+
+            // Clear the trace interface
+            clearTraceInterface();
 
             // Reload vectors to show the new file
             await loadVectors();
