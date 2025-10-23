@@ -2214,6 +2214,7 @@ window.addEventListener('resize', () => {
 
 // Eject tab page sizing variables
 let ejectPageSize = 'A4';
+let ejectLayout = 'portrait'; // 'portrait' or 'landscape'
 let ejectPageBackgroundElement = null;
 let ejectOriginalAspectRatio = 1; // Store original SVG aspect ratio
 let ejectPreviousUnit = 'in'; // Track previous unit for conversion
@@ -2316,8 +2317,10 @@ function loadEjectTab() {
   }
 }
 
-// Get eject page dimensions in mm
+// Get eject page dimensions in mm (respects layout orientation)
 function getEjectPageDimensions() {
+  let dimensions;
+
   if (ejectPageSize === 'custom') {
     const width = parseFloat(document.getElementById('ejectCustomWidth').value);
     const height = parseFloat(document.getElementById('ejectCustomHeight').value);
@@ -2327,10 +2330,17 @@ function getEjectPageDimensions() {
       return null;
     }
 
-    return [toMm(width, unit), toMm(height, unit)];
+    dimensions = [toMm(width, unit), toMm(height, unit)];
   } else {
-    return PAGE_SIZES[ejectPageSize];
+    dimensions = [...PAGE_SIZES[ejectPageSize]]; // Clone array
   }
+
+  // Swap dimensions if landscape
+  if (ejectLayout === 'landscape') {
+    return [dimensions[1], dimensions[0]]; // Swap width and height
+  }
+
+  return dimensions;
 }
 
 // Convert mm to other units
@@ -2563,6 +2573,24 @@ function updateEjectPageSizeButtons() {
     debugLog(`  ${size}: ${fits ? 'fits' : 'too large'} (${pageWidthMm}×${pageHeightMm}mm)`);
   });
 }
+
+// Eject layout toggle handlers (portrait/landscape)
+document.querySelectorAll('.eject-layout-toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const layout = btn.dataset.layout;
+
+    // Update active state
+    document.querySelectorAll('.eject-layout-toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    ejectLayout = layout;
+
+    // Update page background
+    updateEjectPageBackground();
+
+    debugLog('Eject layout changed:', layout);
+  });
+});
 
 // Eject page size button handlers
 document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
