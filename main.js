@@ -116,6 +116,23 @@ async function ensureGellyrollerDirectory() {
   }
 }
 
+/**
+ * Wrapper for IPC handlers to standardize error handling
+ * @param {Function} handler - Async function that contains the IPC logic
+ * @param {string} context - Description of the operation for error logging
+ * @returns {Function} Wrapped handler function
+ */
+function withErrorHandling(handler, context = 'IPC operation') {
+  return async (...args) => {
+    try {
+      return await handler(...args);
+    } catch (error) {
+      console.error(`Error in ${context}:`, error);
+      return { success: false, error: error.message };
+    }
+  };
+}
+
 // IPC Handler for checking/creating gellyroller directory
 ipcMain.handle('ensure-gellyroller-directory', async () => {
   return await ensureGellyrollerDirectory();
@@ -222,44 +239,34 @@ ipcMain.handle('read-file-base64', async (event, filePath) => {
 });
 
 // IPC Handler for reading text files
-ipcMain.handle('read-file-text', async (event, filePath) => {
-  try {
-    const data = fs.readFileSync(filePath, 'utf8');
-    return {
-      success: true,
-      data: data
-    };
-  } catch (error) {
-    console.error('Error reading text file:', error);
-    return { success: false, error: error.message };
-  }
-});
+ipcMain.handle('read-file-text', withErrorHandling(async (event, filePath) => {
+  const data = fs.readFileSync(filePath, 'utf8');
+  return {
+    success: true,
+    data: data
+  };
+}, 'read-file-text'));
 
 // IPC Handler for deleting files
-ipcMain.handle('delete-file', async (event, filePath) => {
-  try {
-    // Verify the file is in the gellyroller directory for safety
-    const gellyrollerPath = getGellyrollerPath();
+ipcMain.handle('delete-file', withErrorHandling(async (event, filePath) => {
+  // Verify the file is in the gellyroller directory for safety
+  const gellyrollerPath = getGellyrollerPath();
 
-    if (!filePath.startsWith(gellyrollerPath)) {
-      return { success: false, error: 'Cannot delete files outside gellyroller directory' };
-    }
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      return { success: false, error: 'File does not exist' };
-    }
-
-    // Delete the file
-    fs.unlinkSync(filePath);
-    debugLog('File deleted successfully:', filePath);
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error deleting file:', error);
-    return { success: false, error: error.message };
+  if (!filePath.startsWith(gellyrollerPath)) {
+    return { success: false, error: 'Cannot delete files outside gellyroller directory' };
   }
-});
+
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    return { success: false, error: 'File does not exist' };
+  }
+
+  // Delete the file
+  fs.unlinkSync(filePath);
+  debugLog('File deleted successfully:', filePath);
+
+  return { success: true };
+}, 'delete-file'));
 
 /**
  * Modify SVG content to set specific dimensions in millimeters
@@ -486,37 +493,32 @@ ipcMain.handle('download-gcode', async (event, gcodeFilePath) => {
 });
 
 // IPC Handler for saving captured images
-ipcMain.handle('save-image', async (event, imageData, filename) => {
+ipcMain.handle('save-image', withErrorHandling(async (event, imageData, filename) => {
   const gellyrollerPath = getGellyrollerPath();
 
-  try {
-    // Ensure directory exists
-    if (!fs.existsSync(gellyrollerPath)) {
-      fs.mkdirSync(gellyrollerPath, { recursive: true });
-    }
-
-    // Remove data URL prefix if present (e.g., "data:image/png;base64," or "data:image/svg+xml;base64,")
-    const base64Data = imageData.replace(/^data:image\/[^;]+;base64,/, '');
-
-    // Generate filename if not provided
-    const finalFilename = filename || `capture_${Date.now()}.png`;
-    const filePath = path.join(gellyrollerPath, finalFilename);
-
-    // Write the file
-    fs.writeFileSync(filePath, base64Data, 'base64');
-
-    debugLog('Image saved successfully:', filePath);
-
-    return {
-      success: true,
-      path: filePath,
-      filename: finalFilename
-    };
-  } catch (error) {
-    console.error('Error saving image:', error);
-    return { success: false, error: error.message };
+  // Ensure directory exists
+  if (!fs.existsSync(gellyrollerPath)) {
+    fs.mkdirSync(gellyrollerPath, { recursive: true });
   }
-});
+
+  // Remove data URL prefix if present (e.g., "data:image/png;base64," or "data:image/svg+xml;base64,")
+  const base64Data = imageData.replace(/^data:image\/[^;]+;base64,/, '');
+
+  // Generate filename if not provided
+  const finalFilename = filename || `capture_${Date.now()}.png`;
+  const filePath = path.join(gellyrollerPath, finalFilename);
+
+  // Write the file
+  fs.writeFileSync(filePath, base64Data, 'base64');
+
+  debugLog('Image saved successfully:', filePath);
+
+  return {
+    success: true,
+    path: filePath,
+    filename: finalFilename
+  };
+}, 'save-image'));
 
 // IPC Handler for parsing SVG files
 ipcMain.handle('parse-svg', async (event, filePath, fileContent) => {
