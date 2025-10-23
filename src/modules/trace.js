@@ -2,27 +2,15 @@
 import { debugLog } from './shared/debug.js';
 import { switchTab } from './shared/tabs.js';
 import { toMm, escapeHtml } from './shared/utils.js';
+import { PAGE_SIZES, currentPageSize, updatePageSizeButtons } from './hardware.js';
 
 // ============ MODULE STATE ============
 
 let capturedLayers = [];
 let traceDebounceTimer = null;
-let currentPageSize = 'A4';
 let currentLayout = 'portrait'; // 'portrait' or 'landscape'
 let pageBackgroundElement = null;
 let outputScale = 100; // Output scale percentage
-
-// Page sizes in mm (width × height)
-const PAGE_SIZES = {
-  'A0': [841, 1189],
-  'A1': [594, 841],
-  'A2': [420, 594],
-  'A3': [297, 420],
-  'A4': [210, 297],
-  'A5': [148, 210],
-  'A6': [105, 148],
-  'A7': [74, 105]
-};
 
 // ============ CORE TRACE FUNCTIONS ============
 
@@ -1156,6 +1144,9 @@ export function initTraceTab() {
               // Switch to vectors tab
               switchTab('vectors');
 
+              // Clear trace interface after successful save
+              clearTraceInterface();
+
               // Show success message briefly
               saveSvgBtn.innerHTML = '<span>✓</span> Saved!';
               setTimeout(() => {
@@ -1277,4 +1268,56 @@ export function initTraceTab() {
       }
     });
   }
+
+  // Add Enter key shortcut for Capture Trace when on Trace tab
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      // Check if Trace tab is active
+      const traceTab = document.querySelector('[data-tab="trace"]');
+      if (traceTab && traceTab.classList.contains('active')) {
+        const captureTraceBtn = document.getElementById('captureTraceBtn');
+        // Check if button exists and is not disabled
+        if (captureTraceBtn && !captureTraceBtn.disabled) {
+          e.preventDefault();
+          captureTraceBtn.click();
+        }
+      }
+    }
+  });
+}
+
+// ============ CLEAR INTERFACE ============
+
+// Clear the trace interface (all layers and uploaded image)
+function clearTraceInterface() {
+  // Clear all captured layers
+  capturedLayers = [];
+
+  // Clear current trace image
+  window.currentTraceImage = null;
+
+  // Clear the trace image element
+  const traceImage = document.getElementById('traceImage');
+  if (traceImage) {
+    traceImage.src = '';
+    traceImage.style.display = 'none';
+  }
+
+  // Clear the trace image container background
+  const traceImageContainer = document.getElementById('traceImageContainer');
+  if (traceImageContainer) {
+    traceImageContainer.style.backgroundImage = '';
+  }
+
+  // Update displays
+  updateLayersList();
+  updateLayersDisplay();
+
+  // Disable capture button
+  const captureBtn = document.getElementById('captureTraceBtn');
+  if (captureBtn) {
+    captureBtn.disabled = true;
+  }
+
+  console.log('Trace interface cleared');
 }

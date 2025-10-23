@@ -15,6 +15,7 @@ import { initVectorsTab } from './modules/vectors.js';
 import { initEjectTab, loadEjectTab } from './modules/eject.js';
 import { initRenderTab, loadGcodeFiles } from './modules/render.js';
 import { initScopeTab } from './modules/scope.js';
+import { initHardwareTab, loadHardwareInfo } from './modules/hardware.js';
 
 // Import module functions that need to be called on tab switch
 import { loadVectors } from './modules/vectors.js';
@@ -34,6 +35,8 @@ window.switchTab = function(tabName) {
     loadGcodeFiles();
   } else if (tabName === 'eject') {
     loadEjectTab();
+  } else if (tabName === 'hardware') {
+    loadHardwareInfo();
   }
 };
 
@@ -66,6 +69,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   initEjectTab();
   initRenderTab();
   initScopeTab();
+  initHardwareTab();
 
   console.log('Gellyscope initialization complete!');
 });

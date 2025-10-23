@@ -41,14 +41,5 @@ export function mmToCm(mm) {
   return mm / 10;
 }
 
-// Page size constants
-export const PAGE_SIZES = {
-  A0: { width: 841, height: 1189 },
-  A1: { width: 594, height: 841 },
-  A2: { width: 420, height: 594 },
-  A3: { width: 297, height: 420 },
-  A4: { width: 210, height: 297 },
-  A5: { width: 148, height: 210 },
-  A6: { width: 105, height: 148 },
-  A7: { width: 74, height: 105 }
-};
+// Note: PAGE_SIZES is now managed in hardware.js
+// Import from '../hardware.js' if you need to access paper sizes

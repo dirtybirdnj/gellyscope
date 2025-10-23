@@ -29,6 +29,14 @@ let renderPanStartX = 0;
 let renderPanStartY = 0;
 
 /**
+ * Check if render paths are available
+ * @returns {boolean} True if there are paths to render
+ */
+export function hasRenderPaths() {
+  return renderPaths.length > 0;
+}
+
+/**
  * Initialize the Render tab
  * Sets up all event listeners for the render tab including:
  * - Collapse/expand for G-code text viewer
@@ -82,6 +90,22 @@ export function initRenderTab() {
     drawGcode();
   });
 
+  // Mouse wheel zoom for render canvas
+  renderCanvas?.addEventListener('wheel', (e) => {
+    e.preventDefault();
+
+    // Determine zoom direction based on wheel delta
+    if (e.deltaY < 0) {
+      // Scroll up = zoom in
+      renderZoom *= 1.2;
+    } else {
+      // Scroll down = zoom out
+      renderZoom /= 1.2;
+    }
+
+    drawGcode();
+  });
+
   // Pan functionality with mouse drag for G-code rendering
   renderCanvas.addEventListener('mousedown', (e) => {
     renderIsPanning = true;
@@ -116,6 +140,39 @@ export function initRenderTab() {
   });
 
   debugLog('Render tab initialized');
+}
+
+/**
+ * Handle G-code file deletion
+ * @param {string} filePath - Path to the G-code file to delete
+ * @param {string} fileName - Name of the file for confirmation dialog
+ */
+async function handleGcodeDelete(filePath, fileName) {
+  try {
+    const confirmed = confirm(`Are you sure you want to delete "${fileName}"?\n\nThis action cannot be undone.`);
+    if (!confirmed) return;
+
+    const result = await window.electronAPI.deleteFile(filePath);
+    if (result.success) {
+      // Reload the list
+      await loadGcodeFiles();
+
+      // Clear preview if this was the active file
+      if (currentGcodeFile === filePath) {
+        currentGcodeFile = null;
+        renderPaths = [];
+        renderCanvas.style.display = 'none';
+        renderMessage.textContent = 'Select a G-code file to preview';
+        renderMessage.style.display = 'block';
+        document.getElementById('renderZoomControls').style.display = 'none';
+      }
+    } else {
+      alert('Error deleting file: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Error deleting G-code:', error);
+    alert('Error deleting file: ' + error.message);
+  }
 }
 
 /**
@@ -155,6 +212,7 @@ export async function loadGcodeFiles() {
       gcodeItem.innerHTML = `
         <div class="gcode-item-header">
           <div class="gcode-item-name" title="${file.name}">${file.name}</div>
+          <button class="gcode-delete-btn" title="Delete file">🗑️</button>
         </div>
         <div class="gcode-item-info">
           <span class="gcode-item-size">${sizeText}</span>
@@ -175,6 +233,15 @@ export async function loadGcodeFiles() {
         // Load and render the G-code
         await loadGcodeFile(file.path);
       });
+
+      // Delete button handler
+      const deleteBtn = gcodeItem.querySelector('.gcode-delete-btn');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', async (e) => {
+          e.stopPropagation(); // Prevent triggering the item click
+          await handleGcodeDelete(file.path, file.name);
+        });
+      }
 
       gcodeList.appendChild(gcodeItem);
     }
@@ -325,7 +392,7 @@ function renderGcode(gcodeText) {
  * Draw the G-code paths on the canvas with current zoom and pan
  * Applies coordinate transformations and scaling to fit the canvas
  */
-function drawGcode() {
+export function drawGcode() {
   const canvas = renderCanvas;
   const ctx = canvas.getContext('2d');
 

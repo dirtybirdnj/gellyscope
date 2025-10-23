@@ -2,22 +2,11 @@
 // Handles page sizing, layout orientation, and G-code generation
 
 import { debugLog } from './shared/debug.js';
-import { state } from './shared/state.js';
+import { state, setState } from './shared/state.js';
 import { toMm, fromMm } from './shared/utils.js';
+import { PAGE_SIZES, ejectOutputUnit, workspaceWidth, workspaceHeight } from './hardware.js';
 
 // ============ MODULE STATE ============
-
-// Page sizes in mm (width × height)
-const PAGE_SIZES = {
-  'A0': [841, 1189],
-  'A1': [594, 841],
-  'A2': [420, 594],
-  'A3': [297, 420],
-  'A4': [210, 297],
-  'A5': [148, 210],
-  'A6': [105, 148],
-  'A7': [74, 105]
-};
 
 // Eject tab state
 let ejectPageSize = 'A4';
@@ -127,6 +116,9 @@ export function loadEjectTab() {
     ejectOutputToolbar.style.display = 'none';
     ejectMessage.textContent = 'No vector image loaded';
   }
+
+  // Update eject nav button state
+  updateEjectNavButton();
 }
 
 // ============ DIMENSION HELPERS ============
@@ -588,6 +580,10 @@ async function handleEjectToGcode() {
     if (result.success) {
       alert(`G-code generated successfully!\n\nSaved to ~/gellyroller directory.`);
       debugLog('G-code file created:', result.gcodeFilePath);
+
+      // Clear eject data after generating
+      setState({ currentSVGData: null });
+      updateEjectNavButton();
     } else {
       alert(`Failed to generate G-code:\n\n${result.error}\n\n${result.stderr || ''}`);
       console.error('Eject failed:', result);
@@ -599,6 +595,7 @@ async function handleEjectToGcode() {
     // Re-enable button and restore text
     ejectToGcodeBtn.disabled = false;
     ejectToGcodeBtn.innerHTML = originalText;
+    updateEjectNavButton();
   }
 }
 
@@ -657,4 +654,14 @@ export function initEjectTab() {
   window.addEventListener('resize', handleWindowResize);
 
   debugLog('Eject tab initialized');
+}
+
+// ============ NAV BUTTON STATE ============
+
+// Update the Eject nav button state based on whether there's eject data
+export function updateEjectNavButton() {
+  const ejectNavBtn = document.getElementById('ejectNavBtn');
+  if (ejectNavBtn) {
+    ejectNavBtn.disabled = !state.currentSVGData;
+  }
 }
