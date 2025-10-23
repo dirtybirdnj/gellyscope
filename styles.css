@@ -2174,6 +2174,129 @@ input[type="file"] {
   box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1);
 }
 
+/* Paper Sizes Section */
+.paper-sizes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.paper-size-item {
+  display: grid;
+  grid-template-columns: 100px 1fr 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #d0d0d0;
+  border-radius: 3px;
+}
+
+.paper-size-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+}
+
+.paper-size-name:focus {
+  outline: none;
+  border-color: #007acc;
+  background: #f8f8f8;
+}
+
+.paper-size-name.locked {
+  background: #f8f8f8;
+  pointer-events: none;
+}
+
+.paper-dimension-input {
+  padding: 4px 8px;
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #333;
+  border-radius: 3px;
+  text-align: right;
+}
+
+.paper-dimension-input:focus {
+  outline: none;
+  border-color: #007acc;
+  background: #f8f8f8;
+}
+
+.paper-dimension-input.locked {
+  background: #f8f8f8;
+  pointer-events: none;
+}
+
+.paper-dimension-label {
+  display: inline-block;
+  width: 100%;
+  text-align: left;
+}
+
+.paper-dimension-label::after {
+  content: 'mm';
+  margin-left: 4px;
+  font-size: 11px;
+  color: #999;
+}
+
+.paper-lock-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  opacity: 0.3;
+  transition: opacity 0.2s;
+}
+
+.paper-lock-btn:hover {
+  opacity: 0.6;
+}
+
+.paper-lock-btn.locked {
+  opacity: 1;
+}
+
+.paper-delete-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  opacity: 0.3;
+  transition: all 0.2s;
+}
+
+.paper-delete-btn:hover {
+  opacity: 1;
+  color: #f87171;
+}
+
+.add-paper-btn {
+  padding: 8px 16px;
+  background: #007acc;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.add-paper-btn:hover {
+  background: #005a9e;
+}
+
 /* ============ HOME SCREEN ============ */
 .home-container {
   flex: 1;
