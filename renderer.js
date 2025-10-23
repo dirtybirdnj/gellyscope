@@ -2079,6 +2079,7 @@ async function loadGcodeFiles() {
       gcodeItem.innerHTML = `
         <div class="gcode-item-header">
           <div class="gcode-item-name" title="${file.name}">${file.name}</div>
+          <button class="gcode-delete-btn" title="Delete file">🗑️</button>
         </div>
         <div class="gcode-item-info">
           <span class="gcode-item-size">${sizeText}</span>
@@ -2087,7 +2088,12 @@ async function loadGcodeFiles() {
       `;
 
       // Click to preview
-      gcodeItem.addEventListener('click', async () => {
+      gcodeItem.addEventListener('click', async (e) => {
+        // Don't trigger if clicking delete button
+        if (e.target.classList.contains('gcode-delete-btn')) {
+          return;
+        }
+
         // Remove active class from all items
         document.querySelectorAll('.gcode-item').forEach(item => {
           item.classList.remove('active');
@@ -2100,11 +2106,46 @@ async function loadGcodeFiles() {
         await loadGcodeFile(file.path);
       });
 
+      // Delete button handler
+      const deleteBtn = gcodeItem.querySelector('.gcode-delete-btn');
+      deleteBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await handleGcodeDelete(file.path, file.name);
+      });
+
       gcodeList.appendChild(gcodeItem);
     }
   } catch (error) {
     console.error('Error loading G-code files:', error);
     gcodeList.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">Error loading G-code files</div>';
+  }
+}
+
+async function handleGcodeDelete(filePath, fileName) {
+  try {
+    const confirmed = confirm(`Are you sure you want to delete "${fileName}"?\n\nThis action cannot be undone.`);
+    if (!confirmed) return;
+
+    const result = await window.electronAPI.deleteFile(filePath);
+    if (result.success) {
+      // Reload the list
+      await loadGcodeFiles();
+
+      // Clear preview if this was the active file
+      if (currentGcodeFile === filePath) {
+        currentGcodeFile = null;
+        renderPaths = [];
+        renderCanvas.style.display = 'none';
+        renderMessage.textContent = 'Select a G-code file to preview';
+        renderMessage.style.display = 'block';
+        document.getElementById('renderZoomControls').style.display = 'none';
+      }
+    } else {
+      alert('Error deleting file: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Error deleting G-code:', error);
+    alert('Error deleting file: ' + error.message);
   }
 }
 
