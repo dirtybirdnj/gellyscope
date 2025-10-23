@@ -1,4 +1,4 @@
-// main.js - v14
+// main.js - v15
 // Electron Main Process
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
@@ -162,6 +162,46 @@ ipcMain.handle('list-vectors', async () => {
     return { success: true, files: vectorFiles };
   } catch (error) {
     console.error('Error listing vectors:', error);
+    return { success: false, error: error.message, files: [] };
+  }
+});
+
+// IPC Handler for listing G-code files
+ipcMain.handle('list-gcode', async () => {
+  const homeDir = os.homedir();
+  const gellyrollerPath = path.join(homeDir, 'gellyroller');
+
+  try {
+    // Check if directory exists
+    if (!fs.existsSync(gellyrollerPath)) {
+      return { success: false, files: [] };
+    }
+
+    // Read directory contents
+    const files = fs.readdirSync(gellyrollerPath);
+
+    // Filter for G-code files
+    const gcodeFiles = files.filter(file => {
+      const ext = path.extname(file).toLowerCase();
+      return ext === '.gcode' || ext === '.nc' || ext === '.gc';
+    }).map(file => {
+      const filePath = path.join(gellyrollerPath, file);
+      const stats = fs.statSync(filePath);
+      return {
+        name: file,
+        path: filePath,
+        size: stats.size,
+        modified: stats.mtime
+      };
+    });
+
+    // Sort by modified date (newest first)
+    gcodeFiles.sort((a, b) => b.modified - a.modified);
+
+    debugLog('Found', gcodeFiles.length, 'G-code files');
+    return { success: true, files: gcodeFiles };
+  } catch (error) {
+    console.error('Error listing G-code files:', error);
     return { success: false, error: error.message, files: [] };
   }
 });
@@ -480,8 +520,8 @@ ipcMain.handle('save-image', async (event, imageData, filename) => {
       fs.mkdirSync(gellyrollerPath, { recursive: true });
     }
 
-    // Remove data URL prefix if present (e.g., "data:image/png;base64,")
-    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
+    // Remove data URL prefix if present (e.g., "data:image/png;base64," or "data:image/svg+xml;base64,")
+    const base64Data = imageData.replace(/^data:image\/[^;]+;base64,/, '');
 
     // Generate filename if not provided
     const finalFilename = filename || `capture_${Date.now()}.png`;

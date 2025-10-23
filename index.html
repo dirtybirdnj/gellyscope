@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- index.html - v41 -->
+<!-- index.html - v44 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -11,16 +11,17 @@
   <div class="app-container">
     <!-- Tab Navigation -->
     <div class="tab-nav">
-      <button class="tab-button" data-tab="camera">Camera</button>
-      <button class="tab-button" data-tab="images">Images</button>
-      <button class="tab-button" data-tab="vectors">Vectors</button>
-      <button class="tab-button" data-tab="trace">Trace</button>
-      <button class="tab-button" data-tab="eject">Eject</button>
-      <button class="tab-button active" data-tab="scope">Scope</button>
+      <button class="tab-button active" data-tab="camera">📷 Camera</button>
+      <button class="tab-button" data-tab="images">🖼️ Images</button>
+      <button class="tab-button" data-tab="trace">✏️ Trace</button>
+      <button class="tab-button" data-tab="vectors">📐 Vectors</button>
+      <button class="tab-button" data-tab="eject">📤 Eject</button>
+      <button class="tab-button" data-tab="render">🎨 Render</button>
+      <button class="tab-button" data-tab="scope" style="display: none;">Scope</button>
     </div>
 
     <!-- Camera Tab -->
-    <div class="tab-content" id="cameraTab">
+    <div class="tab-content active" id="cameraTab">
       <div class="camera-container">
         <div class="camera-preview" id="cameraPreview">
           <video id="cameraVideo" autoplay playsinline></video>
@@ -38,6 +39,10 @@
     <!-- Images Tab -->
     <div class="tab-content" id="imagesTab">
       <div class="images-container">
+        <div class="images-toolbar">
+          <input type="file" id="imageUploadInput" accept=".jpg,.jpeg,.png,.bmp" style="display: none;">
+          <button class="control-btn" id="uploadImageBtn">📤 Upload Image</button>
+        </div>
         <div class="image-grid" id="imageGrid">
           <!-- Jellyfish placeholders -->
         </div>
@@ -68,20 +73,18 @@
 
         <!-- Center: Image Viewer -->
         <div class="canvas-area">
-          <div class="trace-viewer" id="traceViewer">
-            <div class="trace-message" id="traceMessage">
-              Select an image from the Images tab to trace it
-            </div>
-            <div class="trace-image-container" id="traceImageContainer" style="display: none;">
-              <img id="traceImage" class="trace-bitmap">
-              <div id="traceSvgOverlay" class="trace-svg-overlay"></div>
-            </div>
-          </div>
-
-          <!-- Output Toolbar -->
+          <!-- Output Toolbar (Top) -->
           <div class="output-toolbar" id="outputToolbar" style="display: none;">
             <div class="toolbar-section">
-              <label class="toolbar-label">Output Scale</label>
+              <label class="toolbar-label">Layout</label>
+              <div class="layout-toggle-group">
+                <button class="layout-toggle-btn active" data-layout="portrait" title="Portrait">⬜</button>
+                <button class="layout-toggle-btn" data-layout="landscape" title="Landscape">▭</button>
+              </div>
+
+              <div class="toolbar-divider"></div>
+
+              <label class="toolbar-label">Scale</label>
               <input type="range" class="output-scale-slider" id="outputScaleSlider" min="10" max="100" value="100" step="5">
               <span class="toolbar-value" id="outputScaleValue">100%</span>
 
@@ -118,6 +121,16 @@
               <button class="toolbar-action-btn save-image-btn" id="saveImageBtn">
                 <span>📷</span> Save Image
               </button>
+            </div>
+          </div>
+
+          <div class="trace-viewer" id="traceViewer">
+            <div class="trace-message" id="traceMessage">
+              Select an image from the Images tab to trace it
+            </div>
+            <div class="trace-image-container" id="traceImageContainer" style="display: none;">
+              <img id="traceImage" class="trace-bitmap">
+              <div id="traceSvgOverlay" class="trace-svg-overlay"></div>
             </div>
           </div>
         </div>
@@ -348,7 +361,6 @@
             </div>
 
             <!-- Action Buttons -->
-            <button class="trace-action-btn" id="traceActionBtn">Trace</button>
             <button class="trace-action-btn capture-btn" id="captureTraceBtn" disabled>Capture Trace</button>
           </div>
         </div>
@@ -389,6 +401,14 @@
         <!-- Output Toolbar -->
         <div class="output-toolbar" id="ejectOutputToolbar" style="display: none;">
           <div class="toolbar-section">
+            <label class="toolbar-label">Layout</label>
+            <div class="layout-toggle-group">
+              <button class="layout-toggle-btn eject-layout-toggle-btn active" data-layout="portrait" title="Portrait">⬜</button>
+              <button class="layout-toggle-btn eject-layout-toggle-btn" data-layout="landscape" title="Landscape">▭</button>
+            </div>
+
+            <div class="toolbar-divider"></div>
+
             <label class="toolbar-label">Page Size</label>
             <div class="page-size-group">
               <button class="page-size-btn eject-page-size-btn" data-size="A0">A0</button>
@@ -421,8 +441,44 @@
       </div>
     </div>
 
+    <!-- Render Tab -->
+    <div class="tab-content" id="renderTab">
+      <div class="render-container">
+        <div class="render-sidebar">
+          <div class="panel-header">G-code Files</div>
+          <div class="gcode-list" id="gcodeList">
+            <div style="padding: 16px; text-align: center; opacity: 0.5; font-size: 13px;">
+              No G-code files found
+            </div>
+          </div>
+        </div>
+        <div class="render-viewer">
+          <div class="render-preview-area">
+            <div class="render-message" id="renderMessage">
+              Select a G-code file to preview
+            </div>
+            <div class="render-zoom-controls" id="renderZoomControls" style="display: none;">
+              <button class="render-zoom-btn" id="renderZoomOut" title="Zoom Out">−</button>
+              <button class="render-zoom-btn" id="renderZoomReset" title="Reset Zoom">⊙</button>
+              <button class="render-zoom-btn" id="renderZoomIn" title="Zoom In">+</button>
+            </div>
+            <canvas id="renderCanvas" style="display: none;"></canvas>
+          </div>
+          <div class="render-gcode-section" id="renderGcodeSection" style="display: none;">
+            <div class="gcode-header" id="gcodeHeader">
+              <span class="gcode-header-title">Raw G-code</span>
+              <span class="gcode-collapse-arrow" id="gcodeCollapseArrow">▼</span>
+            </div>
+            <div class="gcode-text-container" id="gcodeTextContainer" style="display: none;">
+              <textarea class="gcode-text" id="gcodeText" readonly></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Scope Tab -->
-    <div class="tab-content active" id="scopeTab">
+    <div class="tab-content" id="scopeTab" style="display: none;">
       <div class="container">
         <!-- Left Panel: Tree Structure -->
         <div class="left-panel">

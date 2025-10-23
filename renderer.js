@@ -1,4 +1,4 @@
-// renderer.js - v24
+// renderer.js - v30
 // Frontend Logic
 
 // Check if debug mode is enabled (fallback to false if not set)
@@ -928,6 +928,58 @@ function hideCropOverlay() {
 
 // ============ IMAGES TAB ============
 const imageGrid = document.getElementById('imageGrid');
+const uploadImageBtn = document.getElementById('uploadImageBtn');
+const imageUploadInput = document.getElementById('imageUploadInput');
+
+// Setup upload button
+if (uploadImageBtn && imageUploadInput) {
+  uploadImageBtn.addEventListener('click', () => {
+    imageUploadInput.click();
+  });
+
+  imageUploadInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/bmp'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please select a valid image file (JPEG, PNG, or BMP)');
+      return;
+    }
+
+    try {
+      // Read file as data URL
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const imageData = event.target.result;
+
+        // Save image to gellyroller directory
+        const result = await window.electronAPI.saveImage(imageData, file.name);
+
+        if (result.success) {
+          debugLog('Image uploaded successfully:', result.filename);
+          // Reload images to show the new upload
+          await loadImages();
+        } else {
+          alert(`Failed to upload image: ${result.error}`);
+        }
+      };
+
+      reader.onerror = () => {
+        alert('Failed to read file');
+      };
+
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Error uploading image: ' + error.message);
+    }
+
+    // Clear the input so the same file can be uploaded again if needed
+    e.target.value = '';
+  });
+}
 
 async function loadImages() {
   try {
@@ -1233,12 +1285,6 @@ async function performTrace() {
   }
 
   try {
-    const traceActionBtn = document.getElementById('traceActionBtn');
-    if (traceActionBtn) {
-      traceActionBtn.disabled = true;
-      traceActionBtn.textContent = 'Processing...';
-    }
-
     // First scale the image if needed
     const scaledImageSrc = await scaleImage(
       window.currentTraceImage.originalSrc,
@@ -1323,19 +1369,13 @@ async function performTrace() {
       // Store the SVG data
       window.currentTraceImage.svgData = svgString;
 
-      // Display the SVG overlay
-      const traceSvgOverlay = document.getElementById('traceSvgOverlay');
-      traceSvgOverlay.innerHTML = svgString;
+      // Update the display to show captured layers + current trace
+      updateLayersAndCurrentTrace();
 
       // Enable capture button
       const captureBtn = document.getElementById('captureTraceBtn');
       if (captureBtn) {
         captureBtn.disabled = false;
-      }
-
-      if (traceActionBtn) {
-        traceActionBtn.disabled = false;
-        traceActionBtn.textContent = 'Trace';
       }
 
       // Update page background after trace
@@ -1347,11 +1387,6 @@ async function performTrace() {
     });
   } catch (error) {
     console.error('Error tracing image:', error);
-    const traceActionBtn = document.getElementById('traceActionBtn');
-    if (traceActionBtn) {
-      traceActionBtn.disabled = false;
-      traceActionBtn.textContent = 'Trace';
-    }
   }
 }
 
@@ -1550,18 +1585,6 @@ if (bitmapOpacitySlider && bitmapOpacityValue) {
 // ========== ACTION BUTTONS ==========
 
 // Trace action button
-const traceActionBtn = document.getElementById('traceActionBtn');
-
-if (traceActionBtn) {
-  traceActionBtn.addEventListener('click', () => {
-    if (!window.currentTraceImage || !window.currentTraceImage.src) {
-      alert('Please select an image first');
-      return;
-    }
-    performTrace();
-  });
-}
-
 // Capture trace button with loading spinner
 const captureTraceBtn = document.getElementById('captureTraceBtn');
 
@@ -1590,8 +1613,11 @@ if (captureTraceBtn) {
 
       capturedLayers.push(layer);
 
-      // Add to layers list
+      // Update the layers list
       updateLayersList();
+
+      // Update the display to show all layers
+      updateLayersDisplay();
 
       // Re-enable button and remove spinner
       captureTraceBtn.disabled = false;
@@ -1600,6 +1626,33 @@ if (captureTraceBtn) {
       debugLog('Captured trace as:', layerName);
     }, 300);
   });
+}
+
+// Count paths and points in an SVG layer
+function getLayerMetadata(svgData) {
+  try {
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(svgData, 'image/svg+xml');
+    const paths = svgDoc.querySelectorAll('path');
+
+    let totalPoints = 0;
+    paths.forEach(path => {
+      const d = path.getAttribute('d');
+      if (d) {
+        // Count M, L, C, Q commands (rough estimate of points)
+        const commands = d.match(/[MLHVCSQTAZ]/gi);
+        totalPoints += commands ? commands.length : 0;
+      }
+    });
+
+    return {
+      shapes: paths.length,
+      points: totalPoints
+    };
+  } catch (error) {
+    console.error('Error getting layer metadata:', error);
+    return { shapes: 0, points: 0 };
+  }
 }
 
 function updateLayersList() {
@@ -1613,13 +1666,18 @@ function updateLayersList() {
   layersList.innerHTML = '';
 
   capturedLayers.forEach((layer, index) => {
+    const metadata = getLayerMetadata(layer.svgData);
+
     const layerItem = document.createElement('div');
     layerItem.className = 'layer-item';
-    layerItem.style.cssText = 'padding: 8px 12px; border-bottom: 1px solid #e0e0e0; cursor: pointer; display: flex; justify-content: space-between; align-items: center;';
+    layerItem.style.cssText = 'padding: 8px 12px; border-bottom: 1px solid #e0e0e0; cursor: pointer; display: flex; flex-direction: column; gap: 4px;';
+
+    const topRow = document.createElement('div');
+    topRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center;';
 
     const layerName = document.createElement('span');
     layerName.textContent = layer.name;
-    layerName.style.fontSize = '13px';
+    layerName.style.cssText = 'font-size: 13px; font-weight: 500;';
 
     const deleteBtn = document.createElement('button');
     deleteBtn.textContent = '×';
@@ -1628,15 +1686,98 @@ function updateLayersList() {
       e.stopPropagation();
       // Remove from array
       capturedLayers.splice(index, 1);
-      // Update the list display
+      // Update displays
       updateLayersList();
+      updateLayersDisplay();
       debugLog('Deleted layer:', layer.name);
     });
 
-    layerItem.appendChild(layerName);
-    layerItem.appendChild(deleteBtn);
+    topRow.appendChild(layerName);
+    topRow.appendChild(deleteBtn);
+
+    // Add metadata row
+    const metaRow = document.createElement('div');
+    metaRow.style.cssText = 'font-size: 11px; color: #666; display: flex; gap: 12px;';
+    metaRow.innerHTML = `<span>${metadata.shapes} shapes</span><span>${metadata.points} points</span>`;
+
+    layerItem.appendChild(topRow);
+    layerItem.appendChild(metaRow);
     layersList.appendChild(layerItem);
   });
+}
+
+// Update the display to show captured layers list (just the sidebar list)
+function updateLayersDisplay() {
+  // Just update the visual in the overlay
+  updateLayersAndCurrentTrace();
+}
+
+// Update the display to show all captured layers + current trace stacked together
+function updateLayersAndCurrentTrace() {
+  const traceSvgOverlay = document.getElementById('traceSvgOverlay');
+
+  if (!traceSvgOverlay) return;
+
+  const parser = new DOMParser();
+  let combinedSvg = '';
+  let viewBox = null;
+
+  // Add all captured layers first
+  for (const layer of capturedLayers) {
+    if (!layer.visible) continue;
+
+    try {
+      const svgDoc = parser.parseFromString(layer.svgData, 'image/svg+xml');
+      const svgElement = svgDoc.querySelector('svg');
+
+      // Get viewBox from first layer
+      if (!viewBox && svgElement) {
+        viewBox = svgElement.getAttribute('viewBox');
+      }
+
+      const paths = svgDoc.querySelectorAll('path');
+      paths.forEach(path => {
+        combinedSvg += path.outerHTML;
+      });
+    } catch (error) {
+      console.error('Error parsing captured layer SVG:', error);
+    }
+  }
+
+  // Add current trace on top (if exists and not yet captured)
+  if (window.currentTraceImage && window.currentTraceImage.svgData) {
+    try {
+      const svgDoc = parser.parseFromString(window.currentTraceImage.svgData, 'image/svg+xml');
+      const svgElement = svgDoc.querySelector('svg');
+
+      // Get viewBox if we don't have one yet
+      if (!viewBox && svgElement) {
+        viewBox = svgElement.getAttribute('viewBox');
+      }
+
+      // Add current trace paths with a different opacity or style to show it's a preview
+      const paths = svgDoc.querySelectorAll('path');
+      paths.forEach(path => {
+        // Clone the path and add opacity to show it's a preview
+        const previewPath = path.cloneNode(true);
+        previewPath.setAttribute('opacity', '0.5');
+        combinedSvg += previewPath.outerHTML;
+      });
+    } catch (error) {
+      console.error('Error parsing current trace SVG:', error);
+    }
+  }
+
+  // Update the overlay
+  if (combinedSvg) {
+    if (viewBox) {
+      traceSvgOverlay.innerHTML = `<svg viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">${combinedSvg}</svg>`;
+    } else {
+      traceSvgOverlay.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg">${combinedSvg}</svg>`;
+    }
+  } else {
+    traceSvgOverlay.innerHTML = '';
+  }
 }
 
 // ============ VECTORS TAB ============
@@ -1742,6 +1883,7 @@ async function handleVectorEject(filePath) {
     if (result.success) {
       currentSVGData = {
         ...result.data,
+        content: fileContent.data, // Store the raw SVG content
         path: filePath // Store the file path
       };
       debugLog('Vector loaded for eject:', currentSVGData);
@@ -1794,15 +1936,359 @@ switchTab = function(tabName) {
     loadImages();
   } else if (tabName === 'vectors') {
     loadVectors();
+  } else if (tabName === 'render') {
+    loadGcodeFiles();
   } else if (tabName === 'eject') {
     loadEjectTab();
   }
 };
 
+// ============ RENDER TAB ============
+
+const gcodeList = document.getElementById('gcodeList');
+const renderCanvas = document.getElementById('renderCanvas');
+const renderMessage = document.getElementById('renderMessage');
+const gcodeTextArea = document.getElementById('gcodeText');
+const gcodeSection = document.getElementById('renderGcodeSection');
+const gcodeHeader = document.getElementById('gcodeHeader');
+const gcodeTextContainer = document.getElementById('gcodeTextContainer');
+const gcodeCollapseArrow = document.getElementById('gcodeCollapseArrow');
+let currentGcodeFile = null;
+
+// Setup collapse/expand functionality for G-code text viewer
+if (gcodeHeader) {
+  gcodeHeader.addEventListener('click', () => {
+    const isExpanded = gcodeTextContainer.style.display !== 'none';
+
+    if (isExpanded) {
+      // Collapse
+      gcodeTextContainer.style.display = 'none';
+      gcodeCollapseArrow.textContent = '▼';
+    } else {
+      // Expand
+      gcodeTextContainer.style.display = 'block';
+      gcodeCollapseArrow.textContent = '▲';
+    }
+  });
+}
+
+async function loadGcodeFiles() {
+  try {
+    const result = await window.electronAPI.listGcodeFiles();
+
+    if (!result.success) {
+      gcodeList.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">No G-code files found or directory not accessible</div>';
+      return;
+    }
+
+    if (result.files.length === 0) {
+      gcodeList.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">No G-code files in gellyroller directory</div>';
+      return;
+    }
+
+    // Clear existing items
+    gcodeList.innerHTML = '';
+
+    // Load each G-code file
+    for (const file of result.files) {
+      const gcodeItem = document.createElement('div');
+      gcodeItem.className = 'gcode-item';
+
+      // Format file size
+      const sizeKB = (file.size / 1024).toFixed(1);
+      const sizeText = sizeKB < 1024 ? `${sizeKB} KB` : `${(sizeKB / 1024).toFixed(1)} MB`;
+
+      // Format date
+      const date = new Date(file.modified);
+      const dateText = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      gcodeItem.innerHTML = `
+        <div class="gcode-item-header">
+          <div class="gcode-item-name" title="${file.name}">${file.name}</div>
+        </div>
+        <div class="gcode-item-info">
+          <span class="gcode-item-size">${sizeText}</span>
+          <span class="gcode-item-date">${dateText}</span>
+        </div>
+      `;
+
+      // Click to preview
+      gcodeItem.addEventListener('click', async () => {
+        // Remove active class from all items
+        document.querySelectorAll('.gcode-item').forEach(item => {
+          item.classList.remove('active');
+        });
+
+        // Add active class to this item
+        gcodeItem.classList.add('active');
+
+        // Load and render the G-code
+        await loadGcodeFile(file.path);
+      });
+
+      gcodeList.appendChild(gcodeItem);
+    }
+  } catch (error) {
+    console.error('Error loading G-code files:', error);
+    gcodeList.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">Error loading G-code files</div>';
+  }
+}
+
+async function loadGcodeFile(filePath) {
+  try {
+    // Read the G-code file
+    const result = await window.electronAPI.readFileText(filePath);
+
+    if (!result.success) {
+      renderMessage.textContent = 'Error loading G-code file';
+      renderMessage.style.display = 'block';
+      renderCanvas.style.display = 'none';
+      gcodeSection.style.display = 'none';
+      return;
+    }
+
+    currentGcodeFile = result.data;
+
+    // Hide message and show canvas
+    renderMessage.style.display = 'none';
+    renderCanvas.style.display = 'block';
+
+    // Show G-code section and populate textarea
+    gcodeSection.style.display = 'block';
+    gcodeTextArea.value = result.data;
+
+    // Parse and render the G-code
+    renderGcode(result.data);
+  } catch (error) {
+    console.error('Error loading G-code file:', error);
+    renderMessage.textContent = 'Error loading G-code file';
+    renderMessage.style.display = 'block';
+    renderCanvas.style.display = 'none';
+    gcodeSection.style.display = 'none';
+  }
+}
+
+// Zoom and pan state for G-code rendering
+let renderZoom = 1;
+let renderPanX = 0;
+let renderPanY = 0;
+let renderBaseScale = 1;
+let renderBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 };
+let renderPaths = [];
+
+function renderGcode(gcodeText) {
+  const lines = gcodeText.split('\n');
+
+  // Parse G-code to extract drawing commands
+  const paths = [];
+  let currentX = 0, currentY = 0;
+  let isPenDown = false;
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+  let currentPath = [];
+
+  for (const line of lines) {
+    // Remove comments and trim
+    const cleanLine = line.split(';')[0].trim().toUpperCase();
+    if (!cleanLine) continue;
+
+    // Parse M42 commands (pen control)
+    // M42 P0 S1 = pen up (pin high)
+    // M42 P0 S0 = pen down (pin low)
+    if (cleanLine.includes('M42')) {
+      const sMatch = cleanLine.match(/S(\d+)/);
+      if (sMatch) {
+        const sValue = parseInt(sMatch[1]);
+        if (sValue === 1) {
+          // Pen up - save current path if it exists
+          if (currentPath.length > 0) {
+            paths.push([...currentPath]);
+            currentPath = [];
+          }
+          isPenDown = false;
+        } else if (sValue === 0) {
+          // Pen down - start new path at current position
+          isPenDown = true;
+          currentPath.push({ x: currentX, y: currentY });
+        }
+      }
+    }
+
+    // Parse G0/G1 movement commands
+    if (cleanLine.startsWith('G0') || cleanLine.startsWith('G00') ||
+        cleanLine.startsWith('G1') || cleanLine.startsWith('G01')) {
+
+      // Extract X, Y coordinates
+      const xMatch = cleanLine.match(/X([-\d.]+)/);
+      const yMatch = cleanLine.match(/Y([-\d.]+)/);
+
+      if (xMatch) currentX = parseFloat(xMatch[1]);
+      if (yMatch) currentY = parseFloat(yMatch[1]);
+
+      // Track bounds for all movements
+      minX = Math.min(minX, currentX);
+      maxX = Math.max(maxX, currentX);
+      minY = Math.min(minY, currentY);
+      maxY = Math.max(maxY, currentY);
+
+      // Only add to path if pen is down
+      if (isPenDown) {
+        currentPath.push({ x: currentX, y: currentY });
+      }
+    }
+  }
+
+  // Add the last path if it exists
+  if (currentPath.length > 0) {
+    paths.push(currentPath);
+  }
+
+  // If no paths found, show message
+  if (paths.length === 0) {
+    renderMessage.textContent = 'No drawing commands found in G-code';
+    renderMessage.style.display = 'block';
+    renderCanvas.style.display = 'none';
+    document.getElementById('renderZoomControls').style.display = 'none';
+    return;
+  }
+
+  // Store paths and bounds for re-rendering with zoom/pan
+  renderPaths = paths;
+  const width = maxX - minX;
+  const height = maxY - minY;
+  renderBounds = { minX, maxX, minY, maxY, width, height };
+
+  // Reset zoom and pan on new file
+  renderZoom = 1;
+  renderPanX = 0;
+  renderPanY = 0;
+
+  // Show zoom controls
+  document.getElementById('renderZoomControls').style.display = 'flex';
+
+  // Draw the G-code
+  drawGcode();
+}
+
+function drawGcode() {
+  const canvas = renderCanvas;
+  const ctx = canvas.getContext('2d');
+
+  // Set canvas size to match container
+  const container = canvas.parentElement;
+  const containerWidth = container.clientWidth;
+  const containerHeight = container.clientHeight;
+
+  canvas.width = containerWidth;
+  canvas.height = containerHeight;
+
+  // Calculate scale to fit the drawing in the canvas with padding
+  const padding = 40;
+  const scaleX = (containerWidth - 2 * padding) / renderBounds.width;
+  const scaleY = (containerHeight - 2 * padding) / renderBounds.height;
+  renderBaseScale = Math.min(scaleX, scaleY);
+
+  const scale = renderBaseScale * renderZoom;
+
+  // Clear canvas
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Set up transformation to center and scale the drawing
+  ctx.save();
+  ctx.translate(containerWidth / 2 + renderPanX, containerHeight / 2 + renderPanY);
+  ctx.scale(scale, -scale); // Flip Y axis for typical G-code coordinate system
+  ctx.translate(-renderBounds.minX - renderBounds.width / 2, -renderBounds.minY - renderBounds.height / 2);
+
+  // Draw all paths
+  ctx.strokeStyle = '#00ff00';
+  ctx.lineWidth = 0.5 / scale; // Adjust line width based on scale
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  for (const path of renderPaths) {
+    if (path.length < 2) continue;
+
+    ctx.beginPath();
+    ctx.moveTo(path[0].x, path[0].y);
+
+    for (let i = 1; i < path.length; i++) {
+      ctx.lineTo(path[i].x, path[i].y);
+    }
+
+    ctx.stroke();
+  }
+
+  ctx.restore();
+
+  // Draw info overlay
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.font = '12px monospace';
+  ctx.fillText(`Dimensions: ${renderBounds.width.toFixed(2)} × ${renderBounds.height.toFixed(2)} mm`, 10, 20);
+  ctx.fillText(`Paths: ${renderPaths.length}`, 10, 35);
+  ctx.fillText(`Zoom: ${(renderZoom * 100).toFixed(0)}%`, 10, 50);
+}
+
+// Zoom button handlers
+document.getElementById('renderZoomIn')?.addEventListener('click', () => {
+  renderZoom *= 1.2;
+  drawGcode();
+});
+
+document.getElementById('renderZoomOut')?.addEventListener('click', () => {
+  renderZoom /= 1.2;
+  drawGcode();
+});
+
+document.getElementById('renderZoomReset')?.addEventListener('click', () => {
+  renderZoom = 1;
+  renderPanX = 0;
+  renderPanY = 0;
+  drawGcode();
+});
+
+// Pan functionality with mouse drag for G-code rendering
+let renderIsPanning = false;
+let renderPanStartX = 0;
+let renderPanStartY = 0;
+
+renderCanvas.addEventListener('mousedown', (e) => {
+  renderIsPanning = true;
+  renderPanStartX = e.clientX - renderPanX;
+  renderPanStartY = e.clientY - renderPanY;
+  renderCanvas.classList.add('panning');
+});
+
+renderCanvas.addEventListener('mousemove', (e) => {
+  if (renderIsPanning) {
+    renderPanX = e.clientX - renderPanStartX;
+    renderPanY = e.clientY - renderPanStartY;
+    drawGcode();
+  }
+});
+
+renderCanvas.addEventListener('mouseup', () => {
+  renderIsPanning = false;
+  renderCanvas.classList.remove('panning');
+});
+
+renderCanvas.addEventListener('mouseleave', () => {
+  renderIsPanning = false;
+  renderCanvas.classList.remove('panning');
+});
+
+// Handle window resize for canvas
+window.addEventListener('resize', () => {
+  if (renderPaths.length > 0 && renderCanvas.style.display !== 'none') {
+    drawGcode();
+  }
+});
+
 // ============ EJECT TAB ============
 
 // Eject tab page sizing variables
 let ejectPageSize = 'A4';
+let ejectLayout = 'portrait'; // 'portrait' or 'landscape'
 let ejectPageBackgroundElement = null;
 let ejectOriginalAspectRatio = 1; // Store original SVG aspect ratio
 let ejectPreviousUnit = 'in'; // Track previous unit for conversion
@@ -1905,8 +2391,10 @@ function loadEjectTab() {
   }
 }
 
-// Get eject page dimensions in mm
+// Get eject page dimensions in mm (respects layout orientation)
 function getEjectPageDimensions() {
+  let dimensions;
+
   if (ejectPageSize === 'custom') {
     const width = parseFloat(document.getElementById('ejectCustomWidth').value);
     const height = parseFloat(document.getElementById('ejectCustomHeight').value);
@@ -1916,10 +2404,17 @@ function getEjectPageDimensions() {
       return null;
     }
 
-    return [toMm(width, unit), toMm(height, unit)];
+    dimensions = [toMm(width, unit), toMm(height, unit)];
   } else {
-    return PAGE_SIZES[ejectPageSize];
+    dimensions = [...PAGE_SIZES[ejectPageSize]]; // Clone array
   }
+
+  // Swap dimensions if landscape
+  if (ejectLayout === 'landscape') {
+    return [dimensions[1], dimensions[0]]; // Swap width and height
+  }
+
+  return dimensions;
 }
 
 // Convert mm to other units
@@ -2152,6 +2647,24 @@ function updateEjectPageSizeButtons() {
     debugLog(`  ${size}: ${fits ? 'fits' : 'too large'} (${pageWidthMm}×${pageHeightMm}mm)`);
   });
 }
+
+// Eject layout toggle handlers (portrait/landscape)
+document.querySelectorAll('.eject-layout-toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const layout = btn.dataset.layout;
+
+    // Update active state
+    document.querySelectorAll('.eject-layout-toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    ejectLayout = layout;
+
+    // Update page background
+    updateEjectPageBackground();
+
+    debugLog('Eject layout changed:', layout);
+  });
+});
 
 // Eject page size button handlers
 document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
@@ -2479,6 +2992,33 @@ document.querySelectorAll('.arrow-btn').forEach(btn => {
   });
 });
 
+// Add keyboard arrow key support for sliders with arrow buttons
+document.querySelectorAll('.control-slider').forEach(slider => {
+  slider.addEventListener('keydown', (e) => {
+    // Check if left or right arrow key was pressed
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault(); // Prevent default browser behavior
+
+      const step = parseFloat(slider.step) || 1;
+      const min = parseFloat(slider.min);
+      const max = parseFloat(slider.max);
+      const currentValue = parseFloat(slider.value);
+
+      // Left arrow decreases, right arrow increases
+      const direction = e.key === 'ArrowRight' ? 1 : -1;
+      const newValue = currentValue + (step * direction);
+
+      // Clamp to min/max range
+      slider.value = Math.max(min, Math.min(max, newValue));
+
+      // Trigger input event to update display and trace
+      slider.dispatchEvent(new Event('input'));
+
+      debugLog(`Keyboard arrow: ${slider.id} ${direction > 0 ? '+' : '-'}${step} = ${slider.value}`);
+    }
+  });
+});
+
 // ============ PATH OPTIONS CONTROLS ============
 
 // Fill toggle - show/hide stroke controls
@@ -2557,6 +3097,7 @@ const PAGE_SIZES = {
 };
 
 let currentPageSize = 'A4';
+let currentLayout = 'portrait'; // 'portrait' or 'landscape'
 let pageBackgroundElement = null;
 let outputScale = 100; // Output scale percentage
 
@@ -2570,8 +3111,10 @@ function toMm(value, unit) {
   }
 }
 
-// Get page dimensions in mm
+// Get page dimensions in mm (respects layout orientation)
 function getPageDimensions() {
+  let dimensions;
+
   if (currentPageSize === 'custom') {
     const width = parseFloat(document.getElementById('customWidth').value);
     const height = parseFloat(document.getElementById('customHeight').value);
@@ -2581,10 +3124,17 @@ function getPageDimensions() {
       return null;
     }
 
-    return [toMm(width, unit), toMm(height, unit)];
+    dimensions = [toMm(width, unit), toMm(height, unit)];
   } else {
-    return PAGE_SIZES[currentPageSize];
+    dimensions = [...PAGE_SIZES[currentPageSize]]; // Clone array
   }
+
+  // Swap dimensions if landscape
+  if (currentLayout === 'landscape') {
+    return [dimensions[1], dimensions[0]]; // Swap width and height
+  }
+
+  return dimensions;
 }
 
 // Create or update page background
@@ -2687,6 +3237,24 @@ if (outputScaleSlider && outputScaleValue) {
   });
 }
 
+// Layout toggle handlers (portrait/landscape)
+document.querySelectorAll('.layout-toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const layout = btn.dataset.layout;
+
+    // Update active state
+    document.querySelectorAll('.layout-toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    currentLayout = layout;
+
+    // Update page background
+    updatePageBackground();
+
+    debugLog('Layout changed:', layout);
+  });
+});
+
 // Page size button handlers
 document.querySelectorAll('.page-size-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -2770,12 +3338,13 @@ setTimeout(() => {
 
 // ============ SAVE FUNCTIONALITY ============
 
-// Save SVG button
+// Save SVG button - combines all captured layers and uses page size
 const saveSvgBtn = document.getElementById('saveSvgBtn');
 if (saveSvgBtn) {
   saveSvgBtn.addEventListener('click', async () => {
-    if (!window.currentTraceImage || !window.currentTraceImage.svgData) {
-      alert('No SVG data to save. Please trace an image first.');
+    // Check if there are any captured layers
+    if (capturedLayers.length === 0) {
+      alert('No layers captured. Please capture at least one trace layer first.');
       return;
     }
 
@@ -2784,35 +3353,76 @@ if (saveSvgBtn) {
       const originalText = saveSvgBtn.innerHTML;
       saveSvgBtn.innerHTML = '<span>⏳</span> Saving...';
 
-      // Generate filename from original image name
-      const baseName = window.currentTraceImage.fileName.replace(/\.[^/.]+$/, '');
+      // Get page dimensions in mm
+      const dimensions = getPageDimensions();
+      if (!dimensions) {
+        alert('Please select a page size first.');
+        saveSvgBtn.disabled = false;
+        saveSvgBtn.innerHTML = originalText;
+        return;
+      }
+
+      const [widthMm, heightMm] = dimensions;
+      console.log('[SVG Save] Creating SVG with dimensions:', widthMm + 'mm x ' + heightMm + 'mm', 'from', capturedLayers.length, 'layers');
+
+      // Create combined SVG with proper dimensions
+      let svgString;
+      try {
+        svgString = combineLayersToSVG(capturedLayers, widthMm, heightMm);
+        console.log('[SVG Save] SVG string created, length:', svgString.length);
+      } catch (combineError) {
+        console.error('[SVG Save] Error combining layers:', combineError);
+        throw new Error('Failed to combine layers: ' + combineError.message);
+      }
+
+      // Generate filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      const filename = `${baseName}_trace_${timestamp}.svg`;
+      const filename = `combined_trace_${timestamp}.svg`;
+      console.log('[SVG Save] Saving as:', filename);
 
       // Convert SVG string to data URL
-      const svgBlob = new Blob([window.currentTraceImage.svgData], { type: 'image/svg+xml' });
+      const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
       const reader = new FileReader();
 
+      reader.onerror = function() {
+        console.error('[SVG Save] FileReader error');
+        alert('Error converting SVG to data URL');
+        saveSvgBtn.disabled = false;
+        saveSvgBtn.innerHTML = originalText;
+      };
+
       reader.onload = async function() {
-        const dataUrl = reader.result;
+        try {
+          const dataUrl = reader.result;
+          console.log('[SVG Save] Data URL created, saving to file...');
 
-        // Save using existing saveImage method (works for SVG too)
-        const result = await window.electronAPI.saveImage(dataUrl, filename);
+          // Save using existing saveImage method (works for SVG too)
+          const result = await window.electronAPI.saveImage(dataUrl, filename);
 
-        if (result.success) {
-          debugLog('SVG saved:', result.path);
+          if (result.success) {
+            console.log('[SVG Save] ✓ Combined SVG saved:', result.path, `(${capturedLayers.length} layers, ${widthMm}x${heightMm}mm)`);
 
-          // Switch to vectors tab
-          switchTab('vectors');
+            // Reload vectors to show the new file
+            await loadVectors();
 
-          // Show success message briefly
-          saveSvgBtn.innerHTML = '<span>✓</span> Saved!';
-          setTimeout(() => {
-            saveSvgBtn.innerHTML = originalText;
-            saveSvgBtn.disabled = false;
-          }, 2000);
-        } else {
-          throw new Error(result.error);
+            // Switch to vectors tab
+            switchTab('vectors');
+
+            // Show success message briefly
+            saveSvgBtn.innerHTML = '<span>✓</span> Saved!';
+            setTimeout(() => {
+              saveSvgBtn.innerHTML = originalText;
+              saveSvgBtn.disabled = false;
+            }, 2000);
+          } else {
+            console.error('[SVG Save] Save failed:', result.error);
+            throw new Error(result.error || 'Unknown error saving file');
+          }
+        } catch (saveError) {
+          console.error('[SVG Save] Error in save handler:', saveError);
+          alert('Error saving SVG: ' + saveError.message);
+          saveSvgBtn.disabled = false;
+          saveSvgBtn.innerHTML = originalText;
         }
       };
 
@@ -2825,6 +3435,91 @@ if (saveSvgBtn) {
       saveSvgBtn.innerHTML = '<span>💾</span> Save SVG';
     }
   });
+}
+
+// Function to combine all layers into a single SVG with proper dimensions
+function combineLayersToSVG(layers, widthMm, heightMm) {
+  console.log('[combineLayersToSVG] Starting with', layers.length, 'layers');
+  const parser = new DOMParser();
+  const allPaths = [];
+  let viewBox = null;
+
+  // Extract paths from all visible layers and get viewBox
+  for (const layer of layers) {
+    if (!layer.visible) {
+      console.log('[combineLayersToSVG] Skipping invisible layer:', layer.name);
+      continue;
+    }
+
+    try {
+      const svgDoc = parser.parseFromString(layer.svgData, 'image/svg+xml');
+      const svgElement = svgDoc.querySelector('svg');
+
+      // Get viewBox from first layer
+      if (!viewBox && svgElement) {
+        viewBox = svgElement.getAttribute('viewBox');
+        console.log('[combineLayersToSVG] Using viewBox from layer:', viewBox);
+      }
+
+      const paths = svgDoc.querySelectorAll('path');
+      console.log('[combineLayersToSVG] Found', paths.length, 'paths in layer:', layer.name);
+
+      paths.forEach((path, idx) => {
+        const d = path.getAttribute('d');
+        if (!d || d.trim() === '') {
+          console.warn('[combineLayersToSVG] Path', idx, 'has empty d attribute, skipping');
+          return;
+        }
+
+        allPaths.push({
+          d: d,
+          fill: path.getAttribute('fill') || 'none',
+          stroke: path.getAttribute('stroke') || '#000000',
+          strokeWidth: path.getAttribute('stroke-width') || '1'
+        });
+
+        // Log first path for debugging
+        if (idx === 0) {
+          console.log('[combineLayersToSVG] Sample path d (first 100 chars):', d.substring(0, 100));
+        }
+      });
+    } catch (error) {
+      console.error('[combineLayersToSVG] Error parsing layer SVG:', error);
+    }
+  }
+
+  console.log('[combineLayersToSVG] Total paths collected:', allPaths.length);
+
+  if (allPaths.length === 0) {
+    throw new Error('No paths found in layers');
+  }
+
+  // If no viewBox found, create one based on page dimensions
+  if (!viewBox) {
+    const mmToPx = 3.7795275591;
+    const widthPx = widthMm * mmToPx;
+    const heightPx = heightMm * mmToPx;
+    viewBox = `0 0 ${widthPx} ${heightPx}`;
+    console.log('[combineLayersToSVG] Created default viewBox:', viewBox);
+  }
+
+  // Create SVG with proper dimensions
+  let svg = `<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="${widthMm}mm" height="${heightMm}mm" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" version="1.1">
+`;
+
+  // Add all paths
+  for (const path of allPaths) {
+    svg += `  <path d="${path.d}" fill="${path.fill}" stroke="${path.stroke}" stroke-width="${path.strokeWidth}"/>\n`;
+  }
+
+  svg += `</svg>`;
+
+  console.log('[combineLayersToSVG] ✓ Combined SVG created:', allPaths.length, 'paths,', widthMm + 'x' + heightMm + 'mm');
+  console.log('[combineLayersToSVG] SVG preview (first 500 chars):', svg.substring(0, 500));
+  console.log('[combineLayersToSVG] SVG preview (last 200 chars):', svg.substring(svg.length - 200));
+  return svg;
 }
 
 // Save Image button
