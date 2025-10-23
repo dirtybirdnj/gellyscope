@@ -2068,6 +2068,14 @@ async function loadGcodeFile(filePath) {
   }
 }
 
+// Zoom and pan state for G-code rendering
+let renderZoom = 1;
+let renderPanX = 0;
+let renderPanY = 0;
+let renderBaseScale = 1;
+let renderBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 };
+let renderPaths = [];
+
 function renderGcode(gcodeText) {
   const lines = gcodeText.split('\n');
 
@@ -2140,14 +2148,29 @@ function renderGcode(gcodeText) {
     renderMessage.textContent = 'No drawing commands found in G-code';
     renderMessage.style.display = 'block';
     renderCanvas.style.display = 'none';
+    document.getElementById('renderZoomControls').style.display = 'none';
     return;
   }
 
-  // Calculate dimensions
+  // Store paths and bounds for re-rendering with zoom/pan
+  renderPaths = paths;
   const width = maxX - minX;
   const height = maxY - minY;
+  renderBounds = { minX, maxX, minY, maxY, width, height };
 
-  // Setup canvas
+  // Reset zoom and pan on new file
+  renderZoom = 1;
+  renderPanX = 0;
+  renderPanY = 0;
+
+  // Show zoom controls
+  document.getElementById('renderZoomControls').style.display = 'flex';
+
+  // Draw the G-code
+  drawGcode();
+}
+
+function drawGcode() {
   const canvas = renderCanvas;
   const ctx = canvas.getContext('2d');
 
@@ -2161,9 +2184,11 @@ function renderGcode(gcodeText) {
 
   // Calculate scale to fit the drawing in the canvas with padding
   const padding = 40;
-  const scaleX = (containerWidth - 2 * padding) / width;
-  const scaleY = (containerHeight - 2 * padding) / height;
-  const scale = Math.min(scaleX, scaleY);
+  const scaleX = (containerWidth - 2 * padding) / renderBounds.width;
+  const scaleY = (containerHeight - 2 * padding) / renderBounds.height;
+  renderBaseScale = Math.min(scaleX, scaleY);
+
+  const scale = renderBaseScale * renderZoom;
 
   // Clear canvas
   ctx.fillStyle = '#1a1a1a';
@@ -2171,9 +2196,9 @@ function renderGcode(gcodeText) {
 
   // Set up transformation to center and scale the drawing
   ctx.save();
-  ctx.translate(containerWidth / 2, containerHeight / 2);
+  ctx.translate(containerWidth / 2 + renderPanX, containerHeight / 2 + renderPanY);
   ctx.scale(scale, -scale); // Flip Y axis for typical G-code coordinate system
-  ctx.translate(-minX - width / 2, -minY - height / 2);
+  ctx.translate(-renderBounds.minX - renderBounds.width / 2, -renderBounds.minY - renderBounds.height / 2);
 
   // Draw all paths
   ctx.strokeStyle = '#00ff00';
@@ -2181,7 +2206,7 @@ function renderGcode(gcodeText) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  for (const path of paths) {
+  for (const path of renderPaths) {
     if (path.length < 2) continue;
 
     ctx.beginPath();
@@ -2199,14 +2224,63 @@ function renderGcode(gcodeText) {
   // Draw info overlay
   ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
   ctx.font = '12px monospace';
-  ctx.fillText(`Dimensions: ${width.toFixed(2)} × ${height.toFixed(2)} mm`, 10, 20);
-  ctx.fillText(`Paths: ${paths.length}`, 10, 35);
+  ctx.fillText(`Dimensions: ${renderBounds.width.toFixed(2)} × ${renderBounds.height.toFixed(2)} mm`, 10, 20);
+  ctx.fillText(`Paths: ${renderPaths.length}`, 10, 35);
+  ctx.fillText(`Zoom: ${(renderZoom * 100).toFixed(0)}%`, 10, 50);
 }
+
+// Zoom button handlers
+document.getElementById('renderZoomIn')?.addEventListener('click', () => {
+  renderZoom *= 1.2;
+  drawGcode();
+});
+
+document.getElementById('renderZoomOut')?.addEventListener('click', () => {
+  renderZoom /= 1.2;
+  drawGcode();
+});
+
+document.getElementById('renderZoomReset')?.addEventListener('click', () => {
+  renderZoom = 1;
+  renderPanX = 0;
+  renderPanY = 0;
+  drawGcode();
+});
+
+// Pan functionality with mouse drag
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+
+renderCanvas.addEventListener('mousedown', (e) => {
+  isPanning = true;
+  panStartX = e.clientX - renderPanX;
+  panStartY = e.clientY - renderPanY;
+  renderCanvas.classList.add('panning');
+});
+
+renderCanvas.addEventListener('mousemove', (e) => {
+  if (isPanning) {
+    renderPanX = e.clientX - panStartX;
+    renderPanY = e.clientY - panStartY;
+    drawGcode();
+  }
+});
+
+renderCanvas.addEventListener('mouseup', () => {
+  isPanning = false;
+  renderCanvas.classList.remove('panning');
+});
+
+renderCanvas.addEventListener('mouseleave', () => {
+  isPanning = false;
+  renderCanvas.classList.remove('panning');
+});
 
 // Handle window resize for canvas
 window.addEventListener('resize', () => {
-  if (currentGcodeFile && renderCanvas.style.display !== 'none') {
-    renderGcode(currentGcodeFile);
+  if (renderPaths.length > 0 && renderCanvas.style.display !== 'none') {
+    drawGcode();
   }
 });
 

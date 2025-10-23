@@ -1898,6 +1898,7 @@ input[type="file"] {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  position: relative;
 }
 
 .render-message {
@@ -1907,10 +1908,50 @@ input[type="file"] {
   padding: 20px;
 }
 
+.render-zoom-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 4px;
+  border-radius: 6px;
+  z-index: 10;
+}
+
+.render-zoom-btn {
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.render-zoom-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.render-zoom-btn:active {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 #renderCanvas {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  cursor: grab;
+}
+
+#renderCanvas.panning {
+  cursor: grabbing;
 }
 
 .render-gcode-section {
