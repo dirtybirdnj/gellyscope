@@ -3261,29 +3261,29 @@ if (saveSvgBtn) {
       }
 
       const [widthMm, heightMm] = dimensions;
-      debugLog('Creating SVG with dimensions:', widthMm + 'mm x ' + heightMm + 'mm', 'from', capturedLayers.length, 'layers');
+      console.log('[SVG Save] Creating SVG with dimensions:', widthMm + 'mm x ' + heightMm + 'mm', 'from', capturedLayers.length, 'layers');
 
       // Create combined SVG with proper dimensions
       let svgString;
       try {
         svgString = combineLayersToSVG(capturedLayers, widthMm, heightMm);
-        debugLog('SVG string created, length:', svgString.length);
+        console.log('[SVG Save] SVG string created, length:', svgString.length);
       } catch (combineError) {
-        console.error('Error combining layers:', combineError);
+        console.error('[SVG Save] Error combining layers:', combineError);
         throw new Error('Failed to combine layers: ' + combineError.message);
       }
 
       // Generate filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const filename = `combined_trace_${timestamp}.svg`;
-      debugLog('Saving as:', filename);
+      console.log('[SVG Save] Saving as:', filename);
 
       // Convert SVG string to data URL
       const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
       const reader = new FileReader();
 
       reader.onerror = function() {
-        console.error('FileReader error');
+        console.error('[SVG Save] FileReader error');
         alert('Error converting SVG to data URL');
         saveSvgBtn.disabled = false;
         saveSvgBtn.innerHTML = originalText;
@@ -3292,13 +3292,13 @@ if (saveSvgBtn) {
       reader.onload = async function() {
         try {
           const dataUrl = reader.result;
-          debugLog('Data URL created, saving to file...');
+          console.log('[SVG Save] Data URL created, saving to file...');
 
           // Save using existing saveImage method (works for SVG too)
           const result = await window.electronAPI.saveImage(dataUrl, filename);
 
           if (result.success) {
-            debugLog('Combined SVG saved:', result.path, `(${capturedLayers.length} layers, ${widthMm}x${heightMm}mm)`);
+            console.log('[SVG Save] ✓ Combined SVG saved:', result.path, `(${capturedLayers.length} layers, ${widthMm}x${heightMm}mm)`);
 
             // Reload vectors to show the new file
             await loadVectors();
@@ -3313,10 +3313,11 @@ if (saveSvgBtn) {
               saveSvgBtn.disabled = false;
             }, 2000);
           } else {
+            console.error('[SVG Save] Save failed:', result.error);
             throw new Error(result.error || 'Unknown error saving file');
           }
         } catch (saveError) {
-          console.error('Error in save handler:', saveError);
+          console.error('[SVG Save] Error in save handler:', saveError);
           alert('Error saving SVG: ' + saveError.message);
           saveSvgBtn.disabled = false;
           saveSvgBtn.innerHTML = originalText;
@@ -3336,13 +3337,17 @@ if (saveSvgBtn) {
 
 // Function to combine all layers into a single SVG with proper dimensions
 function combineLayersToSVG(layers, widthMm, heightMm) {
+  console.log('[combineLayersToSVG] Starting with', layers.length, 'layers');
   const parser = new DOMParser();
   const allPaths = [];
   let viewBox = null;
 
   // Extract paths from all visible layers and get viewBox
   for (const layer of layers) {
-    if (!layer.visible) continue;
+    if (!layer.visible) {
+      console.log('[combineLayersToSVG] Skipping invisible layer:', layer.name);
+      continue;
+    }
 
     try {
       const svgDoc = parser.parseFromString(layer.svgData, 'image/svg+xml');
@@ -3351,10 +3356,12 @@ function combineLayersToSVG(layers, widthMm, heightMm) {
       // Get viewBox from first layer
       if (!viewBox && svgElement) {
         viewBox = svgElement.getAttribute('viewBox');
-        debugLog('Using viewBox from layer:', viewBox);
+        console.log('[combineLayersToSVG] Using viewBox from layer:', viewBox);
       }
 
       const paths = svgDoc.querySelectorAll('path');
+      console.log('[combineLayersToSVG] Found', paths.length, 'paths in layer:', layer.name);
+
       paths.forEach(path => {
         allPaths.push({
           d: path.getAttribute('d'),
@@ -3364,9 +3371,11 @@ function combineLayersToSVG(layers, widthMm, heightMm) {
         });
       });
     } catch (error) {
-      console.error('Error parsing layer SVG:', error);
+      console.error('[combineLayersToSVG] Error parsing layer SVG:', error);
     }
   }
+
+  console.log('[combineLayersToSVG] Total paths collected:', allPaths.length);
 
   if (allPaths.length === 0) {
     throw new Error('No paths found in layers');
@@ -3378,7 +3387,7 @@ function combineLayersToSVG(layers, widthMm, heightMm) {
     const widthPx = widthMm * mmToPx;
     const heightPx = heightMm * mmToPx;
     viewBox = `0 0 ${widthPx} ${heightPx}`;
-    debugLog('Created default viewBox:', viewBox);
+    console.log('[combineLayersToSVG] Created default viewBox:', viewBox);
   }
 
   // Create SVG with proper dimensions
@@ -3394,7 +3403,7 @@ function combineLayersToSVG(layers, widthMm, heightMm) {
 
   svg += `</svg>`;
 
-  debugLog('Combined SVG created:', allPaths.length, 'paths,', widthMm + 'x' + heightMm + 'mm');
+  console.log('[combineLayersToSVG] ✓ Combined SVG created:', allPaths.length, 'paths,', widthMm + 'x' + heightMm + 'mm');
   return svg;
 }
 
