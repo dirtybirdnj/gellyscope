@@ -1,4 +1,5 @@
 import { debugLog } from './shared/debug.js';
+import { state, setState } from './shared/state.js';
 
 // ============ RENDER TAB ============
 
@@ -12,28 +13,15 @@ let gcodeHeader;
 let gcodeTextContainer;
 let gcodeCollapseArrow;
 
-// State
-let currentGcodeFile = null;
-
-// Zoom and pan state for G-code rendering
-let renderZoom = 1;
-let renderPanX = 0;
-let renderPanY = 0;
-let renderBaseScale = 1;
-let renderBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 };
-let renderPaths = [];
-
-// Pan state
-let renderIsPanning = false;
-let renderPanStartX = 0;
-let renderPanStartY = 0;
+// State is now centralized in shared/state.js under state.render
+// Access via: state.render.zoom, state.render.panX, etc.
 
 /**
  * Check if render paths are available
  * @returns {boolean} True if there are paths to render
  */
 export function hasRenderPaths() {
-  return renderPaths.length > 0;
+  return state.render.paths.length > 0;
 }
 
 /**
@@ -74,19 +62,17 @@ export function initRenderTab() {
 
   // Zoom button handlers
   document.getElementById('renderZoomIn')?.addEventListener('click', () => {
-    renderZoom *= 1.2;
+    setState({ render: { ...state.render, zoom: state.render.zoom * 1.2 } });
     drawGcode();
   });
 
   document.getElementById('renderZoomOut')?.addEventListener('click', () => {
-    renderZoom /= 1.2;
+    setState({ render: { ...state.render, zoom: state.render.zoom / 1.2 } });
     drawGcode();
   });
 
   document.getElementById('renderZoomReset')?.addEventListener('click', () => {
-    renderZoom = 1;
-    renderPanX = 0;
-    renderPanY = 0;
+    setState({ render: { ...state.render, zoom: 1, panX: 0, panY: 0 } });
     drawGcode();
   });
 
@@ -95,46 +81,58 @@ export function initRenderTab() {
     e.preventDefault();
 
     // Determine zoom direction based on wheel delta
+    let newZoom = state.render.zoom;
     if (e.deltaY < 0) {
       // Scroll up = zoom in
-      renderZoom *= 1.2;
+      newZoom *= 1.2;
     } else {
       // Scroll down = zoom out
-      renderZoom /= 1.2;
+      newZoom /= 1.2;
     }
+    setState({ render: { ...state.render, zoom: newZoom } });
 
     drawGcode();
   });
 
   // Pan functionality with mouse drag for G-code rendering
   renderCanvas.addEventListener('mousedown', (e) => {
-    renderIsPanning = true;
-    renderPanStartX = e.clientX - renderPanX;
-    renderPanStartY = e.clientY - renderPanY;
+    setState({
+      render: {
+        ...state.render,
+        isPanning: true,
+        panStartX: e.clientX - state.render.panX,
+        panStartY: e.clientY - state.render.panY
+      }
+    });
     renderCanvas.classList.add('panning');
   });
 
   renderCanvas.addEventListener('mousemove', (e) => {
-    if (renderIsPanning) {
-      renderPanX = e.clientX - renderPanStartX;
-      renderPanY = e.clientY - renderPanStartY;
+    if (state.render.isPanning) {
+      setState({
+        render: {
+          ...state.render,
+          panX: e.clientX - state.render.panStartX,
+          panY: e.clientY - state.render.panStartY
+        }
+      });
       drawGcode();
     }
   });
 
   renderCanvas.addEventListener('mouseup', () => {
-    renderIsPanning = false;
+    setState({ render: { ...state.render, isPanning: false } });
     renderCanvas.classList.remove('panning');
   });
 
   renderCanvas.addEventListener('mouseleave', () => {
-    renderIsPanning = false;
+    setState({ render: { ...state.render, isPanning: false } });
     renderCanvas.classList.remove('panning');
   });
 
   // Handle window resize for canvas
   window.addEventListener('resize', () => {
-    if (renderPaths.length > 0 && renderCanvas.style.display !== 'none') {
+    if (state.render.paths.length > 0 && renderCanvas.style.display !== 'none') {
       drawGcode();
     }
   });
@@ -158,9 +156,8 @@ async function handleGcodeDelete(filePath, fileName) {
       await loadGcodeFiles();
 
       // Clear preview if this was the active file
-      if (currentGcodeFile === filePath) {
-        currentGcodeFile = null;
-        renderPaths = [];
+      if (state.render.currentGcodeFile === filePath) {
+        setState({ render: { ...state.render, currentGcodeFile: null, paths: [] } });
         renderCanvas.style.display = 'none';
         renderMessage.textContent = 'Select a G-code file to preview';
         renderMessage.style.display = 'block';
@@ -255,7 +252,7 @@ export async function loadGcodeFiles() {
  * Load and display a specific G-code file
  * @param {string} filePath - Path to the G-code file
  */
-async function loadGcodeFile(filePath) {
+export async function loadGcodeFile(filePath) {
   try {
     // Read the G-code file
     const result = await window.electronAPI.readFileText(filePath);
@@ -268,7 +265,7 @@ async function loadGcodeFile(filePath) {
       return;
     }
 
-    currentGcodeFile = result.data;
+    setState({ render: { ...state.render, currentGcodeFile: result.data } });
 
     // Hide message and show canvas
     renderMessage.style.display = 'none';
@@ -371,15 +368,18 @@ function renderGcode(gcodeText) {
   }
 
   // Store paths and bounds for re-rendering with zoom/pan
-  renderPaths = paths;
   const width = maxX - minX;
   const height = maxY - minY;
-  renderBounds = { minX, maxX, minY, maxY, width, height };
-
-  // Reset zoom and pan on new file
-  renderZoom = 1;
-  renderPanX = 0;
-  renderPanY = 0;
+  setState({
+    render: {
+      ...state.render,
+      paths: paths,
+      bounds: { minX, maxX, minY, maxY, width, height },
+      zoom: 1,
+      panX: 0,
+      panY: 0
+    }
+  });
 
   // Show zoom controls
   document.getElementById('renderZoomControls').style.display = 'flex';
@@ -406,11 +406,12 @@ export function drawGcode() {
 
   // Calculate scale to fit the drawing in the canvas with padding
   const padding = 40;
-  const scaleX = (containerWidth - 2 * padding) / renderBounds.width;
-  const scaleY = (containerHeight - 2 * padding) / renderBounds.height;
-  renderBaseScale = Math.min(scaleX, scaleY);
+  const scaleX = (containerWidth - 2 * padding) / state.render.bounds.width;
+  const scaleY = (containerHeight - 2 * padding) / state.render.bounds.height;
+  const newBaseScale = Math.min(scaleX, scaleY);
+  setState({ render: { ...state.render, baseScale: newBaseScale } });
 
-  const scale = renderBaseScale * renderZoom;
+  const scale = state.render.baseScale * state.render.zoom;
 
   // Clear canvas
   ctx.fillStyle = '#1a1a1a';
@@ -418,9 +419,9 @@ export function drawGcode() {
 
   // Set up transformation to center and scale the drawing
   ctx.save();
-  ctx.translate(containerWidth / 2 + renderPanX, containerHeight / 2 + renderPanY);
+  ctx.translate(containerWidth / 2 + state.render.panX, containerHeight / 2 + state.render.panY);
   ctx.scale(scale, -scale); // Flip Y axis for typical G-code coordinate system
-  ctx.translate(-renderBounds.minX - renderBounds.width / 2, -renderBounds.minY - renderBounds.height / 2);
+  ctx.translate(-state.render.bounds.minX - state.render.bounds.width / 2, -state.render.bounds.minY - state.render.bounds.height / 2);
 
   // Draw all paths
   ctx.strokeStyle = '#00ff00';
@@ -428,7 +429,7 @@ export function drawGcode() {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  for (const path of renderPaths) {
+  for (const path of state.render.paths) {
     if (path.length < 2) continue;
 
     ctx.beginPath();
@@ -446,7 +447,7 @@ export function drawGcode() {
   // Draw info overlay
   ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
   ctx.font = '12px monospace';
-  ctx.fillText(`Dimensions: ${renderBounds.width.toFixed(2)} × ${renderBounds.height.toFixed(2)} mm`, 10, 20);
-  ctx.fillText(`Paths: ${renderPaths.length}`, 10, 35);
-  ctx.fillText(`Zoom: ${(renderZoom * 100).toFixed(0)}%`, 10, 50);
+  ctx.fillText(`Dimensions: ${state.render.bounds.width.toFixed(2)} × ${state.render.bounds.height.toFixed(2)} mm`, 10, 20);
+  ctx.fillText(`Paths: ${state.render.paths.length}`, 10, 35);
+  ctx.fillText(`Zoom: ${(state.render.zoom * 100).toFixed(0)}%`, 10, 50);
 }

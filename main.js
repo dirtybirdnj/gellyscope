@@ -18,6 +18,31 @@ function debugLog(...args) {
   }
 }
 
+/**
+ * Get the path to the gellyroller directory
+ * @returns {string} Absolute path to gellyroller directory
+ */
+function getGellyrollerPath() {
+  return path.join(os.homedir(), 'gellyroller');
+}
+
+/**
+ * Convert value to millimeters from different units
+ * Note: This duplicates shared/utils.js toMm() but is kept separate
+ * due to CommonJS/ES6 module system differences
+ * @param {number} value - The value to convert
+ * @param {string} unit - The unit ('mm', 'cm', 'in')
+ * @returns {number} Value in millimeters
+ */
+function toMm(value, unit) {
+  switch (unit) {
+    case 'mm': return value;
+    case 'cm': return value * 10;
+    case 'in': return value * 25.4;
+    default: return value;
+  }
+}
+
 let mainWindow;
 
 function createWindow() {
@@ -53,8 +78,7 @@ app.on('activate', () => {
 
 // Check and create gellyroller directory
 async function ensureGellyrollerDirectory() {
-  const homeDir = os.homedir();
-  const gellyrollerPath = path.join(homeDir, 'gellyroller');
+  const gellyrollerPath = getGellyrollerPath();
 
   debugLog('Checking for gellyroller directory at:', gellyrollerPath);
 
@@ -92,6 +116,23 @@ async function ensureGellyrollerDirectory() {
   }
 }
 
+/**
+ * Wrapper for IPC handlers to standardize error handling
+ * @param {Function} handler - Async function that contains the IPC logic
+ * @param {string} context - Description of the operation for error logging
+ * @returns {Function} Wrapped handler function
+ */
+function withErrorHandling(handler, context = 'IPC operation') {
+  return async (...args) => {
+    try {
+      return await handler(...args);
+    } catch (error) {
+      console.error(`Error in ${context}:`, error);
+      return { success: false, error: error.message };
+    }
+  };
+}
+
 // IPC Handler for checking/creating gellyroller directory
 ipcMain.handle('ensure-gellyroller-directory', async () => {
   return await ensureGellyrollerDirectory();
@@ -99,111 +140,71 @@ ipcMain.handle('ensure-gellyroller-directory', async () => {
 
 // IPC Handler for getting gellyroller directory path
 ipcMain.handle('get-gellyroller-path', () => {
-  const homeDir = os.homedir();
-  return path.join(homeDir, 'gellyroller');
+  return getGellyrollerPath();
 });
 
-// IPC Handler for listing image files
-ipcMain.handle('list-images', async () => {
-  const homeDir = os.homedir();
-  const gellyrollerPath = path.join(homeDir, 'gellyroller');
+/**
+ * Lists files in gellyroller directory filtered by extensions
+ * @param {string[]} extensions - Array of file extensions (e.g., ['.png', '.jpg'])
+ * @param {boolean} includeMetadata - Whether to include file size and modified date
+ * @param {boolean} sortByDate - Whether to sort by modified date (newest first)
+ * @returns {Object} Result object with success status and files array
+ */
+async function listFilesByExtension(extensions, includeMetadata = false, sortByDate = false) {
+  const gellyrollerPath = getGellyrollerPath();
 
   try {
-    // Check if directory exists
     if (!fs.existsSync(gellyrollerPath)) {
       return { success: false, files: [] };
     }
 
-    // Read directory contents
     const files = fs.readdirSync(gellyrollerPath);
-
-    // Filter for image files (bitmap formats)
-    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.tiff', '.tif'];
-    const imageFiles = files.filter(file => {
+    const filtered = files.filter(file => {
       const ext = path.extname(file).toLowerCase();
-      return imageExtensions.includes(ext);
-    }).map(file => ({
-      name: file,
-      path: path.join(gellyrollerPath, file)
-    }));
+      return extensions.includes(ext);
+    }).map(file => {
+      const filePath = path.join(gellyrollerPath, file);
+      const fileObj = { name: file, path: filePath };
 
-    debugLog('Found', imageFiles.length, 'image files');
-    return { success: true, files: imageFiles };
+      if (includeMetadata) {
+        const stats = fs.statSync(filePath);
+        fileObj.size = stats.size;
+        fileObj.modified = stats.mtime;
+      }
+      return fileObj;
+    });
+
+    if (sortByDate && includeMetadata) {
+      filtered.sort((a, b) => b.modified - a.modified);
+    }
+
+    return { success: true, files: filtered };
   } catch (error) {
-    console.error('Error listing images:', error);
+    console.error('Error listing files:', error);
     return { success: false, error: error.message, files: [] };
   }
+}
+
+// IPC Handler for listing image files
+ipcMain.handle('list-images', async () => {
+  const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.tiff', '.tif'];
+  const result = await listFilesByExtension(imageExtensions);
+  debugLog('Found', result.files.length, 'image files');
+  return result;
 });
 
 // IPC Handler for listing vector files
 ipcMain.handle('list-vectors', async () => {
-  const homeDir = os.homedir();
-  const gellyrollerPath = path.join(homeDir, 'gellyroller');
-
-  try {
-    // Check if directory exists
-    if (!fs.existsSync(gellyrollerPath)) {
-      return { success: false, files: [] };
-    }
-
-    // Read directory contents
-    const files = fs.readdirSync(gellyrollerPath);
-
-    // Filter for SVG files
-    const vectorFiles = files.filter(file => {
-      const ext = path.extname(file).toLowerCase();
-      return ext === '.svg';
-    }).map(file => ({
-      name: file,
-      path: path.join(gellyrollerPath, file)
-    }));
-
-    debugLog('Found', vectorFiles.length, 'vector files');
-    return { success: true, files: vectorFiles };
-  } catch (error) {
-    console.error('Error listing vectors:', error);
-    return { success: false, error: error.message, files: [] };
-  }
+  const result = await listFilesByExtension(['.svg']);
+  debugLog('Found', result.files.length, 'vector files');
+  return result;
 });
 
 // IPC Handler for listing G-code files
 ipcMain.handle('list-gcode', async () => {
-  const homeDir = os.homedir();
-  const gellyrollerPath = path.join(homeDir, 'gellyroller');
-
-  try {
-    // Check if directory exists
-    if (!fs.existsSync(gellyrollerPath)) {
-      return { success: false, files: [] };
-    }
-
-    // Read directory contents
-    const files = fs.readdirSync(gellyrollerPath);
-
-    // Filter for G-code files
-    const gcodeFiles = files.filter(file => {
-      const ext = path.extname(file).toLowerCase();
-      return ext === '.gcode' || ext === '.nc' || ext === '.gc';
-    }).map(file => {
-      const filePath = path.join(gellyrollerPath, file);
-      const stats = fs.statSync(filePath);
-      return {
-        name: file,
-        path: filePath,
-        size: stats.size,
-        modified: stats.mtime
-      };
-    });
-
-    // Sort by modified date (newest first)
-    gcodeFiles.sort((a, b) => b.modified - a.modified);
-
-    debugLog('Found', gcodeFiles.length, 'G-code files');
-    return { success: true, files: gcodeFiles };
-  } catch (error) {
-    console.error('Error listing G-code files:', error);
-    return { success: false, error: error.message, files: [] };
-  }
+  const result = await listFilesByExtension(['.gcode', '.nc', '.gc'], true, true);
+  debugLog('Found', result.files.length, 'G-code files');
+  return result;
 });
 
 // IPC Handler for reading file as base64 (for displaying images)
@@ -238,50 +239,170 @@ ipcMain.handle('read-file-base64', async (event, filePath) => {
 });
 
 // IPC Handler for reading text files
-ipcMain.handle('read-file-text', async (event, filePath) => {
-  try {
-    const data = fs.readFileSync(filePath, 'utf8');
-    return {
-      success: true,
-      data: data
-    };
-  } catch (error) {
-    console.error('Error reading text file:', error);
-    return { success: false, error: error.message };
-  }
-});
+ipcMain.handle('read-file-text', withErrorHandling(async (event, filePath) => {
+  const data = fs.readFileSync(filePath, 'utf8');
+  return {
+    success: true,
+    data: data
+  };
+}, 'read-file-text'));
 
 // IPC Handler for deleting files
-ipcMain.handle('delete-file', async (event, filePath) => {
-  try {
-    // Verify the file is in the gellyroller directory for safety
-    const homeDir = os.homedir();
-    const gellyrollerPath = path.join(homeDir, 'gellyroller');
+ipcMain.handle('delete-file', withErrorHandling(async (event, filePath) => {
+  // Verify the file is in the gellyroller directory for safety
+  const gellyrollerPath = getGellyrollerPath();
 
-    if (!filePath.startsWith(gellyrollerPath)) {
-      return { success: false, error: 'Cannot delete files outside gellyroller directory' };
-    }
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      return { success: false, error: 'File does not exist' };
-    }
-
-    // Delete the file
-    fs.unlinkSync(filePath);
-    debugLog('File deleted successfully:', filePath);
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error deleting file:', error);
-    return { success: false, error: error.message };
+  if (!filePath.startsWith(gellyrollerPath)) {
+    return { success: false, error: 'Cannot delete files outside gellyroller directory' };
   }
-});
+
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    return { success: false, error: 'File does not exist' };
+  }
+
+  // Delete the file
+  fs.unlinkSync(filePath);
+  debugLog('File deleted successfully:', filePath);
+
+  return { success: true };
+}, 'delete-file'));
+
+/**
+ * Modify SVG content to set specific dimensions in millimeters
+ * @param {string} svgContent - Original SVG content
+ * @param {number} widthMm - Target width in mm
+ * @param {number} heightMm - Target height in mm
+ * @returns {string} Modified SVG content
+ */
+function modifySVGDimensions(svgContent, widthMm, heightMm) {
+  // Parse SVG to modify viewBox
+  const viewBoxMatch = svgContent.match(/viewBox=["']([^"']+)["']/);
+
+  if (viewBoxMatch) {
+    const viewBoxValues = viewBoxMatch[1].split(/\s+/).map(parseFloat);
+    const [minX, minY] = viewBoxValues;
+
+    debugLog('Original viewBox:', viewBoxValues);
+    debugLog('Scaling to:', widthMm, 'x', heightMm, 'mm');
+
+    // Create new viewBox with target dimensions in mm
+    const newViewBox = `${minX} ${minY} ${widthMm} ${heightMm}`;
+    svgContent = svgContent.replace(/viewBox=["'][^"']+["']/, `viewBox="${newViewBox}"`);
+
+    debugLog('New viewBox:', newViewBox);
+  } else {
+    // If no viewBox, try to add one based on width/height attributes
+    const widthMatch = svgContent.match(/width=["']([^"']+)["']/);
+    const heightMatch = svgContent.match(/height=["']([^"']+)["']/);
+
+    if (widthMatch && heightMatch) {
+      // Insert viewBox after opening svg tag
+      const viewBox = `viewBox="0 0 ${widthMm} ${heightMm}"`;
+      svgContent = svgContent.replace(/<svg/, `<svg ${viewBox}`);
+
+      debugLog('Added viewBox:', viewBox);
+    }
+  }
+
+  // Also set width and height attributes to mm
+  svgContent = svgContent.replace(/width=["'][^"']+["']/, `width="${widthMm}mm"`);
+  svgContent = svgContent.replace(/height=["'][^"']+["']/, `height="${heightMm}mm"`);
+
+  return svgContent;
+}
+
+/**
+ * Execute vpype to convert SVG to G-code
+ * @param {string} tempFilePath - Path to temporary scaled SVG file
+ * @param {string} gcodeFilePath - Path for output G-code file
+ * @param {string} vpypeConfigPath - Path to vpype configuration file
+ * @returns {Promise<Object>} Result with success status and file path
+ */
+function executeVpype(tempFilePath, gcodeFilePath, vpypeConfigPath) {
+  return new Promise((resolve) => {
+    const vpypeArgs = [
+      '--config', vpypeConfigPath,
+      'read', tempFilePath,
+      'gwrite', '-p', 'johnny5', gcodeFilePath
+    ];
+
+    debugLog('Executing vpype command:', 'vpype', vpypeArgs.join(' '));
+
+    const vpype = spawn('vpype', vpypeArgs);
+    let stdout = '';
+    let stderr = '';
+
+    vpype.stdout.on('data', (data) => {
+      stdout += data.toString();
+      debugLog('vpype stdout:', data.toString());
+    });
+
+    vpype.stderr.on('data', (data) => {
+      stderr += data.toString();
+      debugLog('vpype stderr:', data.toString());
+    });
+
+    vpype.on('close', (code) => {
+      debugLog('vpype process exited with code:', code);
+
+      // Clean up temporary file
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        try {
+          fs.unlinkSync(tempFilePath);
+          debugLog('Cleaned up temp file:', tempFilePath);
+        } catch (err) {
+          console.error('Error cleaning up temp file:', err);
+        }
+      }
+
+      if (code === 0) {
+        // Check if output file was created
+        if (fs.existsSync(gcodeFilePath)) {
+          debugLog('G-code file created successfully:', gcodeFilePath);
+          resolve({
+            success: true,
+            gcodeFilePath: gcodeFilePath,
+            message: 'G-code generated successfully'
+          });
+        } else {
+          resolve({
+            success: false,
+            error: 'G-code file was not created'
+          });
+        }
+      } else {
+        resolve({
+          success: false,
+          error: `vpype exited with code ${code}`,
+          stderr: stderr
+        });
+      }
+    });
+
+    vpype.on('error', (err) => {
+      console.error('Error spawning vpype:', err);
+
+      // Clean up temporary file on error
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        try {
+          fs.unlinkSync(tempFilePath);
+        } catch (cleanupErr) {
+          console.error('Error cleaning up temp file:', cleanupErr);
+        }
+      }
+
+      resolve({
+        success: false,
+        error: 'Failed to execute vpype. Make sure vpype and vpype-gcode are installed.',
+        details: err.message
+      });
+    });
+  });
+}
 
 // IPC Handler for converting SVG to G-code using vpype
 ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputHeight, unit) => {
-  let tempFilePath = null;
-
   try {
     debugLog('=== EJECT-TO-GCODE HANDLER CALLED ===');
     debugLog('SVG file path:', svgFilePath);
@@ -293,64 +414,17 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
     }
 
     // Convert dimensions to mm for vpype
-    const toMm = (value, unit) => {
-      switch (unit) {
-        case 'mm': return value;
-        case 'cm': return value * 10;
-        case 'in': return value * 25.4;
-        default: return value;
-      }
-    };
-
     const widthMm = toMm(outputWidth, unit);
     const heightMm = toMm(outputHeight, unit);
-
     debugLog('Converted dimensions to mm:', widthMm, 'x', heightMm);
 
-    // Read and scale the SVG content
+    // Read and modify SVG content
     let svgContent = fs.readFileSync(svgFilePath, 'utf8');
     debugLog('Original SVG length:', svgContent.length);
+    svgContent = modifySVGDimensions(svgContent, widthMm, heightMm);
 
-    // Parse SVG to modify viewBox
-    // Match viewBox attribute
-    const viewBoxMatch = svgContent.match(/viewBox=["']([^"']+)["']/);
-
-    if (viewBoxMatch) {
-      const viewBoxValues = viewBoxMatch[1].split(/\s+/).map(parseFloat);
-      const [minX, minY, origWidth, origHeight] = viewBoxValues;
-
-      debugLog('Original viewBox:', viewBoxValues);
-      debugLog('Scaling to:', widthMm, 'x', heightMm, 'mm');
-
-      // Create new viewBox with target dimensions in mm
-      const newViewBox = `${minX} ${minY} ${widthMm} ${heightMm}`;
-      svgContent = svgContent.replace(/viewBox=["'][^"']+["']/, `viewBox="${newViewBox}"`);
-
-      debugLog('New viewBox:', newViewBox);
-    } else {
-      // If no viewBox, try to add one based on width/height attributes
-      const widthMatch = svgContent.match(/width=["']([^"']+)["']/);
-      const heightMatch = svgContent.match(/height=["']([^"']+)["']/);
-
-      if (widthMatch && heightMatch) {
-        const origWidth = parseFloat(widthMatch[1]);
-        const origHeight = parseFloat(heightMatch[1]);
-
-        // Insert viewBox after opening svg tag
-        const viewBox = `viewBox="0 0 ${widthMm} ${heightMm}"`;
-        svgContent = svgContent.replace(/<svg/, `<svg ${viewBox}`);
-
-        debugLog('Added viewBox:', viewBox);
-      }
-    }
-
-    // Also set width and height attributes to mm
-    svgContent = svgContent.replace(/width=["'][^"']+["']/, `width="${widthMm}mm"`);
-    svgContent = svgContent.replace(/height=["'][^"']+["']/, `height="${heightMm}mm"`);
-
-    // Use gellyroller directory in user's home for G-code output
-    const homeDir = os.homedir();
-    const gcodePath = path.join(homeDir, 'gellyroller');
+    // Ensure output directory exists
+    const gcodePath = getGellyrollerPath();
     if (!fs.existsSync(gcodePath)) {
       fs.mkdirSync(gcodePath, { recursive: true });
       debugLog('Created gellyroller directory:', gcodePath);
@@ -359,112 +433,21 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
     // Write scaled SVG to temporary file
     const baseName = path.basename(svgFilePath, path.extname(svgFilePath));
     const timestamp = Date.now();
-    tempFilePath = path.join(gcodePath, `${baseName}_${timestamp}_scaled.svg`);
+    const tempFilePath = path.join(gcodePath, `${baseName}_${timestamp}_scaled.svg`);
+    const gcodeFilePath = path.join(gcodePath, `${baseName}_${timestamp}.gcode`);
+
     fs.writeFileSync(tempFilePath, svgContent, 'utf8');
     debugLog('Scaled SVG written to:', tempFilePath);
-
-    // Generate output filename
-    const gcodeFilePath = path.join(gcodePath, `${baseName}_${timestamp}.gcode`);
     debugLog('Output G-code path:', gcodeFilePath);
 
     // Path to project vpype config file
     const vpypeConfigPath = path.join(__dirname, 'vpype.toml');
     debugLog('vpype config path:', vpypeConfigPath);
 
-    // Build vpype command - use project config and scaled SVG
-    const vpypeArgs = [
-      '--config', vpypeConfigPath,
-      'read', tempFilePath,
-      'gwrite', '-p', 'johnny5', gcodeFilePath
-    ];
-
-    debugLog('Executing vpype command:', 'vpype', vpypeArgs.join(' '));
-
     // Execute vpype command
-    return new Promise((resolve, reject) => {
-      const vpype = spawn('vpype', vpypeArgs);
-
-      let stdout = '';
-      let stderr = '';
-
-      vpype.stdout.on('data', (data) => {
-        stdout += data.toString();
-        debugLog('vpype stdout:', data.toString());
-      });
-
-      vpype.stderr.on('data', (data) => {
-        stderr += data.toString();
-        debugLog('vpype stderr:', data.toString());
-      });
-
-      vpype.on('close', (code) => {
-        debugLog('vpype process exited with code:', code);
-
-        // Clean up temporary file
-        if (tempFilePath && fs.existsSync(tempFilePath)) {
-          try {
-            fs.unlinkSync(tempFilePath);
-            debugLog('Cleaned up temp file:', tempFilePath);
-          } catch (err) {
-            console.error('Error cleaning up temp file:', err);
-          }
-        }
-
-        if (code === 0) {
-          // Check if output file was created
-          if (fs.existsSync(gcodeFilePath)) {
-            debugLog('G-code file created successfully:', gcodeFilePath);
-            resolve({
-              success: true,
-              gcodeFilePath: gcodeFilePath,
-              message: 'G-code generated successfully'
-            });
-          } else {
-            resolve({
-              success: false,
-              error: 'G-code file was not created'
-            });
-          }
-        } else {
-          resolve({
-            success: false,
-            error: `vpype exited with code ${code}`,
-            stderr: stderr
-          });
-        }
-      });
-
-      vpype.on('error', (err) => {
-        console.error('Error spawning vpype:', err);
-
-        // Clean up temporary file on error
-        if (tempFilePath && fs.existsSync(tempFilePath)) {
-          try {
-            fs.unlinkSync(tempFilePath);
-          } catch (cleanupErr) {
-            console.error('Error cleaning up temp file:', cleanupErr);
-          }
-        }
-
-        resolve({
-          success: false,
-          error: 'Failed to execute vpype. Make sure vpype and vpype-gcode are installed.',
-          details: err.message
-        });
-      });
-    });
+    return await executeVpype(tempFilePath, gcodeFilePath, vpypeConfigPath);
   } catch (error) {
     console.error('Error in eject-to-gcode handler:', error);
-
-    // Clean up temporary file on error
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      try {
-        fs.unlinkSync(tempFilePath);
-      } catch (cleanupErr) {
-        console.error('Error cleaning up temp file:', cleanupErr);
-      }
-    }
-
     return { success: false, error: error.message };
   }
 });
@@ -510,38 +493,32 @@ ipcMain.handle('download-gcode', async (event, gcodeFilePath) => {
 });
 
 // IPC Handler for saving captured images
-ipcMain.handle('save-image', async (event, imageData, filename) => {
-  const homeDir = os.homedir();
-  const gellyrollerPath = path.join(homeDir, 'gellyroller');
+ipcMain.handle('save-image', withErrorHandling(async (event, imageData, filename) => {
+  const gellyrollerPath = getGellyrollerPath();
 
-  try {
-    // Ensure directory exists
-    if (!fs.existsSync(gellyrollerPath)) {
-      fs.mkdirSync(gellyrollerPath, { recursive: true });
-    }
-
-    // Remove data URL prefix if present (e.g., "data:image/png;base64," or "data:image/svg+xml;base64,")
-    const base64Data = imageData.replace(/^data:image\/[^;]+;base64,/, '');
-
-    // Generate filename if not provided
-    const finalFilename = filename || `capture_${Date.now()}.png`;
-    const filePath = path.join(gellyrollerPath, finalFilename);
-
-    // Write the file
-    fs.writeFileSync(filePath, base64Data, 'base64');
-
-    debugLog('Image saved successfully:', filePath);
-
-    return {
-      success: true,
-      path: filePath,
-      filename: finalFilename
-    };
-  } catch (error) {
-    console.error('Error saving image:', error);
-    return { success: false, error: error.message };
+  // Ensure directory exists
+  if (!fs.existsSync(gellyrollerPath)) {
+    fs.mkdirSync(gellyrollerPath, { recursive: true });
   }
-});
+
+  // Remove data URL prefix if present (e.g., "data:image/png;base64," or "data:image/svg+xml;base64,")
+  const base64Data = imageData.replace(/^data:image\/[^;]+;base64,/, '');
+
+  // Generate filename if not provided
+  const finalFilename = filename || `capture_${Date.now()}.png`;
+  const filePath = path.join(gellyrollerPath, finalFilename);
+
+  // Write the file
+  fs.writeFileSync(filePath, base64Data, 'base64');
+
+  debugLog('Image saved successfully:', filePath);
+
+  return {
+    success: true,
+    path: filePath,
+    filename: finalFilename
+  };
+}, 'save-image'));
 
 // IPC Handler for parsing SVG files
 ipcMain.handle('parse-svg', async (event, filePath, fileContent) => {
@@ -756,15 +733,25 @@ async function parseSVGContent(content) {
   });
 }
 
+// XML2JS special keys that should be ignored when building element tree
+const XML2JS_SPECIAL_KEYS = new Set(['$', '_', '$$']);
+
+/**
+ * Build hierarchical tree structure from parsed XML
+ * @param {Object} node - Parsed XML node from xml2js
+ * @param {string} tagName - Name of the XML tag
+ * @param {number} depth - Current depth in the tree
+ * @returns {Object} Element tree structure
+ */
 function buildElementTree(node, tagName, depth) {
   debugLog(`Building tree for tag: ${tagName}, depth: ${depth}`);
   debugLog('Node keys:', Object.keys(node));
-  
+
   const attrs = node.$ || {};
   const id = attrs.id || `${tagName}-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   debugLog(`Element: ${tagName}, ID: ${id}, Attributes:`, attrs);
-  
+
   const element = {
     id: id,
     tag: tagName,
@@ -773,35 +760,36 @@ function buildElementTree(node, tagName, depth) {
     attributes: attrs,
     children: []
   };
-  
-  // xml2js stores child elements directly as properties on the node object
-  // Each property is an array of elements with that tag name
-  for (const key in node) {
-    // Skip special xml2js properties
-    if (key === '$' || key === '_' || key === '$$') {
-      debugLog(`Skipping special property: ${key}`);
-      continue;
-    }
-    
-    const items = node[key];
-    debugLog(`Processing property: ${key}, is array: ${Array.isArray(items)}, length: ${items?.length}`);
-    
-    if (Array.isArray(items)) {
-      items.forEach((item, idx) => {
-        debugLog(`Processing item ${idx} of ${key}:`, typeof item);
-        if (typeof item === 'object' && item !== null) {
-          const childElement = buildElementTree(item, key, depth + 1);
-          element.children.push(childElement);
-          debugLog(`Added child: ${key}`);
-        }
-      });
-    }
-  }
-  
+
+  // Extract child elements from xml2js structure
+  // xml2js stores child elements as properties (each property is an array)
+  const childNodes = Object.entries(node)
+    .filter(([key]) => !XML2JS_SPECIAL_KEYS.has(key))
+    .flatMap(([childTag, items]) =>
+      Array.isArray(items)
+        ? items.map(item => ({ tag: childTag, item }))
+        : []
+    );
+
+  debugLog(`Found ${childNodes.length} child nodes`);
+
+  // Recursively build child elements
+  element.children = childNodes
+    .filter(({ item }) => typeof item === 'object' && item !== null)
+    .map(({ tag, item }) => {
+      debugLog(`Processing child: ${tag}`);
+      return buildElementTree(item, tag, depth + 1);
+    });
+
   debugLog(`Finished building ${tagName}, children count: ${element.children.length}`);
   return element;
 }
 
+/**
+ * Count total elements in tree recursively
+ * @param {Object} tree - Element tree
+ * @returns {number} Total count of elements
+ */
 function countElements(tree) {
   let count = 1;
   if (tree.children) {
