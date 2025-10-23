@@ -11,8 +11,7 @@
   <div class="app-container">
     <!-- Tab Navigation -->
     <div class="tab-nav">
-      <button class="tab-button active" data-tab="home">🏠 Home</button>
-      <button class="tab-button" data-tab="camera">📷 Camera</button>
+      <button class="tab-button active" data-tab="camera">📷 Camera</button>
       <button class="tab-button" data-tab="images">🖼️ Images</button>
       <button class="tab-button" data-tab="trace">✏️ Trace</button>
       <button class="tab-button" data-tab="vectors">📐 Vectors</button>
@@ -28,6 +27,7 @@
         <div class="home-header">
           <h1 class="home-title">🪼 Welcome to Gellyscope</h1>
           <p class="home-subtitle">Your workspace for image tracing and G-code generation</p>
+          <p class="home-workspace-path"><span id="homeWorkspacePath">~/gellyroller</span></p>
         </div>
 
         <div class="home-stats">
@@ -46,28 +46,6 @@
             <div class="stat-value" id="homeGcodeCount">0</div>
             <div class="stat-label">G-code Files</div>
           </div>
-        </div>
-
-        <div class="home-section">
-          <h2 class="home-section-title">Quick Actions</h2>
-          <div class="home-actions">
-            <button class="home-action-btn" id="homeStartCamera">
-              <span class="action-icon">📷</span>
-              <span class="action-text">Capture Image</span>
-            </button>
-            <button class="home-action-btn" id="homeUploadImage">
-              <span class="action-icon">📤</span>
-              <span class="action-text">Upload Image</span>
-            </button>
-            <button class="home-action-btn" id="homeOpenGellyroller">
-              <span class="action-icon">📁</span>
-              <span class="action-text">Open Workspace Folder</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="home-footer">
-          <p class="home-footer-text">Workspace: <span id="homeWorkspacePath">~/gellyroller</span></p>
         </div>
       </div>
     </div>
