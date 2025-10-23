@@ -2,7 +2,6 @@
 import { debugLog } from './shared/debug.js';
 
 export function initImagesTab() {
-  const imageGrid = document.getElementById('imageGrid');
   const uploadImageBtn = document.getElementById('uploadImageBtn');
   const imageUploadInput = document.getElementById('imageUploadInput');
 
@@ -55,12 +54,9 @@ export function initImagesTab() {
       e.target.value = '';
     });
   }
-
-  // Initial load
-  loadImages();
 }
 
-async function loadImages() {
+export async function loadImages() {
   const imageGrid = document.getElementById('imageGrid');
 
   try {

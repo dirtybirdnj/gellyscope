@@ -11,15 +11,27 @@ export function initVectorsTab() {
 export async function loadVectors() {
   const vectorGrid = document.getElementById('vectorGrid');
 
+  if (!vectorGrid) {
+    console.error('vectorGrid element not found');
+    return;
+  }
+
+  debugLog('Loading vectors...');
+
   try {
     const result = await window.electronAPI.listVectors();
 
+    debugLog('listVectors result:', result);
+
     if (!result.success) {
-      vectorGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">No vectors found or directory not accessible</div>';
+      const errorMsg = result.error || 'Unknown error';
+      debugLog('Failed to list vectors:', errorMsg);
+      vectorGrid.innerHTML = `<div style="padding: 20px; text-align: center; opacity: 0.5;">Error loading vectors: ${errorMsg}</div>`;
       return;
     }
 
     if (result.files.length === 0) {
+      debugLog('No SVG files found in directory');
       vectorGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">No SVG files in gellyroller directory</div>';
       return;
     }

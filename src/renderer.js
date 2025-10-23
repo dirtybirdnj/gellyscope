@@ -9,7 +9,7 @@ import { initArrowButtons, initCollapsibleSections } from './modules/shared/ui-c
 // Import tab modules
 import { initHomeTab, loadHomeScreen } from './modules/home.js';
 import { initCameraTab } from './modules/camera.js';
-import { initImagesTab } from './modules/images.js';
+import { initImagesTab, loadImages } from './modules/images.js';
 import { initTraceTab } from './modules/trace.js';
 import { initVectorsTab } from './modules/vectors.js';
 import { initEjectTab, loadEjectTab } from './modules/eject.js';
@@ -31,6 +31,8 @@ window.switchTab = function(tabName) {
   // Load content for specific tabs
   if (tabName === 'home') {
     loadHomeScreen();
+  } else if (tabName === 'images') {
+    loadImages();
   } else if (tabName === 'vectors') {
     loadVectors();
   } else if (tabName === 'render') {
