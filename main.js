@@ -571,6 +571,132 @@ ipcMain.handle('parse-svg', async (event, filePath, fileContent) => {
   }
 });
 
+// IPC Handler for getting system information
+ipcMain.handle('get-system-info', async () => {
+  try {
+    const systemInfo = {
+      nodeVersion: process.version,
+      platform: `${os.platform()} ${os.arch()}`,
+      osVersion: os.release()
+    };
+
+    // Get npm version
+    try {
+      const { exec } = require('child_process');
+      const npmVersion = await new Promise((resolve) => {
+        exec('npm --version', (error, stdout) => {
+          if (error) {
+            resolve('Not found');
+          } else {
+            resolve(stdout.trim());
+          }
+        });
+      });
+      systemInfo.npmVersion = npmVersion;
+    } catch (error) {
+      systemInfo.npmVersion = 'Not found';
+    }
+
+    // Get Python version
+    try {
+      const { exec } = require('child_process');
+      const pythonVersion = await new Promise((resolve) => {
+        exec('python3 --version 2>&1 || python --version 2>&1', (error, stdout) => {
+          if (error) {
+            resolve('Not found');
+          } else {
+            resolve(stdout.trim().replace('Python ', ''));
+          }
+        });
+      });
+      systemInfo.pythonVersion = pythonVersion;
+    } catch (error) {
+      systemInfo.pythonVersion = 'Not found';
+    }
+
+    return { success: true, data: systemInfo };
+  } catch (error) {
+    console.error('Error getting system info:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC Handler for getting vpype information
+ipcMain.handle('get-vpype-info', async () => {
+  try {
+    const { exec } = require('child_process');
+
+    // Check if vpype is installed and get version
+    const vpypeVersion = await new Promise((resolve) => {
+      exec('vpype --version 2>&1', (error, stdout, stderr) => {
+        if (error) {
+          resolve(null);
+        } else {
+          const output = stdout + stderr;
+          const versionMatch = output.match(/vpype[,\s]+version\s+([\d.]+)/i) || output.match(/([\d.]+)/);
+          resolve(versionMatch ? versionMatch[1] : output.trim());
+        }
+      });
+    });
+
+    if (!vpypeVersion) {
+      return {
+        success: true,
+        data: {
+          installed: false,
+          version: null,
+          plugins: []
+        }
+      };
+    }
+
+    // Get vpype plugins
+    const plugins = await new Promise((resolve) => {
+      exec('vpype --help 2>&1', (error, stdout, stderr) => {
+        if (error) {
+          resolve([]);
+        } else {
+          const output = stdout + stderr;
+          // Try to extract plugin information from help output
+          // This is a basic implementation - vpype doesn't have a direct plugin list command
+          const pluginLines = [];
+          const lines = output.split('\n');
+          let inPluginSection = false;
+
+          for (const line of lines) {
+            if (line.includes('Commands') || line.includes('plugins')) {
+              inPluginSection = true;
+            }
+            if (inPluginSection && line.trim().startsWith('-')) {
+              break;
+            }
+            if (inPluginSection && line.trim() && !line.includes('Commands')) {
+              const match = line.match(/^\s+([a-z_]+)/);
+              if (match) {
+                pluginLines.push(match[1]);
+              }
+            }
+          }
+
+          resolve(pluginLines.length > 0 ? pluginLines : ['Standard vpype commands available']);
+        }
+      });
+    });
+
+    return {
+      success: true,
+      data: {
+        installed: true,
+        version: vpypeVersion,
+        plugins: plugins
+      }
+    };
+  } catch (error) {
+    console.error('Error getting vpype info:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 async function parseSVGContent(content) {
   debugLog('=== parseSVGContent called ===');
   return new Promise((resolve, reject) => {
