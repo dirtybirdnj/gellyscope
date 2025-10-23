@@ -18,6 +18,14 @@ function debugLog(...args) {
   }
 }
 
+/**
+ * Get the path to the gellyroller directory
+ * @returns {string} Absolute path to gellyroller directory
+ */
+function getGellyrollerPath() {
+  return path.join(os.homedir(), 'gellyroller');
+}
+
 let mainWindow;
 
 function createWindow() {
@@ -53,8 +61,7 @@ app.on('activate', () => {
 
 // Check and create gellyroller directory
 async function ensureGellyrollerDirectory() {
-  const homeDir = os.homedir();
-  const gellyrollerPath = path.join(homeDir, 'gellyroller');
+  const gellyrollerPath = getGellyrollerPath();
 
   debugLog('Checking for gellyroller directory at:', gellyrollerPath);
 
@@ -99,8 +106,7 @@ ipcMain.handle('ensure-gellyroller-directory', async () => {
 
 // IPC Handler for getting gellyroller directory path
 ipcMain.handle('get-gellyroller-path', () => {
-  const homeDir = os.homedir();
-  return path.join(homeDir, 'gellyroller');
+  return getGellyrollerPath();
 });
 
 /**
@@ -111,8 +117,7 @@ ipcMain.handle('get-gellyroller-path', () => {
  * @returns {Object} Result object with success status and files array
  */
 async function listFilesByExtension(extensions, includeMetadata = false, sortByDate = false) {
-  const homeDir = os.homedir();
-  const gellyrollerPath = path.join(homeDir, 'gellyroller');
+  const gellyrollerPath = getGellyrollerPath();
 
   try {
     if (!fs.existsSync(gellyrollerPath)) {
@@ -217,8 +222,7 @@ ipcMain.handle('read-file-text', async (event, filePath) => {
 ipcMain.handle('delete-file', async (event, filePath) => {
   try {
     // Verify the file is in the gellyroller directory for safety
-    const homeDir = os.homedir();
-    const gellyrollerPath = path.join(homeDir, 'gellyroller');
+    const gellyrollerPath = getGellyrollerPath();
 
     if (!filePath.startsWith(gellyrollerPath)) {
       return { success: false, error: 'Cannot delete files outside gellyroller directory' };
@@ -311,8 +315,7 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
     svgContent = svgContent.replace(/height=["'][^"']+["']/, `height="${heightMm}mm"`);
 
     // Use gellyroller directory in user's home for G-code output
-    const homeDir = os.homedir();
-    const gcodePath = path.join(homeDir, 'gellyroller');
+    const gcodePath = getGellyrollerPath();
     if (!fs.existsSync(gcodePath)) {
       fs.mkdirSync(gcodePath, { recursive: true });
       debugLog('Created gellyroller directory:', gcodePath);
@@ -473,8 +476,7 @@ ipcMain.handle('download-gcode', async (event, gcodeFilePath) => {
 
 // IPC Handler for saving captured images
 ipcMain.handle('save-image', async (event, imageData, filename) => {
-  const homeDir = os.homedir();
-  const gellyrollerPath = path.join(homeDir, 'gellyroller');
+  const gellyrollerPath = getGellyrollerPath();
 
   try {
     // Ensure directory exists
