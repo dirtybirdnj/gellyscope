@@ -2009,6 +2009,9 @@ async function handleVectorEject(filePath) {
       };
       debugLog('Vector loaded for eject:', currentSVGData);
 
+      // Update eject nav button state
+      updateEjectNavButton();
+
       // Switch to eject tab
       switchTab('eject');
     } else {
@@ -2902,6 +2905,45 @@ window.addEventListener('resize', () => {
   }
 });
 
+// Function to clear eject data and reset eject page
+function clearEjectData() {
+  currentSVGData = null;
+
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+  const ejectMessage = document.getElementById('ejectMessage');
+  const ejectInfoBar = document.getElementById('ejectInfoBar');
+  const ejectOutputToolbar = document.getElementById('ejectOutputToolbar');
+
+  if (ejectSvgContainer) {
+    ejectSvgContainer.innerHTML = '';
+    ejectSvgContainer.style.display = 'none';
+  }
+
+  if (ejectMessage) {
+    ejectMessage.style.display = 'flex';
+    ejectMessage.textContent = 'No vector loaded';
+  }
+
+  if (ejectInfoBar) {
+    ejectInfoBar.style.display = 'none';
+  }
+
+  if (ejectOutputToolbar) {
+    ejectOutputToolbar.style.display = 'none';
+  }
+
+  updateEjectNavButton();
+  debugLog('Eject data cleared');
+}
+
+// Update the Eject nav button state based on whether there's eject data
+function updateEjectNavButton() {
+  const ejectNavBtn = document.getElementById('ejectNavBtn');
+  if (ejectNavBtn) {
+    ejectNavBtn.disabled = !currentSVGData;
+  }
+}
+
 // Generate G-code button handler
 const ejectToGcodeBtn = document.getElementById('ejectToGcodeBtn');
 
@@ -2929,6 +2971,9 @@ if (ejectToGcodeBtn) {
 
     debugLog('Current SVG path:', currentSVGData.path);
     debugLog('Output dimensions:', outputWidth, 'x', outputHeight, outputUnit);
+
+    // Clear eject data before generating
+    clearEjectData();
 
     // Disable button and show loading state
     ejectToGcodeBtn.disabled = true;

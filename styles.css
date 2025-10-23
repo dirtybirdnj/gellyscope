@@ -50,6 +50,16 @@ body {
   background: #ffffff;
 }
 
+.tab-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tab-button:disabled:hover {
+  background: none;
+  color: #666666;
+}
+
 /* Tab Content */
 .tab-content {
   flex: 1;
