@@ -731,15 +731,25 @@ async function parseSVGContent(content) {
   });
 }
 
+// XML2JS special keys that should be ignored when building element tree
+const XML2JS_SPECIAL_KEYS = new Set(['$', '_', '$$']);
+
+/**
+ * Build hierarchical tree structure from parsed XML
+ * @param {Object} node - Parsed XML node from xml2js
+ * @param {string} tagName - Name of the XML tag
+ * @param {number} depth - Current depth in the tree
+ * @returns {Object} Element tree structure
+ */
 function buildElementTree(node, tagName, depth) {
   debugLog(`Building tree for tag: ${tagName}, depth: ${depth}`);
   debugLog('Node keys:', Object.keys(node));
-  
+
   const attrs = node.$ || {};
   const id = attrs.id || `${tagName}-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   debugLog(`Element: ${tagName}, ID: ${id}, Attributes:`, attrs);
-  
+
   const element = {
     id: id,
     tag: tagName,
@@ -748,35 +758,36 @@ function buildElementTree(node, tagName, depth) {
     attributes: attrs,
     children: []
   };
-  
-  // xml2js stores child elements directly as properties on the node object
-  // Each property is an array of elements with that tag name
-  for (const key in node) {
-    // Skip special xml2js properties
-    if (key === '$' || key === '_' || key === '$$') {
-      debugLog(`Skipping special property: ${key}`);
-      continue;
-    }
-    
-    const items = node[key];
-    debugLog(`Processing property: ${key}, is array: ${Array.isArray(items)}, length: ${items?.length}`);
-    
-    if (Array.isArray(items)) {
-      items.forEach((item, idx) => {
-        debugLog(`Processing item ${idx} of ${key}:`, typeof item);
-        if (typeof item === 'object' && item !== null) {
-          const childElement = buildElementTree(item, key, depth + 1);
-          element.children.push(childElement);
-          debugLog(`Added child: ${key}`);
-        }
-      });
-    }
-  }
-  
+
+  // Extract child elements from xml2js structure
+  // xml2js stores child elements as properties (each property is an array)
+  const childNodes = Object.entries(node)
+    .filter(([key]) => !XML2JS_SPECIAL_KEYS.has(key))
+    .flatMap(([childTag, items]) =>
+      Array.isArray(items)
+        ? items.map(item => ({ tag: childTag, item }))
+        : []
+    );
+
+  debugLog(`Found ${childNodes.length} child nodes`);
+
+  // Recursively build child elements
+  element.children = childNodes
+    .filter(({ item }) => typeof item === 'object' && item !== null)
+    .map(({ tag, item }) => {
+      debugLog(`Processing child: ${tag}`);
+      return buildElementTree(item, tag, depth + 1);
+    });
+
   debugLog(`Finished building ${tagName}, children count: ${element.children.length}`);
   return element;
 }
 
+/**
+ * Count total elements in tree recursively
+ * @param {Object} tree - Element tree
+ * @returns {number} Total count of elements
+ */
 function countElements(tree) {
   let count = 1;
   if (tree.children) {
