@@ -2241,13 +2241,8 @@ function renderGcode(gcodeText) {
   renderPanX = 0;
   renderPanY = 0;
 
-  // Show zoom controls and workspace controls
+  // Show zoom controls
   document.getElementById('renderZoomControls').style.display = 'flex';
-  document.getElementById('renderWorkspaceControls').style.display = 'flex';
-
-  // Sync workspace inputs with current values
-  document.getElementById('workspaceWidth').value = workspaceWidth;
-  document.getElementById('workspaceHeight').value = workspaceHeight;
 
   // Draw the G-code
   drawGcode();
@@ -2329,9 +2324,82 @@ function drawGcode() {
 
   ctx.restore();
 
+  // Draw rulers with dimension markings
+  const workspaceCenterX = containerWidth / 2 + renderPanX;
+  const workspaceCenterY = containerHeight / 2 + renderPanY;
+  const workspaceDisplayWidth = workspaceWidth * scale;
+  const workspaceDisplayHeight = workspaceHeight * scale;
+
+  const workspaceLeft = workspaceCenterX - workspaceDisplayWidth / 2;
+  const workspaceRight = workspaceCenterX + workspaceDisplayWidth / 2;
+  const workspaceTop = workspaceCenterY - workspaceDisplayHeight / 2;
+  const workspaceBottom = workspaceCenterY + workspaceDisplayHeight / 2;
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+  ctx.lineWidth = 1;
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Top horizontal ruler
+  const rulerTickInterval = 50; // mm
+  const rulerTickPixels = rulerTickInterval * scale;
+
+  // Draw horizontal ruler (top)
+  for (let x = 0; x <= workspaceWidth; x += rulerTickInterval) {
+    const pixelX = workspaceLeft + x * scale;
+
+    // Draw tick mark
+    ctx.beginPath();
+    ctx.moveTo(pixelX, workspaceTop - 5);
+    ctx.lineTo(pixelX, workspaceTop - 15);
+    ctx.stroke();
+
+    // Draw label
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fillText(`${x}`, pixelX, workspaceTop - 22);
+    ctx.restore();
+  }
+
+  // Draw horizontal ruler line
+  ctx.beginPath();
+  ctx.moveTo(workspaceLeft, workspaceTop - 5);
+  ctx.lineTo(workspaceRight, workspaceTop - 5);
+  ctx.stroke();
+
+  // Left vertical ruler
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  for (let y = 0; y <= workspaceHeight; y += rulerTickInterval) {
+    const pixelY = workspaceTop + y * scale;
+
+    // Draw tick mark
+    ctx.beginPath();
+    ctx.moveTo(workspaceLeft - 5, pixelY);
+    ctx.lineTo(workspaceLeft - 15, pixelY);
+    ctx.stroke();
+
+    // Draw label (flip to show correct Y value from bottom)
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fillText(`${workspaceHeight - y}`, workspaceLeft - 20, pixelY);
+    ctx.restore();
+  }
+
+  // Draw vertical ruler line
+  ctx.beginPath();
+  ctx.moveTo(workspaceLeft - 5, workspaceTop);
+  ctx.lineTo(workspaceLeft - 5, workspaceBottom);
+  ctx.stroke();
+
   // Draw info overlay
   ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
   ctx.font = '12px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
   ctx.fillText(`Workspace: ${workspaceWidth} × ${workspaceHeight} mm`, 10, 20);
   ctx.fillText(`G-code: ${renderBounds.width.toFixed(2)} × ${renderBounds.height.toFixed(2)} mm`, 10, 35);
   ctx.fillText(`Paths: ${renderPaths.length}`, 10, 50);
@@ -2357,26 +2425,6 @@ document.getElementById('renderZoomReset')?.addEventListener('click', () => {
 });
 
 // Workspace dimension handlers
-document.getElementById('workspaceWidth')?.addEventListener('input', (e) => {
-  const newWidth = parseFloat(e.target.value);
-  if (newWidth > 0) {
-    workspaceWidth = newWidth;
-    if (renderPaths.length > 0) {
-      drawGcode();
-    }
-  }
-});
-
-document.getElementById('workspaceHeight')?.addEventListener('input', (e) => {
-  const newHeight = parseFloat(e.target.value);
-  if (newHeight > 0) {
-    workspaceHeight = newHeight;
-    if (renderPaths.length > 0) {
-      drawGcode();
-    }
-  }
-});
-
 // Pan functionality with mouse drag for G-code rendering
 let renderIsPanning = false;
 let renderPanStartX = 0;
@@ -3601,9 +3649,36 @@ async function loadHardwareInfo() {
   if (hardwareInfoLoaded) return;
 
   try {
-    // Update workspace dimensions from render tab
-    document.getElementById('hwWorkspaceWidth').textContent = `${workspaceWidth} mm`;
-    document.getElementById('hwWorkspaceHeight').textContent = `${workspaceHeight} mm`;
+    // Set workspace input values
+    document.getElementById('hwWorkspaceWidth').value = workspaceWidth;
+    document.getElementById('hwWorkspaceHeight').value = workspaceHeight;
+    document.getElementById('hwOutputUnit').value = ejectOutputUnit;
+
+    // Add event listeners for workspace inputs
+    document.getElementById('hwWorkspaceWidth').addEventListener('input', (e) => {
+      const newWidth = parseFloat(e.target.value);
+      if (newWidth > 0) {
+        workspaceWidth = newWidth;
+        if (renderPaths.length > 0) {
+          drawGcode();
+        }
+      }
+    });
+
+    document.getElementById('hwWorkspaceHeight').addEventListener('input', (e) => {
+      const newHeight = parseFloat(e.target.value);
+      if (newHeight > 0) {
+        workspaceHeight = newHeight;
+        if (renderPaths.length > 0) {
+          drawGcode();
+        }
+      }
+    });
+
+    document.getElementById('hwOutputUnit').addEventListener('change', (e) => {
+      ejectOutputUnit = e.target.value;
+      debugLog('Output unit changed to:', ejectOutputUnit);
+    });
 
     // Get system information
     const systemInfoResult = await window.electronAPI.getSystemInfo();

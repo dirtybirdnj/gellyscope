@@ -2127,6 +2127,29 @@ input[type="file"] {
   white-space: pre-wrap;
 }
 
+.hardware-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.hardware-input:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hardware-input:focus {
+  outline: none;
+  border-color: #007acc;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 /* ============ HOME SCREEN ============ */
 .home-container {
   flex: 1;

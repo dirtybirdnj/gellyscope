@@ -496,15 +496,6 @@
             <div class="render-message" id="renderMessage">
               Select a G-code file to preview
             </div>
-            <div class="render-workspace-controls" id="renderWorkspaceControls" style="display: none;">
-              <div class="workspace-controls-group">
-                <label style="font-size: 12px; color: #888; margin-right: 8px;">Workspace:</label>
-                <input type="number" id="workspaceWidth" value="400" min="1" step="10" style="width: 60px; padding: 4px 6px; font-size: 12px; border: 1px solid #444; background: #2a2a2a; color: #fff; border-radius: 3px;">
-                <span style="margin: 0 4px; color: #666;">×</span>
-                <input type="number" id="workspaceHeight" value="400" min="1" step="10" style="width: 60px; padding: 4px 6px; font-size: 12px; border: 1px solid #444; background: #2a2a2a; color: #fff; border-radius: 3px;">
-                <span style="margin-left: 4px; color: #888; font-size: 12px;">mm</span>
-              </div>
-            </div>
             <div class="render-zoom-controls" id="renderZoomControls" style="display: none;">
               <button class="render-zoom-btn" id="renderZoomOut" title="Zoom Out">−</button>
               <button class="render-zoom-btn" id="renderZoomReset" title="Reset Zoom">⊙</button>
@@ -532,16 +523,20 @@
           <h2 class="hardware-section-title">Virtual CNC Machine</h2>
           <div class="hardware-info-grid">
             <div class="hardware-info-item">
-              <div class="hardware-label">Workspace Width</div>
-              <div class="hardware-value" id="hwWorkspaceWidth">-</div>
+              <div class="hardware-label">Workspace Width (mm)</div>
+              <input type="number" id="hwWorkspaceWidth" value="400" min="1" step="10" class="hardware-input">
             </div>
             <div class="hardware-info-item">
-              <div class="hardware-label">Workspace Height</div>
-              <div class="hardware-value" id="hwWorkspaceHeight">-</div>
+              <div class="hardware-label">Workspace Height (mm)</div>
+              <input type="number" id="hwWorkspaceHeight" value="400" min="1" step="10" class="hardware-input">
             </div>
             <div class="hardware-info-item">
-              <div class="hardware-label">Units</div>
-              <div class="hardware-value">mm</div>
+              <div class="hardware-label">Output Unit</div>
+              <select id="hwOutputUnit" class="hardware-input">
+                <option value="mm">mm (millimeters)</option>
+                <option value="cm">cm (centimeters)</option>
+                <option value="in" selected>inches</option>
+              </select>
             </div>
           </div>
         </div>
