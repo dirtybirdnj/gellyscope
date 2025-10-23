@@ -2,7 +2,7 @@
 import { debugLog } from './shared/debug.js';
 import { switchTab } from './shared/tabs.js';
 import { toMm, escapeHtml } from './shared/utils.js';
-import { PAGE_SIZES, currentPageSize, updatePageSizeButtons, setCurrentPageSize } from './hardware.js';
+import { PAGE_SIZES, currentPageSize, setCurrentPageSize } from './hardware.js';
 
 // ============ MODULE STATE ============
 

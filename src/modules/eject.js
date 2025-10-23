@@ -4,7 +4,7 @@
 import { debugLog } from './shared/debug.js';
 import { state, setState } from './shared/state.js';
 import { toMm, fromMm } from './shared/utils.js';
-import { PAGE_SIZES, ejectOutputUnit, workspaceWidth, workspaceHeight } from './hardware.js';
+import { PAGE_SIZES } from './hardware.js';
 
 // ============ MODULE STATE ============
 
@@ -616,7 +616,7 @@ export function initEjectTab() {
     btn.addEventListener('click', () => handlePageSizeClick(btn));
   });
 
-  // Custom size input handlers
+  // Custom size and fixed dimension input handlers
   const ejectCustomWidth = document.getElementById('ejectCustomWidth');
   const ejectCustomHeight = document.getElementById('ejectCustomHeight');
   const ejectCustomUnit = document.getElementById('ejectCustomUnit');
@@ -627,11 +627,7 @@ export function initEjectTab() {
     }
   });
 
-  // Fixed dimension input handlers
-  const ejectCustomWidth = document.getElementById('ejectCustomWidth');
-  const ejectCustomHeight = document.getElementById('ejectCustomHeight');
-  const ejectCustomUnit = document.getElementById('ejectCustomUnit');
-
+  // Fixed dimension input handlers (reuse the same elements)
   if (ejectCustomWidth) {
     ejectCustomWidth.addEventListener('input', handleFixedWidthInput);
   }
