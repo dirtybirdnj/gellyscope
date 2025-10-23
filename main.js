@@ -520,8 +520,8 @@ ipcMain.handle('save-image', async (event, imageData, filename) => {
       fs.mkdirSync(gellyrollerPath, { recursive: true });
     }
 
-    // Remove data URL prefix if present (e.g., "data:image/png;base64,")
-    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
+    // Remove data URL prefix if present (e.g., "data:image/png;base64," or "data:image/svg+xml;base64,")
+    const base64Data = imageData.replace(/^data:image\/[^;]+;base64,/, '');
 
     // Generate filename if not provided
     const finalFilename = filename || `capture_${Date.now()}.png`;
