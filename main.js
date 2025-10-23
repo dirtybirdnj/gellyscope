@@ -103,107 +103,69 @@ ipcMain.handle('get-gellyroller-path', () => {
   return path.join(homeDir, 'gellyroller');
 });
 
-// IPC Handler for listing image files
-ipcMain.handle('list-images', async () => {
+/**
+ * Lists files in gellyroller directory filtered by extensions
+ * @param {string[]} extensions - Array of file extensions (e.g., ['.png', '.jpg'])
+ * @param {boolean} includeMetadata - Whether to include file size and modified date
+ * @param {boolean} sortByDate - Whether to sort by modified date (newest first)
+ * @returns {Object} Result object with success status and files array
+ */
+async function listFilesByExtension(extensions, includeMetadata = false, sortByDate = false) {
   const homeDir = os.homedir();
   const gellyrollerPath = path.join(homeDir, 'gellyroller');
 
   try {
-    // Check if directory exists
     if (!fs.existsSync(gellyrollerPath)) {
       return { success: false, files: [] };
     }
 
-    // Read directory contents
     const files = fs.readdirSync(gellyrollerPath);
-
-    // Filter for image files (bitmap formats)
-    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.tiff', '.tif'];
-    const imageFiles = files.filter(file => {
+    const filtered = files.filter(file => {
       const ext = path.extname(file).toLowerCase();
-      return imageExtensions.includes(ext);
-    }).map(file => ({
-      name: file,
-      path: path.join(gellyrollerPath, file)
-    }));
+      return extensions.includes(ext);
+    }).map(file => {
+      const filePath = path.join(gellyrollerPath, file);
+      const fileObj = { name: file, path: filePath };
 
-    debugLog('Found', imageFiles.length, 'image files');
-    return { success: true, files: imageFiles };
+      if (includeMetadata) {
+        const stats = fs.statSync(filePath);
+        fileObj.size = stats.size;
+        fileObj.modified = stats.mtime;
+      }
+      return fileObj;
+    });
+
+    if (sortByDate && includeMetadata) {
+      filtered.sort((a, b) => b.modified - a.modified);
+    }
+
+    return { success: true, files: filtered };
   } catch (error) {
-    console.error('Error listing images:', error);
+    console.error('Error listing files:', error);
     return { success: false, error: error.message, files: [] };
   }
+}
+
+// IPC Handler for listing image files
+ipcMain.handle('list-images', async () => {
+  const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.tiff', '.tif'];
+  const result = await listFilesByExtension(imageExtensions);
+  debugLog('Found', result.files.length, 'image files');
+  return result;
 });
 
 // IPC Handler for listing vector files
 ipcMain.handle('list-vectors', async () => {
-  const homeDir = os.homedir();
-  const gellyrollerPath = path.join(homeDir, 'gellyroller');
-
-  try {
-    // Check if directory exists
-    if (!fs.existsSync(gellyrollerPath)) {
-      return { success: false, files: [] };
-    }
-
-    // Read directory contents
-    const files = fs.readdirSync(gellyrollerPath);
-
-    // Filter for SVG files
-    const vectorFiles = files.filter(file => {
-      const ext = path.extname(file).toLowerCase();
-      return ext === '.svg';
-    }).map(file => ({
-      name: file,
-      path: path.join(gellyrollerPath, file)
-    }));
-
-    debugLog('Found', vectorFiles.length, 'vector files');
-    return { success: true, files: vectorFiles };
-  } catch (error) {
-    console.error('Error listing vectors:', error);
-    return { success: false, error: error.message, files: [] };
-  }
+  const result = await listFilesByExtension(['.svg']);
+  debugLog('Found', result.files.length, 'vector files');
+  return result;
 });
 
 // IPC Handler for listing G-code files
 ipcMain.handle('list-gcode', async () => {
-  const homeDir = os.homedir();
-  const gellyrollerPath = path.join(homeDir, 'gellyroller');
-
-  try {
-    // Check if directory exists
-    if (!fs.existsSync(gellyrollerPath)) {
-      return { success: false, files: [] };
-    }
-
-    // Read directory contents
-    const files = fs.readdirSync(gellyrollerPath);
-
-    // Filter for G-code files
-    const gcodeFiles = files.filter(file => {
-      const ext = path.extname(file).toLowerCase();
-      return ext === '.gcode' || ext === '.nc' || ext === '.gc';
-    }).map(file => {
-      const filePath = path.join(gellyrollerPath, file);
-      const stats = fs.statSync(filePath);
-      return {
-        name: file,
-        path: filePath,
-        size: stats.size,
-        modified: stats.mtime
-      };
-    });
-
-    // Sort by modified date (newest first)
-    gcodeFiles.sort((a, b) => b.modified - a.modified);
-
-    debugLog('Found', gcodeFiles.length, 'G-code files');
-    return { success: true, files: gcodeFiles };
-  } catch (error) {
-    console.error('Error listing G-code files:', error);
-    return { success: false, error: error.message, files: [] };
-  }
+  const result = await listFilesByExtension(['.gcode', '.nc', '.gc'], true, true);
+  debugLog('Found', result.files.length, 'G-code files');
+  return result;
 });
 
 // IPC Handler for reading file as base64 (for displaying images)
