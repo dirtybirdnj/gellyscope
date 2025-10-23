@@ -2090,89 +2090,88 @@ input[type="file"] {
 
 /* Hardware Tab Styles */
 .hardware-container {
-  padding: 32px;
-  max-width: 1200px;
+  padding: 24px;
+  max-width: 900px;
   margin: 0 auto;
   overflow-y: auto;
   height: 100%;
-  background: #1a1a1a;
+  background: #ffffff;
 }
 
 .hardware-section {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 24px;
-  margin-bottom: 24px;
+  background: #f8f8f8;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  padding: 20px;
+  margin-bottom: 20px;
 }
 
 .hardware-section-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  color: #fff;
-  margin: 0 0 20px 0;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #333;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #d0d0d0;
 }
 
 .hardware-info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
 }
 
 .hardware-info-item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .hardware-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 .hardware-value {
-  font-size: 16px;
-  font-weight: 500;
-  color: #fff;
+  font-size: 14px;
+  font-weight: 400;
+  color: #333;
   font-family: 'Courier New', monospace;
 }
 
 .hardware-plugins {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .hardware-plugins .hardware-value {
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.5;
   white-space: pre-wrap;
+  color: #555;
 }
 
 .hardware-input {
   width: 100%;
-  padding: 8px 12px;
-  font-size: 14px;
+  padding: 6px 10px;
+  font-size: 13px;
   font-family: 'Courier New', monospace;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
-  color: #fff;
-  border-radius: 4px;
-  transition: all 0.2s;
+  border: 1px solid #c0c0c0;
+  background: #ffffff;
+  color: #333;
+  border-radius: 3px;
 }
 
 .hardware-input:hover {
-  border-color: rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.08);
+  border-color: #999;
 }
 
 .hardware-input:focus {
   outline: none;
   border-color: #007acc;
-  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1);
 }
 
 /* ============ HOME SCREEN ============ */
