@@ -2114,6 +2114,8 @@ switchTab = function(tabName) {
     loadGcodeFiles();
   } else if (tabName === 'eject') {
     loadEjectTab();
+  } else if (tabName === 'hardware') {
+    loadHardwareInfo();
   }
 };
 
@@ -3935,13 +3937,3 @@ async function loadHardwareInfo() {
     console.error('Error loading hardware info:', error);
   }
 }
-
-// Load hardware info when switching to the hardware tab
-const originalSwitchTab = switchTab;
-switchTab = function(tabName) {
-  originalSwitchTab(tabName);
-
-  if (tabName === 'hardware') {
-    loadHardwareInfo();
-  }
-};
