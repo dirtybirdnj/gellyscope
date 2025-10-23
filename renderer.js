@@ -1369,9 +1369,8 @@ async function performTrace() {
       // Store the SVG data
       window.currentTraceImage.svgData = svgString;
 
-      // Display the SVG overlay
-      const traceSvgOverlay = document.getElementById('traceSvgOverlay');
-      traceSvgOverlay.innerHTML = svgString;
+      // Update the display to show captured layers + current trace
+      updateLayersAndCurrentTrace();
 
       // Enable capture button
       const captureBtn = document.getElementById('captureTraceBtn');
@@ -1614,8 +1613,11 @@ if (captureTraceBtn) {
 
       capturedLayers.push(layer);
 
-      // Add to layers list
+      // Update the layers list
       updateLayersList();
+
+      // Update the display to show all layers
+      updateLayersDisplay();
 
       // Re-enable button and remove spinner
       captureTraceBtn.disabled = false;
@@ -1624,6 +1626,33 @@ if (captureTraceBtn) {
       debugLog('Captured trace as:', layerName);
     }, 300);
   });
+}
+
+// Count paths and points in an SVG layer
+function getLayerMetadata(svgData) {
+  try {
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(svgData, 'image/svg+xml');
+    const paths = svgDoc.querySelectorAll('path');
+
+    let totalPoints = 0;
+    paths.forEach(path => {
+      const d = path.getAttribute('d');
+      if (d) {
+        // Count M, L, C, Q commands (rough estimate of points)
+        const commands = d.match(/[MLHVCSQTAZ]/gi);
+        totalPoints += commands ? commands.length : 0;
+      }
+    });
+
+    return {
+      shapes: paths.length,
+      points: totalPoints
+    };
+  } catch (error) {
+    console.error('Error getting layer metadata:', error);
+    return { shapes: 0, points: 0 };
+  }
 }
 
 function updateLayersList() {
@@ -1637,13 +1666,18 @@ function updateLayersList() {
   layersList.innerHTML = '';
 
   capturedLayers.forEach((layer, index) => {
+    const metadata = getLayerMetadata(layer.svgData);
+
     const layerItem = document.createElement('div');
     layerItem.className = 'layer-item';
-    layerItem.style.cssText = 'padding: 8px 12px; border-bottom: 1px solid #e0e0e0; cursor: pointer; display: flex; justify-content: space-between; align-items: center;';
+    layerItem.style.cssText = 'padding: 8px 12px; border-bottom: 1px solid #e0e0e0; cursor: pointer; display: flex; flex-direction: column; gap: 4px;';
+
+    const topRow = document.createElement('div');
+    topRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center;';
 
     const layerName = document.createElement('span');
     layerName.textContent = layer.name;
-    layerName.style.fontSize = '13px';
+    layerName.style.cssText = 'font-size: 13px; font-weight: 500;';
 
     const deleteBtn = document.createElement('button');
     deleteBtn.textContent = '×';
@@ -1652,15 +1686,98 @@ function updateLayersList() {
       e.stopPropagation();
       // Remove from array
       capturedLayers.splice(index, 1);
-      // Update the list display
+      // Update displays
       updateLayersList();
+      updateLayersDisplay();
       debugLog('Deleted layer:', layer.name);
     });
 
-    layerItem.appendChild(layerName);
-    layerItem.appendChild(deleteBtn);
+    topRow.appendChild(layerName);
+    topRow.appendChild(deleteBtn);
+
+    // Add metadata row
+    const metaRow = document.createElement('div');
+    metaRow.style.cssText = 'font-size: 11px; color: #666; display: flex; gap: 12px;';
+    metaRow.innerHTML = `<span>${metadata.shapes} shapes</span><span>${metadata.points} points</span>`;
+
+    layerItem.appendChild(topRow);
+    layerItem.appendChild(metaRow);
     layersList.appendChild(layerItem);
   });
+}
+
+// Update the display to show captured layers list (just the sidebar list)
+function updateLayersDisplay() {
+  // Just update the visual in the overlay
+  updateLayersAndCurrentTrace();
+}
+
+// Update the display to show all captured layers + current trace stacked together
+function updateLayersAndCurrentTrace() {
+  const traceSvgOverlay = document.getElementById('traceSvgOverlay');
+
+  if (!traceSvgOverlay) return;
+
+  const parser = new DOMParser();
+  let combinedSvg = '';
+  let viewBox = null;
+
+  // Add all captured layers first
+  for (const layer of capturedLayers) {
+    if (!layer.visible) continue;
+
+    try {
+      const svgDoc = parser.parseFromString(layer.svgData, 'image/svg+xml');
+      const svgElement = svgDoc.querySelector('svg');
+
+      // Get viewBox from first layer
+      if (!viewBox && svgElement) {
+        viewBox = svgElement.getAttribute('viewBox');
+      }
+
+      const paths = svgDoc.querySelectorAll('path');
+      paths.forEach(path => {
+        combinedSvg += path.outerHTML;
+      });
+    } catch (error) {
+      console.error('Error parsing captured layer SVG:', error);
+    }
+  }
+
+  // Add current trace on top (if exists and not yet captured)
+  if (window.currentTraceImage && window.currentTraceImage.svgData) {
+    try {
+      const svgDoc = parser.parseFromString(window.currentTraceImage.svgData, 'image/svg+xml');
+      const svgElement = svgDoc.querySelector('svg');
+
+      // Get viewBox if we don't have one yet
+      if (!viewBox && svgElement) {
+        viewBox = svgElement.getAttribute('viewBox');
+      }
+
+      // Add current trace paths with a different opacity or style to show it's a preview
+      const paths = svgDoc.querySelectorAll('path');
+      paths.forEach(path => {
+        // Clone the path and add opacity to show it's a preview
+        const previewPath = path.cloneNode(true);
+        previewPath.setAttribute('opacity', '0.5');
+        combinedSvg += previewPath.outerHTML;
+      });
+    } catch (error) {
+      console.error('Error parsing current trace SVG:', error);
+    }
+  }
+
+  // Update the overlay
+  if (combinedSvg) {
+    if (viewBox) {
+      traceSvgOverlay.innerHTML = `<svg viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">${combinedSvg}</svg>`;
+    } else {
+      traceSvgOverlay.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg">${combinedSvg}</svg>`;
+    }
+  } else {
+    traceSvgOverlay.innerHTML = '';
+  }
 }
 
 // ============ VECTORS TAB ============
@@ -3166,15 +3283,23 @@ if (saveSvgBtn) {
 function combineLayersToSVG(layers, widthMm, heightMm) {
   const parser = new DOMParser();
   const allPaths = [];
+  let viewBox = null;
 
-  // Extract paths from all visible layers
+  // Extract paths from all visible layers and get viewBox
   for (const layer of layers) {
     if (!layer.visible) continue;
 
     try {
       const svgDoc = parser.parseFromString(layer.svgData, 'image/svg+xml');
-      const paths = svgDoc.querySelectorAll('path');
+      const svgElement = svgDoc.querySelector('svg');
 
+      // Get viewBox from first layer
+      if (!viewBox && svgElement) {
+        viewBox = svgElement.getAttribute('viewBox');
+        debugLog('Using viewBox from layer:', viewBox);
+      }
+
+      const paths = svgDoc.querySelectorAll('path');
       paths.forEach(path => {
         allPaths.push({
           d: path.getAttribute('d'),
@@ -3188,15 +3313,23 @@ function combineLayersToSVG(layers, widthMm, heightMm) {
     }
   }
 
-  // Create SVG with proper dimensions
-  // Convert mm to pixels (assuming 96 DPI: 1mm = 3.7795275591 pixels)
-  const mmToPx = 3.7795275591;
-  const widthPx = widthMm * mmToPx;
-  const heightPx = heightMm * mmToPx;
+  if (allPaths.length === 0) {
+    throw new Error('No paths found in layers');
+  }
 
+  // If no viewBox found, create one based on page dimensions
+  if (!viewBox) {
+    const mmToPx = 3.7795275591;
+    const widthPx = widthMm * mmToPx;
+    const heightPx = heightMm * mmToPx;
+    viewBox = `0 0 ${widthPx} ${heightPx}`;
+    debugLog('Created default viewBox:', viewBox);
+  }
+
+  // Create SVG with proper dimensions
   let svg = `<?xml version="1.0" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="${widthMm}mm" height="${heightMm}mm" viewBox="0 0 ${widthPx} ${heightPx}" xmlns="http://www.w3.org/2000/svg" version="1.1">
+<svg width="${widthMm}mm" height="${heightMm}mm" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" version="1.1">
 `;
 
   // Add all paths
@@ -3206,6 +3339,7 @@ function combineLayersToSVG(layers, widthMm, heightMm) {
 
   svg += `</svg>`;
 
+  debugLog('Combined SVG created:', allPaths.length, 'paths,', widthMm + 'x' + heightMm + 'mm');
   return svg;
 }
 
