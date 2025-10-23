@@ -2076,6 +2076,10 @@ let renderBaseScale = 1;
 let renderBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 };
 let renderPaths = [];
 
+// Workspace dimensions (in mm)
+let workspaceWidth = 400;
+let workspaceHeight = 400;
+
 function renderGcode(gcodeText) {
   const lines = gcodeText.split('\n');
 
@@ -2163,8 +2167,13 @@ function renderGcode(gcodeText) {
   renderPanX = 0;
   renderPanY = 0;
 
-  // Show zoom controls
+  // Show zoom controls and workspace controls
   document.getElementById('renderZoomControls').style.display = 'flex';
+  document.getElementById('renderWorkspaceControls').style.display = 'flex';
+
+  // Sync workspace inputs with current values
+  document.getElementById('workspaceWidth').value = workspaceWidth;
+  document.getElementById('workspaceHeight').value = workspaceHeight;
 
   // Draw the G-code
   drawGcode();
@@ -2182,10 +2191,10 @@ function drawGcode() {
   canvas.width = containerWidth;
   canvas.height = containerHeight;
 
-  // Calculate scale to fit the drawing in the canvas with padding
-  const padding = 40;
-  const scaleX = (containerWidth - 2 * padding) / renderBounds.width;
-  const scaleY = (containerHeight - 2 * padding) / renderBounds.height;
+  // Calculate scale to fit the workspace in the canvas with padding
+  const padding = 60;
+  const scaleX = (containerWidth - 2 * padding) / workspaceWidth;
+  const scaleY = (containerHeight - 2 * padding) / workspaceHeight;
   renderBaseScale = Math.min(scaleX, scaleY);
 
   const scale = renderBaseScale * renderZoom;
@@ -2194,13 +2203,38 @@ function drawGcode() {
   ctx.fillStyle = '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Set up transformation to center and scale the drawing
+  // Set up transformation to center and scale the workspace
   ctx.save();
   ctx.translate(containerWidth / 2 + renderPanX, containerHeight / 2 + renderPanY);
   ctx.scale(scale, -scale); // Flip Y axis for typical G-code coordinate system
-  ctx.translate(-renderBounds.minX - renderBounds.width / 2, -renderBounds.minY - renderBounds.height / 2);
+  ctx.translate(-workspaceWidth / 2, -workspaceHeight / 2);
 
-  // Draw all paths
+  // Draw workspace border
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 2 / scale;
+  ctx.strokeRect(0, 0, workspaceWidth, workspaceHeight);
+
+  // Draw workspace grid (optional, light grid every 50mm)
+  ctx.strokeStyle = '#2a2a2a';
+  ctx.lineWidth = 0.5 / scale;
+
+  // Vertical grid lines
+  for (let x = 50; x < workspaceWidth; x += 50) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, workspaceHeight);
+    ctx.stroke();
+  }
+
+  // Horizontal grid lines
+  for (let y = 50; y < workspaceHeight; y += 50) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(workspaceWidth, y);
+    ctx.stroke();
+  }
+
+  // Draw all G-code paths
   ctx.strokeStyle = '#00ff00';
   ctx.lineWidth = 0.5 / scale; // Adjust line width based on scale
   ctx.lineCap = 'round';
@@ -2224,9 +2258,10 @@ function drawGcode() {
   // Draw info overlay
   ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
   ctx.font = '12px monospace';
-  ctx.fillText(`Dimensions: ${renderBounds.width.toFixed(2)} × ${renderBounds.height.toFixed(2)} mm`, 10, 20);
-  ctx.fillText(`Paths: ${renderPaths.length}`, 10, 35);
-  ctx.fillText(`Zoom: ${(renderZoom * 100).toFixed(0)}%`, 10, 50);
+  ctx.fillText(`Workspace: ${workspaceWidth} × ${workspaceHeight} mm`, 10, 20);
+  ctx.fillText(`G-code: ${renderBounds.width.toFixed(2)} × ${renderBounds.height.toFixed(2)} mm`, 10, 35);
+  ctx.fillText(`Paths: ${renderPaths.length}`, 10, 50);
+  ctx.fillText(`Zoom: ${(renderZoom * 100).toFixed(0)}%`, 10, 65);
 }
 
 // Zoom button handlers
@@ -2245,6 +2280,27 @@ document.getElementById('renderZoomReset')?.addEventListener('click', () => {
   renderPanX = 0;
   renderPanY = 0;
   drawGcode();
+});
+
+// Workspace dimension handlers
+document.getElementById('workspaceWidth')?.addEventListener('input', (e) => {
+  const newWidth = parseFloat(e.target.value);
+  if (newWidth > 0) {
+    workspaceWidth = newWidth;
+    if (renderPaths.length > 0) {
+      drawGcode();
+    }
+  }
+});
+
+document.getElementById('workspaceHeight')?.addEventListener('input', (e) => {
+  const newHeight = parseFloat(e.target.value);
+  if (newHeight > 0) {
+    workspaceHeight = newHeight;
+    if (renderPaths.length > 0) {
+      drawGcode();
+    }
+  }
 });
 
 // Pan functionality with mouse drag for G-code rendering
@@ -2835,8 +2891,28 @@ if (ejectToGcodeBtn) {
       debugLog('Eject result:', result);
 
       if (result.success) {
-        alert(`G-code generated successfully!\n\nSaved to ~/gellyroller directory.`);
         debugLog('G-code file created:', result.gcodeFilePath);
+
+        // Switch to Render tab
+        switchTab('render');
+
+        // Reload G-code file list
+        await loadGcodeFiles();
+
+        // Auto-load the newly created file and highlight it in the list
+        await loadGcodeFile(result.gcodeFilePath);
+
+        // Find and highlight the newly created file in the list
+        const gcodeItems = document.querySelectorAll('.gcode-item');
+        gcodeItems.forEach(item => {
+          const itemName = item.querySelector('.gcode-item-name');
+          const fileName = result.gcodeFilePath.split('/').pop();
+          if (itemName && itemName.textContent.includes(fileName)) {
+            item.classList.add('active');
+          } else {
+            item.classList.remove('active');
+          }
+        });
       } else {
         alert(`Failed to generate G-code:\n\n${result.error}\n\n${result.stderr || ''}`);
         console.error('Eject failed:', result);

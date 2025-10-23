@@ -1908,6 +1908,24 @@ input[type="file"] {
   padding: 20px;
 }
 
+.render-workspace-controls {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 8px 12px;
+  border-radius: 6px;
+  z-index: 10;
+}
+
+.workspace-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .render-zoom-controls {
   position: absolute;
   top: 16px;
