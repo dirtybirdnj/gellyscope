@@ -2995,6 +2995,7 @@ const PAGE_SIZES = {
 };
 
 let currentPageSize = 'A4';
+let currentLayout = 'portrait'; // 'portrait' or 'landscape'
 let pageBackgroundElement = null;
 let outputScale = 100; // Output scale percentage
 
@@ -3008,8 +3009,10 @@ function toMm(value, unit) {
   }
 }
 
-// Get page dimensions in mm
+// Get page dimensions in mm (respects layout orientation)
 function getPageDimensions() {
+  let dimensions;
+
   if (currentPageSize === 'custom') {
     const width = parseFloat(document.getElementById('customWidth').value);
     const height = parseFloat(document.getElementById('customHeight').value);
@@ -3019,10 +3022,17 @@ function getPageDimensions() {
       return null;
     }
 
-    return [toMm(width, unit), toMm(height, unit)];
+    dimensions = [toMm(width, unit), toMm(height, unit)];
   } else {
-    return PAGE_SIZES[currentPageSize];
+    dimensions = [...PAGE_SIZES[currentPageSize]]; // Clone array
   }
+
+  // Swap dimensions if landscape
+  if (currentLayout === 'landscape') {
+    return [dimensions[1], dimensions[0]]; // Swap width and height
+  }
+
+  return dimensions;
 }
 
 // Create or update page background
@@ -3124,6 +3134,24 @@ if (outputScaleSlider && outputScaleValue) {
     debugLog('Output scale changed:', outputScale + '%');
   });
 }
+
+// Layout toggle handlers (portrait/landscape)
+document.querySelectorAll('.layout-toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const layout = btn.dataset.layout;
+
+    // Update active state
+    document.querySelectorAll('.layout-toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    currentLayout = layout;
+
+    // Update page background
+    updatePageBackground();
+
+    debugLog('Layout changed:', layout);
+  });
+});
 
 // Page size button handlers
 document.querySelectorAll('.page-size-btn').forEach(btn => {
@@ -3233,38 +3261,65 @@ if (saveSvgBtn) {
       }
 
       const [widthMm, heightMm] = dimensions;
+      debugLog('Creating SVG with dimensions:', widthMm + 'mm x ' + heightMm + 'mm', 'from', capturedLayers.length, 'layers');
 
       // Create combined SVG with proper dimensions
-      const svgString = combineLayersToSVG(capturedLayers, widthMm, heightMm);
+      let svgString;
+      try {
+        svgString = combineLayersToSVG(capturedLayers, widthMm, heightMm);
+        debugLog('SVG string created, length:', svgString.length);
+      } catch (combineError) {
+        console.error('Error combining layers:', combineError);
+        throw new Error('Failed to combine layers: ' + combineError.message);
+      }
 
       // Generate filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const filename = `combined_trace_${timestamp}.svg`;
+      debugLog('Saving as:', filename);
 
       // Convert SVG string to data URL
       const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
       const reader = new FileReader();
 
+      reader.onerror = function() {
+        console.error('FileReader error');
+        alert('Error converting SVG to data URL');
+        saveSvgBtn.disabled = false;
+        saveSvgBtn.innerHTML = originalText;
+      };
+
       reader.onload = async function() {
-        const dataUrl = reader.result;
+        try {
+          const dataUrl = reader.result;
+          debugLog('Data URL created, saving to file...');
 
-        // Save using existing saveImage method (works for SVG too)
-        const result = await window.electronAPI.saveImage(dataUrl, filename);
+          // Save using existing saveImage method (works for SVG too)
+          const result = await window.electronAPI.saveImage(dataUrl, filename);
 
-        if (result.success) {
-          debugLog('Combined SVG saved:', result.path, `(${capturedLayers.length} layers, ${widthMm}x${heightMm}mm)`);
+          if (result.success) {
+            debugLog('Combined SVG saved:', result.path, `(${capturedLayers.length} layers, ${widthMm}x${heightMm}mm)`);
 
-          // Switch to vectors tab
-          switchTab('vectors');
+            // Reload vectors to show the new file
+            await loadVectors();
 
-          // Show success message briefly
-          saveSvgBtn.innerHTML = '<span>✓</span> Saved!';
-          setTimeout(() => {
-            saveSvgBtn.innerHTML = originalText;
-            saveSvgBtn.disabled = false;
-          }, 2000);
-        } else {
-          throw new Error(result.error);
+            // Switch to vectors tab
+            switchTab('vectors');
+
+            // Show success message briefly
+            saveSvgBtn.innerHTML = '<span>✓</span> Saved!';
+            setTimeout(() => {
+              saveSvgBtn.innerHTML = originalText;
+              saveSvgBtn.disabled = false;
+            }, 2000);
+          } else {
+            throw new Error(result.error || 'Unknown error saving file');
+          }
+        } catch (saveError) {
+          console.error('Error in save handler:', saveError);
+          alert('Error saving SVG: ' + saveError.message);
+          saveSvgBtn.disabled = false;
+          saveSvgBtn.innerHTML = originalText;
         }
       };
 
