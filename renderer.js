@@ -3194,6 +3194,9 @@ let PAGE_SIZES = {
   'A7': [74, 105]
 };
 
+// Track which sizes are default (cannot be deleted)
+const DEFAULT_SIZES = new Set(['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7']);
+
 // Track which sizes are locked (predefined sizes start locked)
 let LOCKED_SIZES = new Set(['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7']);
 
@@ -3827,12 +3830,13 @@ function populatePaperSizesList() {
 
   for (const [name, dimensions] of Object.entries(PAGE_SIZES)) {
     const isLocked = LOCKED_SIZES.has(name);
+    const isDefault = DEFAULT_SIZES.has(name);
     const item = document.createElement('div');
     item.className = 'paper-size-item';
     item.dataset.sizeName = name;
 
     item.innerHTML = `
-      <input type="text" class="paper-size-name ${isLocked ? 'locked' : ''}" value="${name}" ${isLocked ? 'readonly' : ''}>
+      <input type="text" class="paper-size-name ${isDefault || isLocked ? 'locked' : ''}" value="${name}" ${isDefault || isLocked ? 'readonly' : ''}>
       <div class="paper-dimension-label">
         <input type="number" class="paper-dimension-input ${isLocked ? 'locked' : ''}" data-dimension="width" value="${dimensions[0]}" min="1" step="1" ${isLocked ? 'readonly' : ''}>
       </div>
@@ -3840,7 +3844,7 @@ function populatePaperSizesList() {
         <input type="number" class="paper-dimension-input ${isLocked ? 'locked' : ''}" data-dimension="height" value="${dimensions[1]}" min="1" step="1" ${isLocked ? 'readonly' : ''}>
       </div>
       <button class="paper-lock-btn ${isLocked ? 'locked' : ''}" title="${isLocked ? 'Unlock to edit' : 'Lock'}">${isLocked ? '🔒' : '🔓'}</button>
-      <button class="paper-delete-btn" title="Delete" style="visibility: ${isLocked ? 'hidden' : 'visible'}">🗑️</button>
+      <button class="paper-delete-btn" title="Delete" style="visibility: ${isDefault ? 'hidden' : 'visible'}">🗑️</button>
     `;
 
     // Add event listeners
@@ -3883,6 +3887,12 @@ function updatePaperSize(oldName, field, value) {
   }
 
   if (field === 'name') {
+    // Don't allow renaming default sizes
+    if (DEFAULT_SIZES.has(oldName)) {
+      populatePaperSizesList();
+      return;
+    }
+
     // Rename the paper size
     if (value === oldName || !value.trim()) return;
     if (PAGE_SIZES[value]) {
@@ -3926,14 +3936,15 @@ function togglePaperLock(name) {
 }
 
 function deletePaperSize(name) {
-  if (LOCKED_SIZES.has(name)) {
-    return; // Don't delete locked sizes
+  if (DEFAULT_SIZES.has(name)) {
+    return; // Don't delete default sizes
   }
 
   const confirmed = confirm(`Delete paper size "${name}"?`);
   if (!confirmed) return;
 
   delete PAGE_SIZES[name];
+  LOCKED_SIZES.delete(name); // Remove from locked set if it was there
 
   // If this was the current page size, switch to A4
   if (currentPageSize === name) {
