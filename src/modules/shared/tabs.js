@@ -4,7 +4,12 @@ export function initTabNavigation() {
   document.querySelectorAll('.tab-button').forEach(button => {
     button.addEventListener('click', () => {
       const tabName = button.dataset.tab;
-      switchTab(tabName);
+      // Use window.switchTab to call the enhanced version from renderer.js
+      if (window.switchTab) {
+        window.switchTab(tabName);
+      } else {
+        switchTab(tabName);
+      }
     });
   });
 }
