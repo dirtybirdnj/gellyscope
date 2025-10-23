@@ -1,4 +1,4 @@
-// renderer.js - v29
+// renderer.js - v30
 // Frontend Logic
 
 // Check if debug mode is enabled (fallback to false if not set)
@@ -1794,6 +1794,7 @@ async function handleVectorEject(filePath) {
     if (result.success) {
       currentSVGData = {
         ...result.data,
+        content: fileContent.data, // Store the raw SVG content
         path: filePath // Store the file path
       };
       debugLog('Vector loaded for eject:', currentSVGData);
