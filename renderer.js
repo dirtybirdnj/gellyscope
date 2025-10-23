@@ -1285,12 +1285,6 @@ async function performTrace() {
   }
 
   try {
-    const traceActionBtn = document.getElementById('traceActionBtn');
-    if (traceActionBtn) {
-      traceActionBtn.disabled = true;
-      traceActionBtn.textContent = 'Processing...';
-    }
-
     // First scale the image if needed
     const scaledImageSrc = await scaleImage(
       window.currentTraceImage.originalSrc,
@@ -1385,11 +1379,6 @@ async function performTrace() {
         captureBtn.disabled = false;
       }
 
-      if (traceActionBtn) {
-        traceActionBtn.disabled = false;
-        traceActionBtn.textContent = 'Trace';
-      }
-
       // Update page background after trace
       setTimeout(() => {
         updatePageBackground();
@@ -1399,11 +1388,6 @@ async function performTrace() {
     });
   } catch (error) {
     console.error('Error tracing image:', error);
-    const traceActionBtn = document.getElementById('traceActionBtn');
-    if (traceActionBtn) {
-      traceActionBtn.disabled = false;
-      traceActionBtn.textContent = 'Trace';
-    }
   }
 }
 
@@ -1602,18 +1586,6 @@ if (bitmapOpacitySlider && bitmapOpacityValue) {
 // ========== ACTION BUTTONS ==========
 
 // Trace action button
-const traceActionBtn = document.getElementById('traceActionBtn');
-
-if (traceActionBtn) {
-  traceActionBtn.addEventListener('click', () => {
-    if (!window.currentTraceImage || !window.currentTraceImage.src) {
-      alert('Please select an image first');
-      return;
-    }
-    performTrace();
-  });
-}
-
 // Capture trace button with loading spinner
 const captureTraceBtn = document.getElementById('captureTraceBtn');
 
@@ -2801,6 +2773,33 @@ document.querySelectorAll('.arrow-btn').forEach(btn => {
   });
 });
 
+// Add keyboard arrow key support for sliders with arrow buttons
+document.querySelectorAll('.control-slider').forEach(slider => {
+  slider.addEventListener('keydown', (e) => {
+    // Check if left or right arrow key was pressed
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault(); // Prevent default browser behavior
+
+      const step = parseFloat(slider.step) || 1;
+      const min = parseFloat(slider.min);
+      const max = parseFloat(slider.max);
+      const currentValue = parseFloat(slider.value);
+
+      // Left arrow decreases, right arrow increases
+      const direction = e.key === 'ArrowRight' ? 1 : -1;
+      const newValue = currentValue + (step * direction);
+
+      // Clamp to min/max range
+      slider.value = Math.max(min, Math.min(max, newValue));
+
+      // Trigger input event to update display and trace
+      slider.dispatchEvent(new Event('input'));
+
+      debugLog(`Keyboard arrow: ${slider.id} ${direction > 0 ? '+' : '-'}${step} = ${slider.value}`);
+    }
+  });
+});
+
 // ============ PATH OPTIONS CONTROLS ============
 
 // Fill toggle - show/hide stroke controls
@@ -3092,12 +3091,13 @@ setTimeout(() => {
 
 // ============ SAVE FUNCTIONALITY ============
 
-// Save SVG button
+// Save SVG button - combines all captured layers and uses page size
 const saveSvgBtn = document.getElementById('saveSvgBtn');
 if (saveSvgBtn) {
   saveSvgBtn.addEventListener('click', async () => {
-    if (!window.currentTraceImage || !window.currentTraceImage.svgData) {
-      alert('No SVG data to save. Please trace an image first.');
+    // Check if there are any captured layers
+    if (capturedLayers.length === 0) {
+      alert('No layers captured. Please capture at least one trace layer first.');
       return;
     }
 
@@ -3106,13 +3106,26 @@ if (saveSvgBtn) {
       const originalText = saveSvgBtn.innerHTML;
       saveSvgBtn.innerHTML = '<span>⏳</span> Saving...';
 
-      // Generate filename from original image name
-      const baseName = window.currentTraceImage.fileName.replace(/\.[^/.]+$/, '');
+      // Get page dimensions in mm
+      const dimensions = getPageDimensions();
+      if (!dimensions) {
+        alert('Please select a page size first.');
+        saveSvgBtn.disabled = false;
+        saveSvgBtn.innerHTML = originalText;
+        return;
+      }
+
+      const [widthMm, heightMm] = dimensions;
+
+      // Create combined SVG with proper dimensions
+      const svgString = combineLayersToSVG(capturedLayers, widthMm, heightMm);
+
+      // Generate filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      const filename = `${baseName}_trace_${timestamp}.svg`;
+      const filename = `combined_trace_${timestamp}.svg`;
 
       // Convert SVG string to data URL
-      const svgBlob = new Blob([window.currentTraceImage.svgData], { type: 'image/svg+xml' });
+      const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
       const reader = new FileReader();
 
       reader.onload = async function() {
@@ -3122,7 +3135,7 @@ if (saveSvgBtn) {
         const result = await window.electronAPI.saveImage(dataUrl, filename);
 
         if (result.success) {
-          debugLog('SVG saved:', result.path);
+          debugLog('Combined SVG saved:', result.path, `(${capturedLayers.length} layers, ${widthMm}x${heightMm}mm)`);
 
           // Switch to vectors tab
           switchTab('vectors');
@@ -3147,6 +3160,53 @@ if (saveSvgBtn) {
       saveSvgBtn.innerHTML = '<span>💾</span> Save SVG';
     }
   });
+}
+
+// Function to combine all layers into a single SVG with proper dimensions
+function combineLayersToSVG(layers, widthMm, heightMm) {
+  const parser = new DOMParser();
+  const allPaths = [];
+
+  // Extract paths from all visible layers
+  for (const layer of layers) {
+    if (!layer.visible) continue;
+
+    try {
+      const svgDoc = parser.parseFromString(layer.svgData, 'image/svg+xml');
+      const paths = svgDoc.querySelectorAll('path');
+
+      paths.forEach(path => {
+        allPaths.push({
+          d: path.getAttribute('d'),
+          fill: path.getAttribute('fill') || 'none',
+          stroke: path.getAttribute('stroke') || '#000000',
+          strokeWidth: path.getAttribute('stroke-width') || '1'
+        });
+      });
+    } catch (error) {
+      console.error('Error parsing layer SVG:', error);
+    }
+  }
+
+  // Create SVG with proper dimensions
+  // Convert mm to pixels (assuming 96 DPI: 1mm = 3.7795275591 pixels)
+  const mmToPx = 3.7795275591;
+  const widthPx = widthMm * mmToPx;
+  const heightPx = heightMm * mmToPx;
+
+  let svg = `<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="${widthMm}mm" height="${heightMm}mm" viewBox="0 0 ${widthPx} ${heightPx}" xmlns="http://www.w3.org/2000/svg" version="1.1">
+`;
+
+  // Add all paths
+  for (const path of allPaths) {
+    svg += `  <path d="${path.d}" fill="${path.fill}" stroke="${path.stroke}" stroke-width="${path.strokeWidth}"/>\n`;
+  }
+
+  svg += `</svg>`;
+
+  return svg;
 }
 
 // Save Image button
