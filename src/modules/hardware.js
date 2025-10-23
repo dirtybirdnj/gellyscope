@@ -300,6 +300,14 @@ function deletePaperSize(name) {
 }
 
 /**
+ * Set the current page size
+ * @param {string} size - The page size to set (e.g., 'A4', 'custom')
+ */
+export function setCurrentPageSize(size) {
+  currentPageSize = size;
+}
+
+/**
  * Update the page size buttons on Trace and Eject tabs
  * Refreshes the button groups to reflect current paper sizes
  */

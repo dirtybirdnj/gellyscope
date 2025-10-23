@@ -2,7 +2,7 @@
 import { debugLog } from './shared/debug.js';
 import { switchTab } from './shared/tabs.js';
 import { toMm, escapeHtml } from './shared/utils.js';
-import { PAGE_SIZES, currentPageSize, updatePageSizeButtons } from './hardware.js';
+import { PAGE_SIZES, currentPageSize, updatePageSizeButtons, setCurrentPageSize } from './hardware.js';
 
 // ============ MODULE STATE ============
 
@@ -997,7 +997,7 @@ export function initTraceTab() {
       document.querySelectorAll('.page-size-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
 
-      currentPageSize = size;
+      setCurrentPageSize(size);
 
       // Show/hide custom inputs
       const customInputs = document.getElementById('customSizeInputs');

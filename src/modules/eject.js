@@ -63,8 +63,8 @@ export function loadEjectTab() {
 
         // Set default output dimensions if not already set
         // Default to 4 inches for the smaller dimension, maintaining aspect ratio
-        const currentWidth = document.getElementById('ejectFixedWidth').value;
-        const currentHeight = document.getElementById('ejectFixedHeight').value;
+        const currentWidth = document.getElementById('ejectCustomWidth').value;
+        const currentHeight = document.getElementById('ejectCustomHeight').value;
 
         if (!currentWidth || !currentHeight) {
           let defaultWidth, defaultHeight;
@@ -79,8 +79,8 @@ export function loadEjectTab() {
             defaultWidth = 4 * ejectOriginalAspectRatio;
           }
 
-          document.getElementById('ejectFixedWidth').value = defaultWidth.toFixed(2);
-          document.getElementById('ejectFixedHeight').value = defaultHeight.toFixed(2);
+          document.getElementById('ejectCustomWidth').value = defaultWidth.toFixed(2);
+          document.getElementById('ejectCustomHeight').value = defaultHeight.toFixed(2);
 
           debugLog('Set default output dimensions:', defaultWidth.toFixed(2) + '" × ' + defaultHeight.toFixed(2) + '"');
         }
@@ -270,9 +270,9 @@ function updateEjectPageBackground() {
   debugLog('Display size:', displayWidth + 'px × ' + displayHeight + 'px');
 
   // Read output dimensions from inputs
-  const outputWidth = parseFloat(document.getElementById('ejectFixedWidth').value);
-  const outputHeight = parseFloat(document.getElementById('ejectFixedHeight').value);
-  const outputUnit = document.getElementById('ejectFixedUnit').value;
+  const outputWidth = parseFloat(document.getElementById('ejectCustomWidth').value);
+  const outputHeight = parseFloat(document.getElementById('ejectCustomHeight').value);
+  const outputUnit = document.getElementById('ejectCustomUnit').value;
 
   debugLog('Output dimensions:', outputWidth, '×', outputHeight, outputUnit);
 
@@ -334,9 +334,9 @@ function removeEjectPageBackground() {
  * Update page size button states based on output dimensions
  */
 function updateEjectPageSizeButtons() {
-  const outputWidth = parseFloat(document.getElementById('ejectFixedWidth').value);
-  const outputHeight = parseFloat(document.getElementById('ejectFixedHeight').value);
-  const outputUnit = document.getElementById('ejectFixedUnit').value;
+  const outputWidth = parseFloat(document.getElementById('ejectCustomWidth').value);
+  const outputHeight = parseFloat(document.getElementById('ejectCustomHeight').value);
+  const outputUnit = document.getElementById('ejectCustomUnit').value;
 
   // If no valid dimensions, enable all buttons
   if (isNaN(outputWidth) || isNaN(outputHeight) || outputWidth <= 0 || outputHeight <= 0) {
@@ -447,12 +447,12 @@ function handleCustomSizeInput() {
  * Handle fixed width input change
  */
 function handleFixedWidthInput() {
-  const width = parseFloat(document.getElementById('ejectFixedWidth').value);
-  const ejectFixedHeight = document.getElementById('ejectFixedHeight');
+  const width = parseFloat(document.getElementById('ejectCustomWidth').value);
+  const ejectCustomHeight = document.getElementById('ejectCustomHeight');
 
   if (!isNaN(width) && width > 0 && ejectOriginalAspectRatio > 0) {
     const newHeight = width / ejectOriginalAspectRatio;
-    ejectFixedHeight.value = newHeight.toFixed(2);
+    ejectCustomHeight.value = newHeight.toFixed(2);
     debugLog('Width changed, adjusted height:', newHeight.toFixed(2));
   }
 
@@ -466,12 +466,12 @@ function handleFixedWidthInput() {
  * Handle fixed height input change
  */
 function handleFixedHeightInput() {
-  const height = parseFloat(document.getElementById('ejectFixedHeight').value);
-  const ejectFixedWidth = document.getElementById('ejectFixedWidth');
+  const height = parseFloat(document.getElementById('ejectCustomHeight').value);
+  const ejectCustomWidth = document.getElementById('ejectCustomWidth');
 
   if (!isNaN(height) && height > 0 && ejectOriginalAspectRatio > 0) {
     const newWidth = height * ejectOriginalAspectRatio;
-    ejectFixedWidth.value = newWidth.toFixed(2);
+    ejectCustomWidth.value = newWidth.toFixed(2);
     debugLog('Height changed, adjusted width:', newWidth.toFixed(2));
   }
 
@@ -485,16 +485,16 @@ function handleFixedHeightInput() {
  * Handle unit change with value conversion
  */
 function handleUnitChange() {
-  const ejectFixedUnit = document.getElementById('ejectFixedUnit');
-  const ejectFixedWidth = document.getElementById('ejectFixedWidth');
-  const ejectFixedHeight = document.getElementById('ejectFixedHeight');
+  const ejectCustomUnit = document.getElementById('ejectCustomUnit');
+  const ejectCustomWidth = document.getElementById('ejectCustomWidth');
+  const ejectCustomHeight = document.getElementById('ejectCustomHeight');
 
-  const newUnit = ejectFixedUnit.value;
+  const newUnit = ejectCustomUnit.value;
   const oldUnit = ejectPreviousUnit;
 
   // Get current values
-  const currentWidth = parseFloat(ejectFixedWidth.value);
-  const currentHeight = parseFloat(ejectFixedHeight.value);
+  const currentWidth = parseFloat(ejectCustomWidth.value);
+  const currentHeight = parseFloat(ejectCustomHeight.value);
 
   if (!isNaN(currentWidth) && !isNaN(currentHeight)) {
     // Convert to mm first, then to new unit
@@ -509,8 +509,8 @@ function handleUnitChange() {
     if (newUnit === 'mm') precision = 0;
     else if (newUnit === 'cm') precision = 1;
 
-    ejectFixedWidth.value = newWidth.toFixed(precision);
-    ejectFixedHeight.value = newHeight.toFixed(precision);
+    ejectCustomWidth.value = newWidth.toFixed(precision);
+    ejectCustomHeight.value = newHeight.toFixed(precision);
 
     debugLog(`Unit changed from ${oldUnit} to ${newUnit}:`,
       `${currentWidth}${oldUnit} → ${newWidth.toFixed(precision)}${newUnit}`);
@@ -547,9 +547,9 @@ async function handleEjectToGcode() {
   }
 
   // Get output dimensions
-  const outputWidth = parseFloat(document.getElementById('ejectFixedWidth').value);
-  const outputHeight = parseFloat(document.getElementById('ejectFixedHeight').value);
-  const outputUnit = document.getElementById('ejectFixedUnit').value;
+  const outputWidth = parseFloat(document.getElementById('ejectCustomWidth').value);
+  const outputHeight = parseFloat(document.getElementById('ejectCustomHeight').value);
+  const outputUnit = document.getElementById('ejectCustomUnit').value;
 
   // Validate dimensions
   if (isNaN(outputWidth) || isNaN(outputHeight) || outputWidth <= 0 || outputHeight <= 0) {
@@ -628,20 +628,20 @@ export function initEjectTab() {
   });
 
   // Fixed dimension input handlers
-  const ejectFixedWidth = document.getElementById('ejectFixedWidth');
-  const ejectFixedHeight = document.getElementById('ejectFixedHeight');
-  const ejectFixedUnit = document.getElementById('ejectFixedUnit');
+  const ejectCustomWidth = document.getElementById('ejectCustomWidth');
+  const ejectCustomHeight = document.getElementById('ejectCustomHeight');
+  const ejectCustomUnit = document.getElementById('ejectCustomUnit');
 
-  if (ejectFixedWidth) {
-    ejectFixedWidth.addEventListener('input', handleFixedWidthInput);
+  if (ejectCustomWidth) {
+    ejectCustomWidth.addEventListener('input', handleFixedWidthInput);
   }
 
-  if (ejectFixedHeight) {
-    ejectFixedHeight.addEventListener('input', handleFixedHeightInput);
+  if (ejectCustomHeight) {
+    ejectCustomHeight.addEventListener('input', handleFixedHeightInput);
   }
 
-  if (ejectFixedUnit) {
-    ejectFixedUnit.addEventListener('change', handleUnitChange);
+  if (ejectCustomUnit) {
+    ejectCustomUnit.addEventListener('change', handleUnitChange);
   }
 
   // Generate G-code button handler
