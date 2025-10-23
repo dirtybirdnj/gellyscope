@@ -2247,33 +2247,33 @@ document.getElementById('renderZoomReset')?.addEventListener('click', () => {
   drawGcode();
 });
 
-// Pan functionality with mouse drag
-let isPanning = false;
-let panStartX = 0;
-let panStartY = 0;
+// Pan functionality with mouse drag for G-code rendering
+let renderIsPanning = false;
+let renderPanStartX = 0;
+let renderPanStartY = 0;
 
 renderCanvas.addEventListener('mousedown', (e) => {
-  isPanning = true;
-  panStartX = e.clientX - renderPanX;
-  panStartY = e.clientY - renderPanY;
+  renderIsPanning = true;
+  renderPanStartX = e.clientX - renderPanX;
+  renderPanStartY = e.clientY - renderPanY;
   renderCanvas.classList.add('panning');
 });
 
 renderCanvas.addEventListener('mousemove', (e) => {
-  if (isPanning) {
-    renderPanX = e.clientX - panStartX;
-    renderPanY = e.clientY - panStartY;
+  if (renderIsPanning) {
+    renderPanX = e.clientX - renderPanStartX;
+    renderPanY = e.clientY - renderPanStartY;
     drawGcode();
   }
 });
 
 renderCanvas.addEventListener('mouseup', () => {
-  isPanning = false;
+  renderIsPanning = false;
   renderCanvas.classList.remove('panning');
 });
 
 renderCanvas.addEventListener('mouseleave', () => {
-  isPanning = false;
+  renderIsPanning = false;
   renderCanvas.classList.remove('panning');
 });
 
