@@ -2070,6 +2070,7 @@ input[type="file"] {
   margin: 0 auto;
   overflow-y: auto;
   height: 100%;
+  background: #1a1a1a;
 }
 
 .hardware-section {
