@@ -3362,13 +3362,24 @@ function combineLayersToSVG(layers, widthMm, heightMm) {
       const paths = svgDoc.querySelectorAll('path');
       console.log('[combineLayersToSVG] Found', paths.length, 'paths in layer:', layer.name);
 
-      paths.forEach(path => {
+      paths.forEach((path, idx) => {
+        const d = path.getAttribute('d');
+        if (!d || d.trim() === '') {
+          console.warn('[combineLayersToSVG] Path', idx, 'has empty d attribute, skipping');
+          return;
+        }
+
         allPaths.push({
-          d: path.getAttribute('d'),
+          d: d,
           fill: path.getAttribute('fill') || 'none',
           stroke: path.getAttribute('stroke') || '#000000',
           strokeWidth: path.getAttribute('stroke-width') || '1'
         });
+
+        // Log first path for debugging
+        if (idx === 0) {
+          console.log('[combineLayersToSVG] Sample path d (first 100 chars):', d.substring(0, 100));
+        }
       });
     } catch (error) {
       console.error('[combineLayersToSVG] Error parsing layer SVG:', error);
@@ -3404,6 +3415,8 @@ function combineLayersToSVG(layers, widthMm, heightMm) {
   svg += `</svg>`;
 
   console.log('[combineLayersToSVG] ✓ Combined SVG created:', allPaths.length, 'paths,', widthMm + 'x' + heightMm + 'mm');
+  console.log('[combineLayersToSVG] SVG preview (first 500 chars):', svg.substring(0, 500));
+  console.log('[combineLayersToSVG] SVG preview (last 200 chars):', svg.substring(svg.length - 200));
   return svg;
 }
 
