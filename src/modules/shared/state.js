@@ -18,6 +18,29 @@ export const state = {
   cropRight: 0.75,
   flipH: false,
   flipV: false,
+
+  // Eject tab state
+  eject: {
+    pageSize: 'A4',
+    layout: 'portrait',
+    pageBackgroundElement: null,
+    originalAspectRatio: 1,
+    previousUnit: 'in'
+  },
+
+  // Render tab state
+  render: {
+    currentGcodeFile: null,
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+    panStartX: 0,
+    panStartY: 0,
+    baseScale: 1,
+    bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 },
+    paths: [],
+    isPanning: false
+  }
 };
 
 // Export getters and setters for controlled access

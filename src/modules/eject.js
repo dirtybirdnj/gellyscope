@@ -8,13 +8,8 @@ import { toMm, fromMm, mmToInches, mmToCm } from './shared/utils.js';
 import { PAGE_SIZES } from './hardware.js';
 
 // ============ MODULE STATE ============
-
-// Eject tab state
-let ejectPageSize = 'A4';
-let ejectLayout = 'portrait'; // 'portrait' or 'landscape'
-let ejectPageBackgroundElement = null;
-let ejectOriginalAspectRatio = 1; // Store original SVG aspect ratio
-let ejectPreviousUnit = 'in'; // Track previous unit for conversion
+// State is now centralized in shared/state.js under state.eject
+// Access via: state.eject.pageSize, state.eject.layout, etc.
 
 // ============ CORE FUNCTIONS ============
 
@@ -59,8 +54,8 @@ export function loadEjectTab() {
         ejectDimensions.textContent = `${width} × ${height}`;
 
         // Store original aspect ratio for locked scaling
-        ejectOriginalAspectRatio = width / height;
-        debugLog('Stored original aspect ratio:', ejectOriginalAspectRatio);
+        setState({ eject: { ...state.eject, originalAspectRatio: width / height } });
+        debugLog('Stored original aspect ratio:', state.eject.originalAspectRatio);
 
         // Set default output dimensions if not already set
         // Default to 4 inches for the smaller dimension, maintaining aspect ratio
@@ -73,11 +68,11 @@ export function loadEjectTab() {
           if (width < height) {
             // Portrait or square
             defaultWidth = 4;
-            defaultHeight = 4 / ejectOriginalAspectRatio;
+            defaultHeight = 4 / state.eject.originalAspectRatio;
           } else {
             // Landscape
             defaultHeight = 4;
-            defaultWidth = 4 * ejectOriginalAspectRatio;
+            defaultWidth = 4 * state.eject.originalAspectRatio;
           }
 
           document.getElementById('ejectCustomWidth').value = defaultWidth.toFixed(2);
@@ -130,7 +125,7 @@ export function loadEjectTab() {
 function getEjectPageDimensions() {
   let dimensions;
 
-  if (ejectPageSize === 'custom') {
+  if (state.eject.pageSize === 'custom') {
     const width = parseFloat(document.getElementById('ejectCustomWidth').value);
     const height = parseFloat(document.getElementById('ejectCustomHeight').value);
     const unit = document.getElementById('ejectCustomUnit').value;
@@ -141,11 +136,11 @@ function getEjectPageDimensions() {
 
     dimensions = [toMm(width, unit), toMm(height, unit)];
   } else {
-    dimensions = [...PAGE_SIZES[ejectPageSize]]; // Clone array
+    dimensions = [...PAGE_SIZES[state.eject.pageSize]]; // Clone array
   }
 
   // Swap dimensions if landscape
-  if (ejectLayout === 'landscape') {
+  if (state.eject.layout === 'landscape') {
     return [dimensions[1], dimensions[0]]; // Swap width and height
   }
 
@@ -216,13 +211,14 @@ function updateEjectPageBackground() {
   const aspectRatio = widthMm / heightMm;
 
   // Remove existing background
-  if (ejectPageBackgroundElement) {
-    ejectPageBackgroundElement.remove();
+  if (state.eject.pageBackgroundElement) {
+    state.eject.pageBackgroundElement.remove();
   }
 
   // Create new page background
-  ejectPageBackgroundElement = document.createElement('div');
-  ejectPageBackgroundElement.className = 'page-background';
+  const newPageBackground = document.createElement('div');
+  newPageBackground.className = 'page-background';
+  setState({ eject: { ...state.eject, pageBackgroundElement: newPageBackground } });
 
   // Calculate size to fit in viewer while maintaining aspect ratio
   const viewerRect = ejectViewer.getBoundingClientRect();
@@ -241,20 +237,20 @@ function updateEjectPageBackground() {
     displayHeight = displayWidth / aspectRatio;
   }
 
-  ejectPageBackgroundElement.style.width = displayWidth + 'px';
-  ejectPageBackgroundElement.style.height = displayHeight + 'px';
-  ejectPageBackgroundElement.style.left = '50%';
-  ejectPageBackgroundElement.style.top = '50%';
-  ejectPageBackgroundElement.style.transform = 'translate(-50%, -50%)';
+  state.eject.pageBackgroundElement.style.width = displayWidth + 'px';
+  state.eject.pageBackgroundElement.style.height = displayHeight + 'px';
+  state.eject.pageBackgroundElement.style.left = '50%';
+  state.eject.pageBackgroundElement.style.top = '50%';
+  state.eject.pageBackgroundElement.style.transform = 'translate(-50%, -50%)';
 
   // Insert into viewer before the svg container
-  ejectViewer.insertBefore(ejectPageBackgroundElement, ejectSvgContainer);
+  ejectViewer.insertBefore(state.eject.pageBackgroundElement, ejectSvgContainer);
 
   // Create dimension lines
   createEjectDimensionLines(ejectViewer, displayWidth, displayHeight, widthMm, heightMm);
 
   debugLog('=== Scaling Calculation ===');
-  debugLog('Page size:', ejectPageSize, '→', widthMm + 'mm × ' + heightMm + 'mm');
+  debugLog('Page size:', state.eject.pageSize, '→', widthMm + 'mm × ' + heightMm + 'mm');
   debugLog('Display size:', displayWidth + 'px × ' + displayHeight + 'px');
 
   // Read output dimensions from inputs
@@ -294,16 +290,16 @@ function updateEjectPageBackground() {
   ejectSvgContainer.style.maxWidth = scaledWidth + 'px';
   ejectSvgContainer.style.maxHeight = scaledHeight + 'px';
 
-  debugLog('Eject page background updated:', ejectPageSize, widthMm + 'mm × ' + heightMm + 'mm');
+  debugLog('Eject page background updated:', state.eject.pageSize, widthMm + 'mm × ' + heightMm + 'mm');
 }
 
 /**
  * Remove eject page background
  */
 function removeEjectPageBackground() {
-  if (ejectPageBackgroundElement) {
-    ejectPageBackgroundElement.remove();
-    ejectPageBackgroundElement = null;
+  if (state.eject.pageBackgroundElement) {
+    state.eject.pageBackgroundElement.remove();
+    setState({ eject: { ...state.eject, pageBackgroundElement: null } });
   }
 
   // Remove dimension lines
@@ -388,7 +384,7 @@ function handleLayoutToggle(btn) {
   document.querySelectorAll('.eject-layout-toggle-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 
-  ejectLayout = layout;
+  setState({ eject: { ...state.eject, layout: layout } });
 
   // Update page background
   updateEjectPageBackground();
@@ -406,7 +402,7 @@ function handlePageSizeClick(btn) {
   document.querySelectorAll('.eject-page-size-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 
-  ejectPageSize = size;
+  setState({ eject: { ...state.eject, pageSize: size } });
 
   // Show/hide custom inputs
   const ejectCustomInputs = document.getElementById('ejectCustomSizeInputs');
@@ -426,7 +422,7 @@ function handlePageSizeClick(btn) {
  * Handle custom size input changes
  */
 function handleCustomSizeInput() {
-  if (ejectPageSize === 'custom') {
+  if (state.eject.pageSize === 'custom') {
     updateEjectPageBackground();
   }
 }
@@ -438,13 +434,13 @@ function handleFixedWidthInput() {
   const width = parseFloat(document.getElementById('ejectCustomWidth').value);
   const ejectCustomHeight = document.getElementById('ejectCustomHeight');
 
-  if (!isNaN(width) && width > 0 && ejectOriginalAspectRatio > 0) {
-    const newHeight = width / ejectOriginalAspectRatio;
+  if (!isNaN(width) && width > 0 && state.eject.originalAspectRatio > 0) {
+    const newHeight = width / state.eject.originalAspectRatio;
     ejectCustomHeight.value = newHeight.toFixed(2);
     debugLog('Width changed, adjusted height:', newHeight.toFixed(2));
   }
 
-  if (ejectPageBackgroundElement) {
+  if (state.eject.pageBackgroundElement) {
     updateEjectPageBackground();
   }
   updateEjectPageSizeButtons();
@@ -457,13 +453,13 @@ function handleFixedHeightInput() {
   const height = parseFloat(document.getElementById('ejectCustomHeight').value);
   const ejectCustomWidth = document.getElementById('ejectCustomWidth');
 
-  if (!isNaN(height) && height > 0 && ejectOriginalAspectRatio > 0) {
-    const newWidth = height * ejectOriginalAspectRatio;
+  if (!isNaN(height) && height > 0 && state.eject.originalAspectRatio > 0) {
+    const newWidth = height * state.eject.originalAspectRatio;
     ejectCustomWidth.value = newWidth.toFixed(2);
     debugLog('Height changed, adjusted width:', newWidth.toFixed(2));
   }
 
-  if (ejectPageBackgroundElement) {
+  if (state.eject.pageBackgroundElement) {
     updateEjectPageBackground();
   }
   updateEjectPageSizeButtons();
@@ -478,7 +474,7 @@ function handleUnitChange() {
   const ejectCustomHeight = document.getElementById('ejectCustomHeight');
 
   const newUnit = ejectCustomUnit.value;
-  const oldUnit = ejectPreviousUnit;
+  const oldUnit = state.eject.previousUnit;
 
   // Get current values
   const currentWidth = parseFloat(ejectCustomWidth.value);
@@ -505,9 +501,9 @@ function handleUnitChange() {
   }
 
   // Update previous unit tracker
-  ejectPreviousUnit = newUnit;
+  setState({ eject: { ...state.eject, previousUnit: newUnit } });
 
-  if (ejectPageBackgroundElement) {
+  if (state.eject.pageBackgroundElement) {
     updateEjectPageBackground();
   }
   updateEjectPageSizeButtons();
@@ -517,7 +513,7 @@ function handleUnitChange() {
  * Handle window resize
  */
 function handleWindowResize() {
-  if (ejectPageBackgroundElement) {
+  if (state.eject.pageBackgroundElement) {
     updateEjectPageBackground();
   }
 }
