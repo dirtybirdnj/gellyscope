@@ -1698,6 +1698,21 @@ if (captureTraceBtn) {
       debugLog('Captured trace as:', layerName);
     }, 300);
   });
+
+  // Add Enter key shortcut for Capture Trace when on Trace tab
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      // Check if Trace tab is active
+      const traceTab = document.querySelector('[data-tab="trace"]');
+      if (traceTab && traceTab.classList.contains('active')) {
+        // Check if button is not disabled
+        if (captureTraceBtn && !captureTraceBtn.disabled) {
+          e.preventDefault();
+          captureTraceBtn.click();
+        }
+      }
+    }
+  });
 }
 
 // Count paths and points in an SVG layer
