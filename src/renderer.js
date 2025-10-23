@@ -7,7 +7,7 @@ import { initTabNavigation, switchTab } from './modules/shared/tabs.js';
 import { initArrowButtons, initCollapsibleSections } from './modules/shared/ui-controls.js';
 
 // Import tab modules
-import { initHomeTab } from './modules/home.js';
+import { initHomeTab, loadHomeScreen } from './modules/home.js';
 import { initCameraTab } from './modules/camera.js';
 import { initImagesTab } from './modules/images.js';
 import { initTraceTab } from './modules/trace.js';
@@ -29,7 +29,9 @@ window.switchTab = function(tabName) {
   baseSwitchTab(tabName);
 
   // Load content for specific tabs
-  if (tabName === 'vectors') {
+  if (tabName === 'home') {
+    loadHomeScreen();
+  } else if (tabName === 'vectors') {
     loadVectors();
   } else if (tabName === 'render') {
     loadGcodeFiles();
@@ -70,6 +72,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   initRenderTab();
   initScopeTab();
   initHardwareTab();
+
+  // Load home screen initially since it's the default active tab
+  await loadHomeScreen();
 
   console.log('Gellyscope initialization complete!');
 });

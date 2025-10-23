@@ -3,14 +3,12 @@ import { debugLog } from './shared/debug.js';
 import { switchTab } from './shared/tabs.js';
 
 export async function initHomeTab() {
-  // Load home screen on init
-  await loadHomeScreen();
-
   // Setup quick action buttons
   setupQuickActions();
 }
 
-async function loadHomeScreen() {
+// Export loadHomeScreen so it can be called when switching to home tab
+export async function loadHomeScreen() {
   try {
     // Get workspace path
     const gellyrollerPath = await window.electronAPI.getGellyrollerPath();
@@ -83,6 +81,11 @@ async function loadHomeScreen() {
     // Display files
     const filesGrid = document.getElementById('homeFilesGrid');
 
+    if (!filesGrid) {
+      console.error('homeFilesGrid element not found');
+      return;
+    }
+
     if (recentFiles.length === 0) {
       filesGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5; grid-column: 1 / -1;">No files found in workspace</div>';
     } else {
@@ -147,7 +150,10 @@ async function loadHomeScreen() {
     debugLog('Home screen loaded:', {imageCount, vectorCount, gcodeCount});
   } catch (error) {
     console.error('Error loading home screen:', error);
-    document.getElementById('homeFilesGrid').innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5; grid-column: 1 / -1;">Error loading files</div>';
+    const filesGrid = document.getElementById('homeFilesGrid');
+    if (filesGrid) {
+      filesGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5; grid-column: 1 / -1;">Error loading files</div>';
+    }
   }
 }
 
