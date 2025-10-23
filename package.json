@@ -40,9 +40,10 @@
     "files": [
       "main.js",
       "preload.js",
-      "renderer.js",
       "index.html",
-      "styles.css"
+      "styles.css",
+      "potrace.js",
+      "src/**/*"
     ],
     "mac": {
       "category": "public.app-category.graphics-design",
