@@ -3690,3 +3690,84 @@ if (saveImageBtn) {
     }
   });
 } 
+
+// ============ HARDWARE TAB ============
+
+let hardwareInfoLoaded = false;
+
+async function loadHardwareInfo() {
+  if (hardwareInfoLoaded) return;
+
+  try {
+    // Update workspace dimensions from render tab
+    document.getElementById('hwWorkspaceWidth').textContent = `${workspaceWidth} mm`;
+    document.getElementById('hwWorkspaceHeight').textContent = `${workspaceHeight} mm`;
+
+    // Get system information
+    const systemInfoResult = await window.electronAPI.getSystemInfo();
+    if (systemInfoResult.success) {
+      const info = systemInfoResult.data;
+      document.getElementById('hwNodeVersion').textContent = info.nodeVersion;
+      document.getElementById('hwNpmVersion').textContent = info.npmVersion;
+      document.getElementById('hwPythonVersion').textContent = info.pythonVersion;
+      document.getElementById('hwPlatform').textContent = info.platform;
+    } else {
+      document.getElementById('hwNodeVersion').textContent = 'Error loading';
+      document.getElementById('hwNpmVersion').textContent = 'Error loading';
+      document.getElementById('hwPythonVersion').textContent = 'Error loading';
+      document.getElementById('hwPlatform').textContent = 'Error loading';
+    }
+
+    // Get vpype information
+    const vpypeInfoResult = await window.electronAPI.getVpypeInfo();
+    if (vpypeInfoResult.success) {
+      const vpypeInfo = vpypeInfoResult.data;
+
+      if (vpypeInfo.installed) {
+        document.getElementById('hwVpypeStatus').textContent = '✓ Installed';
+        document.getElementById('hwVpypeStatus').style.color = '#4ade80';
+        document.getElementById('hwVpypeVersion').textContent = vpypeInfo.version;
+
+        // Display plugins
+        const pluginsContainer = document.getElementById('hwVpypePlugins');
+        if (vpypeInfo.plugins && vpypeInfo.plugins.length > 0) {
+          const pluginsHtml = `
+            <div class="hardware-label" style="margin-top: 16px; margin-bottom: 8px;">Commands/Plugins</div>
+            <div class="hardware-value" style="opacity: 0.8; font-size: 14px;">${vpypeInfo.plugins.join(', ')}</div>
+          `;
+          pluginsContainer.innerHTML = pluginsHtml;
+        } else {
+          pluginsContainer.innerHTML = `
+            <div class="hardware-label" style="margin-top: 16px; margin-bottom: 8px;">Plugins</div>
+            <div class="hardware-value" style="opacity: 0.5;">No additional plugins detected</div>
+          `;
+        }
+      } else {
+        document.getElementById('hwVpypeStatus').textContent = '✗ Not Installed';
+        document.getElementById('hwVpypeStatus').style.color = '#f87171';
+        document.getElementById('hwVpypeVersion').textContent = '-';
+        document.getElementById('hwVpypePlugins').innerHTML = `
+          <div class="hardware-label" style="margin-top: 16px; margin-bottom: 8px;">Plugins</div>
+          <div class="hardware-value" style="opacity: 0.5;">vpype not installed</div>
+        `;
+      }
+    } else {
+      document.getElementById('hwVpypeStatus').textContent = 'Error checking';
+      document.getElementById('hwVpypeStatus').style.color = '#f87171';
+    }
+
+    hardwareInfoLoaded = true;
+  } catch (error) {
+    console.error('Error loading hardware info:', error);
+  }
+}
+
+// Load hardware info when switching to the hardware tab
+const originalSwitchTab = switchTab;
+switchTab = function(tabName) {
+  originalSwitchTab(tabName);
+
+  if (tabName === 'hardware') {
+    loadHardwareInfo();
+  }
+};

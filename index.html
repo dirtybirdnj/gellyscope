@@ -15,8 +15,9 @@
       <button class="tab-button" data-tab="images">🖼️ Images</button>
       <button class="tab-button" data-tab="trace">✏️ Trace</button>
       <button class="tab-button" data-tab="vectors">📐 Vectors</button>
-      <button class="tab-button" data-tab="eject">📤 Eject</button>
+      <button class="tab-button" data-tab="eject" disabled style="display: none;">📤 Eject</button>
       <button class="tab-button" data-tab="render">🎨 Render</button>
+      <button class="tab-button" data-tab="hardware">⚙️ Hardware</button>
       <button class="tab-button" data-tab="scope" style="display: none;">Scope</button>
     </div>
 
@@ -481,6 +482,69 @@
             <div class="gcode-text-container" id="gcodeTextContainer" style="display: none;">
               <textarea class="gcode-text" id="gcodeText" readonly></textarea>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hardware Tab -->
+    <div class="tab-content" id="hardwareTab">
+      <div class="hardware-container">
+        <div class="hardware-section">
+          <h2 class="hardware-section-title">Virtual CNC Machine</h2>
+          <div class="hardware-info-grid">
+            <div class="hardware-info-item">
+              <div class="hardware-label">Workspace Width</div>
+              <div class="hardware-value" id="hwWorkspaceWidth">-</div>
+            </div>
+            <div class="hardware-info-item">
+              <div class="hardware-label">Workspace Height</div>
+              <div class="hardware-value" id="hwWorkspaceHeight">-</div>
+            </div>
+            <div class="hardware-info-item">
+              <div class="hardware-label">Units</div>
+              <div class="hardware-value">mm</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hardware-section">
+          <h2 class="hardware-section-title">System Information</h2>
+          <div class="hardware-info-grid">
+            <div class="hardware-info-item">
+              <div class="hardware-label">Node.js Version</div>
+              <div class="hardware-value" id="hwNodeVersion">Loading...</div>
+            </div>
+            <div class="hardware-info-item">
+              <div class="hardware-label">npm Version</div>
+              <div class="hardware-value" id="hwNpmVersion">Loading...</div>
+            </div>
+            <div class="hardware-info-item">
+              <div class="hardware-label">Python Version</div>
+              <div class="hardware-value" id="hwPythonVersion">Loading...</div>
+            </div>
+            <div class="hardware-info-item">
+              <div class="hardware-label">Platform</div>
+              <div class="hardware-value" id="hwPlatform">Loading...</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hardware-section">
+          <h2 class="hardware-section-title">vpype Installation</h2>
+          <div class="hardware-info-grid">
+            <div class="hardware-info-item">
+              <div class="hardware-label">Status</div>
+              <div class="hardware-value" id="hwVpypeStatus">Loading...</div>
+            </div>
+            <div class="hardware-info-item">
+              <div class="hardware-label">Version</div>
+              <div class="hardware-value" id="hwVpypeVersion">-</div>
+            </div>
+          </div>
+          <div class="hardware-plugins" id="hwVpypePlugins">
+            <div class="hardware-label" style="margin-top: 16px; margin-bottom: 8px;">Plugins</div>
+            <div class="hardware-value" style="opacity: 0.5;">Loading...</div>
           </div>
         </div>
       </div>

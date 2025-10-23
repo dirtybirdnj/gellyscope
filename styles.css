@@ -2062,3 +2062,66 @@ input[type="file"] {
 ::-webkit-scrollbar-thumb:hover {
   background: #a0a0a0;
 }
+
+/* Hardware Tab Styles */
+.hardware-container {
+  padding: 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.hardware-section {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.hardware-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 20px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hardware-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.hardware-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hardware-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hardware-value {
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+}
+
+.hardware-plugins {
+  margin-top: 16px;
+}
+
+.hardware-plugins .hardware-value {
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
