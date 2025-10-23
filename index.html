@@ -11,13 +11,13 @@
   <div class="app-container">
     <!-- Tab Navigation -->
     <div class="tab-nav">
-      <button class="tab-button active" data-tab="home">🏠 Home</button>
-      <button class="tab-button" data-tab="camera">📷 Camera</button>
+      <button class="tab-button active" data-tab="camera">📷 Camera</button>
       <button class="tab-button" data-tab="images">🖼️ Images</button>
       <button class="tab-button" data-tab="trace">✏️ Trace</button>
       <button class="tab-button" data-tab="vectors">📐 Vectors</button>
-      <button class="tab-button" data-tab="eject">📤 Eject</button>
+      <button class="tab-button" data-tab="eject" id="ejectNavBtn" disabled>📤 Eject</button>
       <button class="tab-button" data-tab="render">🎨 Render</button>
+      <button class="tab-button" data-tab="hardware">⚙️ Hardware</button>
       <button class="tab-button" data-tab="scope" style="display: none;">Scope</button>
     </div>
 
@@ -27,53 +27,25 @@
         <div class="home-header">
           <h1 class="home-title">🪼 Welcome to Gellyscope</h1>
           <p class="home-subtitle">Your workspace for image tracing and G-code generation</p>
+          <p class="home-workspace-path"><span id="homeWorkspacePath">~/gellyroller</span></p>
         </div>
 
         <div class="home-stats">
-          <div class="stat-card">
+          <div class="stat-card" data-tab="images" style="cursor: pointer;">
             <div class="stat-icon">🖼️</div>
             <div class="stat-value" id="homeImageCount">0</div>
             <div class="stat-label">Images</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card" data-tab="vectors" style="cursor: pointer;">
             <div class="stat-icon">📐</div>
             <div class="stat-value" id="homeVectorCount">0</div>
             <div class="stat-label">Vectors</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card" data-tab="render" style="cursor: pointer;">
             <div class="stat-icon">🎨</div>
             <div class="stat-value" id="homeGcodeCount">0</div>
             <div class="stat-label">G-code Files</div>
           </div>
-        </div>
-
-        <div class="home-section">
-          <h2 class="home-section-title">Recent Files</h2>
-          <div class="home-files-grid" id="homeFilesGrid">
-            <div style="padding: 20px; text-align: center; opacity: 0.5;">Loading...</div>
-          </div>
-        </div>
-
-        <div class="home-section">
-          <h2 class="home-section-title">Quick Actions</h2>
-          <div class="home-actions">
-            <button class="home-action-btn" id="homeStartCamera">
-              <span class="action-icon">📷</span>
-              <span class="action-text">Capture Image</span>
-            </button>
-            <button class="home-action-btn" id="homeUploadImage">
-              <span class="action-icon">📤</span>
-              <span class="action-text">Upload Image</span>
-            </button>
-            <button class="home-action-btn" id="homeOpenGellyroller">
-              <span class="action-icon">📁</span>
-              <span class="action-text">Open Workspace Folder</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="home-footer">
-          <p class="home-footer-text">Workspace: <span id="homeWorkspacePath">~/gellyroller</span></p>
         </div>
       </div>
     </div>
@@ -433,19 +405,6 @@
             <span class="eject-info-label">Input Dimensions:</span>
             <span class="eject-info-value" id="ejectDimensions">—</span>
           </div>
-          <div class="eject-info-divider"></div>
-          <div class="eject-info-item">
-            <span class="eject-info-label">Output Dimensions:</span>
-            <span class="eject-info-label" style="margin-left: 8px;">Width:</span>
-            <input type="number" class="eject-dimension-input" id="ejectFixedWidth" placeholder="Width" min="1" step="0.1">
-            <span class="eject-info-label" style="margin-left: 8px;">Height:</span>
-            <input type="number" class="eject-dimension-input" id="ejectFixedHeight" placeholder="Height" min="1" step="0.1">
-            <select class="eject-dimension-unit" id="ejectFixedUnit">
-              <option value="mm">mm</option>
-              <option value="cm">cm</option>
-              <option value="in" selected>inches</option>
-            </select>
-          </div>
         </div>
         <div class="eject-viewer" id="ejectViewer">
           <div class="eject-message" id="ejectMessage">
@@ -531,6 +490,81 @@
               <textarea class="gcode-text" id="gcodeText" readonly></textarea>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hardware Tab -->
+    <div class="tab-content" id="hardwareTab">
+      <div class="hardware-container">
+        <div class="hardware-section">
+          <h2 class="hardware-section-title">Virtual CNC Machine</h2>
+          <div class="hardware-info-grid">
+            <div class="hardware-info-item">
+              <div class="hardware-label">Workspace Width (mm)</div>
+              <input type="number" id="hwWorkspaceWidth" value="400" min="1" step="10" class="hardware-input">
+            </div>
+            <div class="hardware-info-item">
+              <div class="hardware-label">Workspace Height (mm)</div>
+              <input type="number" id="hwWorkspaceHeight" value="400" min="1" step="10" class="hardware-input">
+            </div>
+            <div class="hardware-info-item">
+              <div class="hardware-label">Output Unit</div>
+              <select id="hwOutputUnit" class="hardware-input">
+                <option value="mm">mm (millimeters)</option>
+                <option value="cm">cm (centimeters)</option>
+                <option value="in" selected>inches</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="hardware-section">
+          <h2 class="hardware-section-title">System Information</h2>
+          <div class="hardware-info-grid">
+            <div class="hardware-info-item">
+              <div class="hardware-label">Node.js Version</div>
+              <div class="hardware-value" id="hwNodeVersion">Loading...</div>
+            </div>
+            <div class="hardware-info-item">
+              <div class="hardware-label">npm Version</div>
+              <div class="hardware-value" id="hwNpmVersion">Loading...</div>
+            </div>
+            <div class="hardware-info-item">
+              <div class="hardware-label">Python Version</div>
+              <div class="hardware-value" id="hwPythonVersion">Loading...</div>
+            </div>
+            <div class="hardware-info-item">
+              <div class="hardware-label">Platform</div>
+              <div class="hardware-value" id="hwPlatform">Loading...</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hardware-section">
+          <h2 class="hardware-section-title">vpype Installation</h2>
+          <div class="hardware-info-grid">
+            <div class="hardware-info-item">
+              <div class="hardware-label">Status</div>
+              <div class="hardware-value" id="hwVpypeStatus">Loading...</div>
+            </div>
+            <div class="hardware-info-item">
+              <div class="hardware-label">Version</div>
+              <div class="hardware-value" id="hwVpypeVersion">-</div>
+            </div>
+          </div>
+          <div class="hardware-plugins" id="hwVpypePlugins">
+            <div class="hardware-label" style="margin-top: 16px; margin-bottom: 8px;">Plugins</div>
+            <div class="hardware-value" style="opacity: 0.5;">Loading...</div>
+          </div>
+        </div>
+
+        <div class="hardware-section">
+          <h2 class="hardware-section-title">Available Paper Sizes</h2>
+          <div class="paper-sizes-list" id="paperSizesList">
+            <!-- Paper sizes will be populated here -->
+          </div>
+          <button class="add-paper-btn" id="addPaperBtn">+ Add Custom Paper Size</button>
         </div>
       </div>
     </div>

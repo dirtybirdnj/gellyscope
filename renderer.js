@@ -78,127 +78,25 @@ async function loadHomeScreen() {
     document.getElementById('homeVectorCount').textContent = vectorCount;
     document.getElementById('homeGcodeCount').textContent = gcodeCount;
 
-    // Combine all files for the grid
-    const allFiles = [];
-
-    if (imagesResult.success) {
-      imagesResult.files.forEach(file => {
-        allFiles.push({
-          type: 'image',
-          name: file.name,
-          path: file.path,
-          icon: '🖼️'
-        });
-      });
-    }
-
-    if (vectorsResult.success) {
-      vectorsResult.files.forEach(file => {
-        allFiles.push({
-          type: 'vector',
-          name: file.name,
-          path: file.path,
-          icon: '📐'
-        });
-      });
-    }
-
-    if (gcodeResult.success) {
-      gcodeResult.files.forEach(file => {
-        allFiles.push({
-          type: 'gcode',
-          name: file.name,
-          path: file.path,
-          icon: '🎨',
-          modified: file.modified
-        });
-      });
-    }
-
-    // Sort by modified date if available (most recent first)
-    allFiles.sort((a, b) => {
-      if (a.modified && b.modified) {
-        return new Date(b.modified) - new Date(a.modified);
-      }
-      return 0;
-    });
-
-    // Limit to 12 most recent files
-    const recentFiles = allFiles.slice(0, 12);
-
-    // Display files
-    const filesGrid = document.getElementById('homeFilesGrid');
-
-    if (recentFiles.length === 0) {
-      filesGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5; grid-column: 1 / -1;">No files found in workspace</div>';
-    } else {
-      filesGrid.innerHTML = '';
-
-      for (const file of recentFiles) {
-        const fileItem = document.createElement('div');
-        fileItem.className = 'home-file-item';
-        fileItem.title = file.name;
-
-        if (file.type === 'image') {
-          // Load image thumbnail
-          const imageResult = await window.electronAPI.readFileBase64(file.path);
-          if (imageResult.success) {
-            const img = document.createElement('img');
-            img.src = `data:${imageResult.mimeType};base64,${imageResult.data}`;
-            img.className = 'home-file-preview';
-            fileItem.appendChild(img);
-          }
-        } else if (file.type === 'vector') {
-          // Load SVG thumbnail
-          const svgResult = await window.electronAPI.readFileText(file.path);
-          if (svgResult.success) {
-            const svgContainer = document.createElement('div');
-            svgContainer.className = 'home-file-preview';
-            svgContainer.innerHTML = svgResult.data;
-            fileItem.appendChild(svgContainer);
-          }
-        } else {
-          // Show icon for G-code files
-          const iconDiv = document.createElement('div');
-          iconDiv.className = 'home-file-icon';
-          iconDiv.textContent = file.icon;
-          fileItem.appendChild(iconDiv);
-        }
-
-        const fileName = document.createElement('div');
-        fileName.className = 'home-file-name';
-        fileName.textContent = file.name;
-        fileItem.appendChild(fileName);
-
-        const fileType = document.createElement('div');
-        fileType.className = 'home-file-type';
-        fileType.textContent = file.type;
-        fileItem.appendChild(fileType);
-
-        // Add click handler to open file in appropriate tab
-        fileItem.addEventListener('click', () => {
-          if (file.type === 'image') {
-            switchTab('images');
-          } else if (file.type === 'vector') {
-            switchTab('vectors');
-          } else if (file.type === 'gcode') {
-            switchTab('render');
-          }
-        });
-
-        filesGrid.appendChild(fileItem);
-      }
-    }
-
     debugLog('Home screen loaded:', {imageCount, vectorCount, gcodeCount});
   } catch (error) {
     console.error('Error loading home screen:', error);
-    document.getElementById('homeFilesGrid').innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5; grid-column: 1 / -1;">Error loading files</div>';
   }
 }
 
-// Home screen quick action buttons
+// Home screen quick action buttons and stat cards
 document.addEventListener('DOMContentLoaded', () => {
+  // Stat card click handlers
+  const statCards = document.querySelectorAll('.stat-card[data-tab]');
+  statCards.forEach(card => {
+    card.addEventListener('click', () => {
+      const tabName = card.getAttribute('data-tab');
+      if (tabName) {
+        switchTab(tabName);
+      }
+    });
+  });
+
   const homeStartCamera = document.getElementById('homeStartCamera');
   const homeUploadImage = document.getElementById('homeUploadImage');
   const homeOpenGellyroller = document.getElementById('homeOpenGellyroller');
@@ -1800,6 +1698,21 @@ if (captureTraceBtn) {
       debugLog('Captured trace as:', layerName);
     }, 300);
   });
+
+  // Add Enter key shortcut for Capture Trace when on Trace tab
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      // Check if Trace tab is active
+      const traceTab = document.querySelector('[data-tab="trace"]');
+      if (traceTab && traceTab.classList.contains('active')) {
+        // Check if button is not disabled
+        if (captureTraceBtn && !captureTraceBtn.disabled) {
+          e.preventDefault();
+          captureTraceBtn.click();
+        }
+      }
+    }
+  });
 }
 
 // Count paths and points in an SVG layer
@@ -1884,6 +1797,40 @@ function updateLayersList() {
 function updateLayersDisplay() {
   // Just update the visual in the overlay
   updateLayersAndCurrentTrace();
+}
+
+// Clear the trace interface (all layers and uploaded image)
+function clearTraceInterface() {
+  // Clear all captured layers
+  capturedLayers = [];
+
+  // Clear current trace image
+  window.currentTraceImage = null;
+
+  // Clear the trace image element
+  const traceImage = document.getElementById('traceImage');
+  if (traceImage) {
+    traceImage.src = '';
+    traceImage.style.display = 'none';
+  }
+
+  // Clear the trace image container background
+  const traceImageContainer = document.getElementById('traceImageContainer');
+  if (traceImageContainer) {
+    traceImageContainer.style.backgroundImage = '';
+  }
+
+  // Update displays
+  updateLayersList();
+  updateLayersDisplay();
+
+  // Disable capture button
+  const captureBtn = document.getElementById('captureTraceBtn');
+  if (captureBtn) {
+    captureBtn.disabled = true;
+  }
+
+  console.log('Trace interface cleared');
 }
 
 // Update the display to show all captured layers + current trace stacked together
@@ -2062,6 +2009,9 @@ async function handleVectorEject(filePath) {
       };
       debugLog('Vector loaded for eject:', currentSVGData);
 
+      // Update eject nav button state
+      updateEjectNavButton();
+
       // Switch to eject tab
       switchTab('eject');
     } else {
@@ -2114,6 +2064,8 @@ switchTab = function(tabName) {
     loadGcodeFiles();
   } else if (tabName === 'eject') {
     loadEjectTab();
+  } else if (tabName === 'hardware') {
+    loadHardwareInfo();
   }
 };
 
@@ -2179,6 +2131,7 @@ async function loadGcodeFiles() {
       gcodeItem.innerHTML = `
         <div class="gcode-item-header">
           <div class="gcode-item-name" title="${file.name}">${file.name}</div>
+          <button class="gcode-delete-btn" title="Delete file">🗑️</button>
         </div>
         <div class="gcode-item-info">
           <span class="gcode-item-size">${sizeText}</span>
@@ -2187,7 +2140,12 @@ async function loadGcodeFiles() {
       `;
 
       // Click to preview
-      gcodeItem.addEventListener('click', async () => {
+      gcodeItem.addEventListener('click', async (e) => {
+        // Don't trigger if clicking delete button
+        if (e.target.classList.contains('gcode-delete-btn')) {
+          return;
+        }
+
         // Remove active class from all items
         document.querySelectorAll('.gcode-item').forEach(item => {
           item.classList.remove('active');
@@ -2200,11 +2158,46 @@ async function loadGcodeFiles() {
         await loadGcodeFile(file.path);
       });
 
+      // Delete button handler
+      const deleteBtn = gcodeItem.querySelector('.gcode-delete-btn');
+      deleteBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await handleGcodeDelete(file.path, file.name);
+      });
+
       gcodeList.appendChild(gcodeItem);
     }
   } catch (error) {
     console.error('Error loading G-code files:', error);
     gcodeList.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">Error loading G-code files</div>';
+  }
+}
+
+async function handleGcodeDelete(filePath, fileName) {
+  try {
+    const confirmed = confirm(`Are you sure you want to delete "${fileName}"?\n\nThis action cannot be undone.`);
+    if (!confirmed) return;
+
+    const result = await window.electronAPI.deleteFile(filePath);
+    if (result.success) {
+      // Reload the list
+      await loadGcodeFiles();
+
+      // Clear preview if this was the active file
+      if (currentGcodeFile === filePath) {
+        currentGcodeFile = null;
+        renderPaths = [];
+        renderCanvas.style.display = 'none';
+        renderMessage.textContent = 'Select a G-code file to preview';
+        renderMessage.style.display = 'block';
+        document.getElementById('renderZoomControls').style.display = 'none';
+      }
+    } else {
+      alert('Error deleting file: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Error deleting G-code:', error);
+    alert('Error deleting file: ' + error.message);
   }
 }
 
@@ -2249,6 +2242,10 @@ let renderPanY = 0;
 let renderBaseScale = 1;
 let renderBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 };
 let renderPaths = [];
+
+// Workspace dimensions (in mm)
+let workspaceWidth = 400;
+let workspaceHeight = 400;
 
 function renderGcode(gcodeText) {
   const lines = gcodeText.split('\n');
@@ -2356,10 +2353,10 @@ function drawGcode() {
   canvas.width = containerWidth;
   canvas.height = containerHeight;
 
-  // Calculate scale to fit the drawing in the canvas with padding
-  const padding = 40;
-  const scaleX = (containerWidth - 2 * padding) / renderBounds.width;
-  const scaleY = (containerHeight - 2 * padding) / renderBounds.height;
+  // Calculate scale to fit the workspace in the canvas with padding
+  const padding = 60;
+  const scaleX = (containerWidth - 2 * padding) / workspaceWidth;
+  const scaleY = (containerHeight - 2 * padding) / workspaceHeight;
   renderBaseScale = Math.min(scaleX, scaleY);
 
   const scale = renderBaseScale * renderZoom;
@@ -2368,13 +2365,38 @@ function drawGcode() {
   ctx.fillStyle = '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Set up transformation to center and scale the drawing
+  // Set up transformation to center and scale the workspace
   ctx.save();
   ctx.translate(containerWidth / 2 + renderPanX, containerHeight / 2 + renderPanY);
-  ctx.scale(scale, -scale); // Flip Y axis for typical G-code coordinate system
-  ctx.translate(-renderBounds.minX - renderBounds.width / 2, -renderBounds.minY - renderBounds.height / 2);
+  ctx.scale(scale, scale);
+  ctx.translate(-workspaceWidth / 2, -workspaceHeight / 2);
 
-  // Draw all paths
+  // Draw workspace border
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 2 / scale;
+  ctx.strokeRect(0, 0, workspaceWidth, workspaceHeight);
+
+  // Draw workspace grid (optional, light grid every 50mm)
+  ctx.strokeStyle = '#2a2a2a';
+  ctx.lineWidth = 0.5 / scale;
+
+  // Vertical grid lines
+  for (let x = 50; x < workspaceWidth; x += 50) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, workspaceHeight);
+    ctx.stroke();
+  }
+
+  // Horizontal grid lines
+  for (let y = 50; y < workspaceHeight; y += 50) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(workspaceWidth, y);
+    ctx.stroke();
+  }
+
+  // Draw all G-code paths
   ctx.strokeStyle = '#00ff00';
   ctx.lineWidth = 0.5 / scale; // Adjust line width based on scale
   ctx.lineCap = 'round';
@@ -2395,12 +2417,86 @@ function drawGcode() {
 
   ctx.restore();
 
+  // Draw rulers with dimension markings
+  const workspaceCenterX = containerWidth / 2 + renderPanX;
+  const workspaceCenterY = containerHeight / 2 + renderPanY;
+  const workspaceDisplayWidth = workspaceWidth * scale;
+  const workspaceDisplayHeight = workspaceHeight * scale;
+
+  const workspaceLeft = workspaceCenterX - workspaceDisplayWidth / 2;
+  const workspaceRight = workspaceCenterX + workspaceDisplayWidth / 2;
+  const workspaceTop = workspaceCenterY - workspaceDisplayHeight / 2;
+  const workspaceBottom = workspaceCenterY + workspaceDisplayHeight / 2;
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+  ctx.lineWidth = 1;
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Top horizontal ruler
+  const rulerTickInterval = 50; // mm
+  const rulerTickPixels = rulerTickInterval * scale;
+
+  // Draw horizontal ruler (top)
+  for (let x = 0; x <= workspaceWidth; x += rulerTickInterval) {
+    const pixelX = workspaceLeft + x * scale;
+
+    // Draw tick mark
+    ctx.beginPath();
+    ctx.moveTo(pixelX, workspaceTop - 5);
+    ctx.lineTo(pixelX, workspaceTop - 15);
+    ctx.stroke();
+
+    // Draw label
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fillText(`${x}`, pixelX, workspaceTop - 22);
+    ctx.restore();
+  }
+
+  // Draw horizontal ruler line
+  ctx.beginPath();
+  ctx.moveTo(workspaceLeft, workspaceTop - 5);
+  ctx.lineTo(workspaceRight, workspaceTop - 5);
+  ctx.stroke();
+
+  // Left vertical ruler
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  for (let y = 0; y <= workspaceHeight; y += rulerTickInterval) {
+    const pixelY = workspaceTop + y * scale;
+
+    // Draw tick mark
+    ctx.beginPath();
+    ctx.moveTo(workspaceLeft - 5, pixelY);
+    ctx.lineTo(workspaceLeft - 15, pixelY);
+    ctx.stroke();
+
+    // Draw label (flip to show correct Y value from bottom)
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fillText(`${workspaceHeight - y}`, workspaceLeft - 20, pixelY);
+    ctx.restore();
+  }
+
+  // Draw vertical ruler line
+  ctx.beginPath();
+  ctx.moveTo(workspaceLeft - 5, workspaceTop);
+  ctx.lineTo(workspaceLeft - 5, workspaceBottom);
+  ctx.stroke();
+
   // Draw info overlay
   ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
   ctx.font = '12px monospace';
-  ctx.fillText(`Dimensions: ${renderBounds.width.toFixed(2)} × ${renderBounds.height.toFixed(2)} mm`, 10, 20);
-  ctx.fillText(`Paths: ${renderPaths.length}`, 10, 35);
-  ctx.fillText(`Zoom: ${(renderZoom * 100).toFixed(0)}%`, 10, 50);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`Workspace: ${workspaceWidth} × ${workspaceHeight} mm`, 10, 20);
+  ctx.fillText(`G-code: ${renderBounds.width.toFixed(2)} × ${renderBounds.height.toFixed(2)} mm`, 10, 35);
+  ctx.fillText(`Paths: ${renderPaths.length}`, 10, 50);
+  ctx.fillText(`Zoom: ${(renderZoom * 100).toFixed(0)}%`, 10, 65);
 }
 
 // Zoom button handlers
@@ -2421,6 +2517,23 @@ document.getElementById('renderZoomReset')?.addEventListener('click', () => {
   drawGcode();
 });
 
+// Mouse wheel zoom for render canvas
+renderCanvas?.addEventListener('wheel', (e) => {
+  e.preventDefault();
+
+  // Determine zoom direction based on wheel delta
+  if (e.deltaY < 0) {
+    // Scroll up = zoom in
+    renderZoom *= 1.2;
+  } else {
+    // Scroll down = zoom out
+    renderZoom /= 1.2;
+  }
+
+  drawGcode();
+});
+
+// Workspace dimension handlers
 // Pan functionality with mouse drag for G-code rendering
 let renderIsPanning = false;
 let renderPanStartX = 0;
@@ -2466,6 +2579,7 @@ let ejectLayout = 'portrait'; // 'portrait' or 'landscape'
 let ejectPageBackgroundElement = null;
 let ejectOriginalAspectRatio = 1; // Store original SVG aspect ratio
 let ejectPreviousUnit = 'in'; // Track previous unit for conversion
+let ejectOutputUnit = 'in'; // Output unit for G-code generation
 
 // Function to load SVG into Eject tab
 function loadEjectTab() {
@@ -2507,30 +2621,6 @@ function loadEjectTab() {
         // Store original aspect ratio for locked scaling
         ejectOriginalAspectRatio = width / height;
         debugLog('Stored original aspect ratio:', ejectOriginalAspectRatio);
-
-        // Set default output dimensions if not already set
-        // Default to 4 inches for the smaller dimension, maintaining aspect ratio
-        const currentWidth = document.getElementById('ejectFixedWidth').value;
-        const currentHeight = document.getElementById('ejectFixedHeight').value;
-
-        if (!currentWidth || !currentHeight) {
-          let defaultWidth, defaultHeight;
-
-          if (width < height) {
-            // Portrait or square
-            defaultWidth = 4;
-            defaultHeight = 4 / ejectOriginalAspectRatio;
-          } else {
-            // Landscape
-            defaultHeight = 4;
-            defaultWidth = 4 * ejectOriginalAspectRatio;
-          }
-
-          document.getElementById('ejectFixedWidth').value = defaultWidth.toFixed(2);
-          document.getElementById('ejectFixedHeight').value = defaultHeight.toFixed(2);
-
-          debugLog('Set default output dimensions:', defaultWidth.toFixed(2) + '" × ' + defaultHeight.toFixed(2) + '"');
-        }
       } else {
         ejectDimensions.textContent = 'Unknown';
       }
@@ -2708,36 +2798,9 @@ function updateEjectPageBackground() {
   debugLog('Page size:', ejectPageSize, '→', widthMm + 'mm × ' + heightMm + 'mm');
   debugLog('Display size:', displayWidth + 'px × ' + displayHeight + 'px');
 
-  // Read output dimensions from inputs
-  const outputWidth = parseFloat(document.getElementById('ejectFixedWidth').value);
-  const outputHeight = parseFloat(document.getElementById('ejectFixedHeight').value);
-  const outputUnit = document.getElementById('ejectFixedUnit').value;
-
-  debugLog('Output dimensions:', outputWidth, '×', outputHeight, outputUnit);
-
-  let scaledWidth, scaledHeight;
-
-  if (!isNaN(outputWidth) && !isNaN(outputHeight) && outputWidth > 0 && outputHeight > 0) {
-    // Convert output dimensions to mm
-    const outputWidthMm = toMm(outputWidth, outputUnit);
-    const outputHeightMm = toMm(outputHeight, outputUnit);
-
-    // Calculate scale factor to convert mm to display pixels
-    // Using the page's display dimensions as reference
-    const mmToPixelRatio = displayWidth / widthMm;
-
-    scaledWidth = outputWidthMm * mmToPixelRatio;
-    scaledHeight = outputHeightMm * mmToPixelRatio;
-
-    debugLog('Output dimensions in mm:', outputWidthMm + 'mm × ' + outputHeightMm + 'mm');
-    debugLog('MM to pixel ratio:', mmToPixelRatio);
-    debugLog('Calculated scaled size:', scaledWidth + 'px × ' + scaledHeight + 'px');
-  } else {
-    debugLog('No output dimensions set, using full page size');
-    // Use full page size if inputs are invalid or empty
-    scaledWidth = displayWidth;
-    scaledHeight = displayHeight;
-  }
+  // Use full page size
+  const scaledWidth = displayWidth;
+  const scaledHeight = displayHeight;
 
   // Scale the svg container to fit the page
   ejectSvgContainer.style.width = scaledWidth + 'px';
@@ -2766,59 +2829,13 @@ function removeEjectPageBackground() {
   }
 }
 
-// Update page size button states based on output dimensions
+// Update page size button states
 function updateEjectPageSizeButtons() {
-  const outputWidth = parseFloat(document.getElementById('ejectFixedWidth').value);
-  const outputHeight = parseFloat(document.getElementById('ejectFixedHeight').value);
-  const outputUnit = document.getElementById('ejectFixedUnit').value;
-
-  // If no valid dimensions, enable all buttons
-  if (isNaN(outputWidth) || isNaN(outputHeight) || outputWidth <= 0 || outputHeight <= 0) {
-    document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
-      btn.disabled = false;
-      btn.style.opacity = '1';
-      btn.style.cursor = 'pointer';
-    });
-    return;
-  }
-
-  // Convert output dimensions to mm
-  const outputWidthMm = toMm(outputWidth, outputUnit);
-  const outputHeightMm = toMm(outputHeight, outputUnit);
-
-  debugLog('Checking page sizes for output:', outputWidthMm + 'mm × ' + outputHeightMm + 'mm');
-
-  // Check each page size button
+  // Enable all page size buttons
   document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
-    const size = btn.dataset.size;
-
-    // Custom size is always enabled
-    if (size === 'custom') {
-      btn.disabled = false;
-      btn.style.opacity = '1';
-      btn.style.cursor = 'pointer';
-      return;
-    }
-
-    // Get page dimensions for this size
-    const pageDimensions = PAGE_SIZES[size];
-    if (!pageDimensions) {
-      return;
-    }
-
-    const [pageWidthMm, pageHeightMm] = pageDimensions;
-
-    // Check if output fits on this page size (considering both orientations)
-    const fitsPortrait = outputWidthMm <= pageWidthMm && outputHeightMm <= pageHeightMm;
-    const fitsLandscape = outputWidthMm <= pageHeightMm && outputHeightMm <= pageWidthMm;
-    const fits = fitsPortrait || fitsLandscape;
-
-    // Enable or disable button
-    btn.disabled = !fits;
-    btn.style.opacity = fits ? '1' : '0.3';
-    btn.style.cursor = fits ? 'pointer' : 'not-allowed';
-
-    debugLog(`  ${size}: ${fits ? 'fits' : 'too large'} (${pageWidthMm}×${pageHeightMm}mm)`);
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
   });
 }
 
@@ -2881,89 +2898,51 @@ const ejectCustomUnit = document.getElementById('ejectCustomUnit');
   }
 });
 
-// Output dimension input handlers with aspect ratio locking
-const ejectFixedWidth = document.getElementById('ejectFixedWidth');
-const ejectFixedHeight = document.getElementById('ejectFixedHeight');
-const ejectFixedUnit = document.getElementById('ejectFixedUnit');
-
-// Width input - automatically adjust height to maintain aspect ratio
-if (ejectFixedWidth) {
-  ejectFixedWidth.addEventListener('input', () => {
-    const width = parseFloat(ejectFixedWidth.value);
-    if (!isNaN(width) && width > 0 && ejectOriginalAspectRatio > 0) {
-      const newHeight = width / ejectOriginalAspectRatio;
-      ejectFixedHeight.value = newHeight.toFixed(2);
-      debugLog('Width changed, adjusted height:', newHeight.toFixed(2));
-    }
-    if (ejectPageBackgroundElement) {
-      updateEjectPageBackground();
-    }
-    updateEjectPageSizeButtons();
-  });
-}
-
-// Height input - automatically adjust width to maintain aspect ratio
-if (ejectFixedHeight) {
-  ejectFixedHeight.addEventListener('input', () => {
-    const height = parseFloat(ejectFixedHeight.value);
-    if (!isNaN(height) && height > 0 && ejectOriginalAspectRatio > 0) {
-      const newWidth = height * ejectOriginalAspectRatio;
-      ejectFixedWidth.value = newWidth.toFixed(2);
-      debugLog('Height changed, adjusted width:', newWidth.toFixed(2));
-    }
-    if (ejectPageBackgroundElement) {
-      updateEjectPageBackground();
-    }
-    updateEjectPageSizeButtons();
-  });
-}
-
-// Unit change - convert values to new unit and update
-if (ejectFixedUnit) {
-  ejectFixedUnit.addEventListener('change', () => {
-    const newUnit = ejectFixedUnit.value;
-    const oldUnit = ejectPreviousUnit;
-
-    // Get current values
-    const currentWidth = parseFloat(ejectFixedWidth.value);
-    const currentHeight = parseFloat(ejectFixedHeight.value);
-
-    if (!isNaN(currentWidth) && !isNaN(currentHeight)) {
-      // Convert to mm first, then to new unit
-      const widthMm = toMm(currentWidth, oldUnit);
-      const heightMm = toMm(currentHeight, oldUnit);
-
-      const newWidth = fromMm(widthMm, newUnit);
-      const newHeight = fromMm(heightMm, newUnit);
-
-      // Update input values with appropriate precision
-      let precision = 2;
-      if (newUnit === 'mm') precision = 0;
-      else if (newUnit === 'cm') precision = 1;
-
-      ejectFixedWidth.value = newWidth.toFixed(precision);
-      ejectFixedHeight.value = newHeight.toFixed(precision);
-
-      debugLog(`Unit changed from ${oldUnit} to ${newUnit}:`,
-        `${currentWidth}${oldUnit} → ${newWidth.toFixed(precision)}${newUnit}`);
-    }
-
-    // Update previous unit tracker
-    ejectPreviousUnit = newUnit;
-
-    if (ejectPageBackgroundElement) {
-      updateEjectPageBackground();
-    }
-    updateEjectPageSizeButtons();
-  });
-}
-
 // Update eject page background on window resize
 window.addEventListener('resize', () => {
   if (ejectPageBackgroundElement) {
     updateEjectPageBackground();
   }
 });
+
+// Function to clear eject data and reset eject page
+function clearEjectData() {
+  currentSVGData = null;
+
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+  const ejectMessage = document.getElementById('ejectMessage');
+  const ejectInfoBar = document.getElementById('ejectInfoBar');
+  const ejectOutputToolbar = document.getElementById('ejectOutputToolbar');
+
+  if (ejectSvgContainer) {
+    ejectSvgContainer.innerHTML = '';
+    ejectSvgContainer.style.display = 'none';
+  }
+
+  if (ejectMessage) {
+    ejectMessage.style.display = 'flex';
+    ejectMessage.textContent = 'No vector loaded';
+  }
+
+  if (ejectInfoBar) {
+    ejectInfoBar.style.display = 'none';
+  }
+
+  if (ejectOutputToolbar) {
+    ejectOutputToolbar.style.display = 'none';
+  }
+
+  updateEjectNavButton();
+  debugLog('Eject data cleared');
+}
+
+// Update the Eject nav button state based on whether there's eject data
+function updateEjectNavButton() {
+  const ejectNavBtn = document.getElementById('ejectNavBtn');
+  if (ejectNavBtn) {
+    ejectNavBtn.disabled = !currentSVGData;
+  }
+}
 
 // Generate G-code button handler
 const ejectToGcodeBtn = document.getElementById('ejectToGcodeBtn');
@@ -2978,19 +2957,23 @@ if (ejectToGcodeBtn) {
       return;
     }
 
-    // Get output dimensions
-    const outputWidth = parseFloat(document.getElementById('ejectFixedWidth').value);
-    const outputHeight = parseFloat(document.getElementById('ejectFixedHeight').value);
-    const outputUnit = document.getElementById('ejectFixedUnit').value;
-
-    // Validate dimensions
-    if (isNaN(outputWidth) || isNaN(outputHeight) || outputWidth <= 0 || outputHeight <= 0) {
-      alert('Please enter valid output dimensions.');
+    // Get output dimensions from page size
+    const dimensionsMm = getEjectPageDimensions();
+    if (!dimensionsMm) {
+      alert('Invalid page dimensions.');
       return;
     }
 
+    // Convert dimensions to the output unit
+    const outputWidth = fromMm(dimensionsMm[0], ejectOutputUnit);
+    const outputHeight = fromMm(dimensionsMm[1], ejectOutputUnit);
+    const outputUnit = ejectOutputUnit;
+
     debugLog('Current SVG path:', currentSVGData.path);
     debugLog('Output dimensions:', outputWidth, 'x', outputHeight, outputUnit);
+
+    // Clear eject data before generating
+    clearEjectData();
 
     // Disable button and show loading state
     ejectToGcodeBtn.disabled = true;
@@ -3009,8 +2992,28 @@ if (ejectToGcodeBtn) {
       debugLog('Eject result:', result);
 
       if (result.success) {
-        alert(`G-code generated successfully!\n\nSaved to ~/gellyroller directory.`);
         debugLog('G-code file created:', result.gcodeFilePath);
+
+        // Switch to Render tab
+        switchTab('render');
+
+        // Reload G-code file list
+        await loadGcodeFiles();
+
+        // Auto-load the newly created file and highlight it in the list
+        await loadGcodeFile(result.gcodeFilePath);
+
+        // Find and highlight the newly created file in the list
+        const gcodeItems = document.querySelectorAll('.gcode-item');
+        gcodeItems.forEach(item => {
+          const itemName = item.querySelector('.gcode-item-name');
+          const fileName = result.gcodeFilePath.split('/').pop();
+          if (itemName && itemName.textContent.includes(fileName)) {
+            item.classList.add('active');
+          } else {
+            item.classList.remove('active');
+          }
+        });
       } else {
         alert(`Failed to generate G-code:\n\n${result.error}\n\n${result.stderr || ''}`);
         console.error('Eject failed:', result);
@@ -3259,7 +3262,7 @@ document.querySelectorAll('.section-header').forEach(header => {
 // ============ OUTPUT SCALING & PAGE SIZE ============
 
 // Page sizes in mm (width × height)
-const PAGE_SIZES = {
+let PAGE_SIZES = {
   'A0': [841, 1189],
   'A1': [594, 841],
   'A2': [420, 594],
@@ -3269,6 +3272,12 @@ const PAGE_SIZES = {
   'A6': [105, 148],
   'A7': [74, 105]
 };
+
+// Track which sizes are default (cannot be deleted)
+const DEFAULT_SIZES = new Set(['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7']);
+
+// Track which sizes are locked (predefined sizes start locked)
+let LOCKED_SIZES = new Set(['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7']);
 
 let currentPageSize = 'A4';
 let currentLayout = 'portrait'; // 'portrait' or 'landscape'
@@ -3576,6 +3585,9 @@ if (saveSvgBtn) {
           if (result.success) {
             console.log('[SVG Save] ✓ Combined SVG saved:', result.path, `(${capturedLayers.length} layers, ${widthMm}x${heightMm}mm)`);
 
+            // Clear the trace interface
+            clearTraceInterface();
+
             // Reload vectors to show the new file
             await loadVectors();
 
@@ -3788,3 +3800,276 @@ if (saveImageBtn) {
     }
   });
 } 
+
+// ============ HARDWARE TAB ============
+
+let hardwareInfoLoaded = false;
+
+async function loadHardwareInfo() {
+  if (hardwareInfoLoaded) return;
+
+  try {
+    // Set workspace input values
+    document.getElementById('hwWorkspaceWidth').value = workspaceWidth;
+    document.getElementById('hwWorkspaceHeight').value = workspaceHeight;
+    document.getElementById('hwOutputUnit').value = ejectOutputUnit;
+
+    // Add event listeners for workspace inputs
+    document.getElementById('hwWorkspaceWidth').addEventListener('input', (e) => {
+      const newWidth = parseFloat(e.target.value);
+      if (newWidth > 0) {
+        workspaceWidth = newWidth;
+        if (renderPaths.length > 0) {
+          drawGcode();
+        }
+      }
+    });
+
+    document.getElementById('hwWorkspaceHeight').addEventListener('input', (e) => {
+      const newHeight = parseFloat(e.target.value);
+      if (newHeight > 0) {
+        workspaceHeight = newHeight;
+        if (renderPaths.length > 0) {
+          drawGcode();
+        }
+      }
+    });
+
+    document.getElementById('hwOutputUnit').addEventListener('change', (e) => {
+      ejectOutputUnit = e.target.value;
+      debugLog('Output unit changed to:', ejectOutputUnit);
+    });
+
+    // Get system information
+    const systemInfoResult = await window.electronAPI.getSystemInfo();
+    if (systemInfoResult.success) {
+      const info = systemInfoResult.data;
+      document.getElementById('hwNodeVersion').textContent = info.nodeVersion;
+      document.getElementById('hwNpmVersion').textContent = info.npmVersion;
+      document.getElementById('hwPythonVersion').textContent = info.pythonVersion;
+      document.getElementById('hwPlatform').textContent = info.platform;
+    } else {
+      document.getElementById('hwNodeVersion').textContent = 'Error loading';
+      document.getElementById('hwNpmVersion').textContent = 'Error loading';
+      document.getElementById('hwPythonVersion').textContent = 'Error loading';
+      document.getElementById('hwPlatform').textContent = 'Error loading';
+    }
+
+    // Get vpype information
+    const vpypeInfoResult = await window.electronAPI.getVpypeInfo();
+    if (vpypeInfoResult.success) {
+      const vpypeInfo = vpypeInfoResult.data;
+
+      if (vpypeInfo.installed) {
+        document.getElementById('hwVpypeStatus').textContent = '✓ Installed';
+        document.getElementById('hwVpypeStatus').style.color = '#4ade80';
+        document.getElementById('hwVpypeVersion').textContent = vpypeInfo.version;
+
+        // Display plugins
+        const pluginsContainer = document.getElementById('hwVpypePlugins');
+        if (vpypeInfo.plugins && vpypeInfo.plugins.length > 0) {
+          const pluginsHtml = `
+            <div class="hardware-label" style="margin-top: 16px; margin-bottom: 8px;">Commands/Plugins</div>
+            <div class="hardware-value" style="opacity: 0.8; font-size: 14px;">${vpypeInfo.plugins.join(', ')}</div>
+          `;
+          pluginsContainer.innerHTML = pluginsHtml;
+        } else {
+          pluginsContainer.innerHTML = `
+            <div class="hardware-label" style="margin-top: 16px; margin-bottom: 8px;">Plugins</div>
+            <div class="hardware-value" style="opacity: 0.5;">No additional plugins detected</div>
+          `;
+        }
+      } else {
+        document.getElementById('hwVpypeStatus').textContent = '✗ Not Installed';
+        document.getElementById('hwVpypeStatus').style.color = '#f87171';
+        document.getElementById('hwVpypeVersion').textContent = '-';
+        document.getElementById('hwVpypePlugins').innerHTML = `
+          <div class="hardware-label" style="margin-top: 16px; margin-bottom: 8px;">Plugins</div>
+          <div class="hardware-value" style="opacity: 0.5;">vpype not installed</div>
+        `;
+      }
+    } else {
+      document.getElementById('hwVpypeStatus').textContent = 'Error checking';
+      document.getElementById('hwVpypeStatus').style.color = '#f87171';
+    }
+
+    // Populate paper sizes list
+    populatePaperSizesList();
+
+    // Add event listener for add paper button
+    document.getElementById('addPaperBtn').addEventListener('click', addNewPaperSize);
+
+    hardwareInfoLoaded = true;
+  } catch (error) {
+    console.error('Error loading hardware info:', error);
+  }
+}
+
+// Paper size management functions
+function populatePaperSizesList() {
+  const list = document.getElementById('paperSizesList');
+  list.innerHTML = '';
+
+  for (const [name, dimensions] of Object.entries(PAGE_SIZES)) {
+    const isLocked = LOCKED_SIZES.has(name);
+    const isDefault = DEFAULT_SIZES.has(name);
+    const item = document.createElement('div');
+    item.className = 'paper-size-item';
+    item.dataset.sizeName = name;
+
+    item.innerHTML = `
+      <input type="text" class="paper-size-name ${isDefault || isLocked ? 'locked' : ''}" value="${name}" ${isDefault || isLocked ? 'readonly' : ''}>
+      <div class="paper-dimension-label">
+        <input type="number" class="paper-dimension-input ${isLocked ? 'locked' : ''}" data-dimension="width" value="${dimensions[0]}" min="1" step="1" ${isLocked ? 'readonly' : ''}>
+      </div>
+      <div class="paper-dimension-label">
+        <input type="number" class="paper-dimension-input ${isLocked ? 'locked' : ''}" data-dimension="height" value="${dimensions[1]}" min="1" step="1" ${isLocked ? 'readonly' : ''}>
+      </div>
+      <button class="paper-lock-btn ${isLocked ? 'locked' : ''}" title="${isLocked ? 'Unlock to edit' : 'Lock'}">${isLocked ? '🔒' : '🔓'}</button>
+      <button class="paper-delete-btn" title="Delete" style="visibility: ${isDefault ? 'hidden' : 'visible'}">🗑️</button>
+    `;
+
+    // Add event listeners
+    const nameInput = item.querySelector('.paper-size-name');
+    const widthInput = item.querySelector('[data-dimension="width"]');
+    const heightInput = item.querySelector('[data-dimension="height"]');
+    const lockBtn = item.querySelector('.paper-lock-btn');
+    const deleteBtn = item.querySelector('.paper-delete-btn');
+
+    nameInput.addEventListener('change', () => updatePaperSize(name, 'name', nameInput.value));
+    widthInput.addEventListener('change', () => updatePaperSize(name, 'width', parseFloat(widthInput.value)));
+    heightInput.addEventListener('change', () => updatePaperSize(name, 'height', parseFloat(heightInput.value)));
+    lockBtn.addEventListener('click', () => togglePaperLock(name));
+    deleteBtn.addEventListener('click', () => deletePaperSize(name));
+
+    list.appendChild(item);
+  }
+}
+
+function addNewPaperSize() {
+  // Find a unique name
+  let counter = 1;
+  let newName = 'Custom';
+  while (PAGE_SIZES[newName]) {
+    newName = `Custom${counter}`;
+    counter++;
+  }
+
+  // Add new paper size with default dimensions
+  PAGE_SIZES[newName] = [210, 297]; // Default to A4 size
+
+  // Refresh the list
+  populatePaperSizesList();
+  updatePageSizeButtons();
+}
+
+function updatePaperSize(oldName, field, value) {
+  if (LOCKED_SIZES.has(oldName)) {
+    return; // Don't update locked sizes
+  }
+
+  if (field === 'name') {
+    // Don't allow renaming default sizes
+    if (DEFAULT_SIZES.has(oldName)) {
+      populatePaperSizesList();
+      return;
+    }
+
+    // Rename the paper size
+    if (value === oldName || !value.trim()) return;
+    if (PAGE_SIZES[value]) {
+      alert('A paper size with that name already exists');
+      populatePaperSizesList();
+      return;
+    }
+
+    PAGE_SIZES[value] = PAGE_SIZES[oldName];
+    delete PAGE_SIZES[oldName];
+
+    // Update current page size if it was using the old name
+    if (currentPageSize === oldName) {
+      currentPageSize = value;
+    }
+
+    populatePaperSizesList();
+    updatePageSizeButtons();
+  } else if (field === 'width' || field === 'height') {
+    if (value <= 0 || isNaN(value)) {
+      populatePaperSizesList();
+      return;
+    }
+
+    const dimensions = PAGE_SIZES[oldName];
+    if (field === 'width') {
+      dimensions[0] = value;
+    } else {
+      dimensions[1] = value;
+    }
+  }
+}
+
+function togglePaperLock(name) {
+  if (LOCKED_SIZES.has(name)) {
+    LOCKED_SIZES.delete(name);
+  } else {
+    LOCKED_SIZES.add(name);
+  }
+  populatePaperSizesList();
+}
+
+function deletePaperSize(name) {
+  if (DEFAULT_SIZES.has(name)) {
+    return; // Don't delete default sizes
+  }
+
+  const confirmed = confirm(`Delete paper size "${name}"?`);
+  if (!confirmed) return;
+
+  delete PAGE_SIZES[name];
+  LOCKED_SIZES.delete(name); // Remove from locked set if it was there
+
+  // If this was the current page size, switch to A4
+  if (currentPageSize === name) {
+    currentPageSize = 'A4';
+  }
+
+  populatePaperSizesList();
+  updatePageSizeButtons();
+}
+
+function updatePageSizeButtons() {
+  // Update the page size buttons on Trace and Eject tabs
+  const traceButtonGroup = document.querySelector('.page-size-group');
+  const ejectButtonGroup = document.querySelector('.eject-page-size-btn')?.parentElement;
+
+  if (traceButtonGroup) {
+    updateButtonGroup(traceButtonGroup, false);
+  }
+  if (ejectButtonGroup) {
+    updateButtonGroup(ejectButtonGroup, true);
+  }
+}
+
+function updateButtonGroup(group, isEject) {
+  // Get all current buttons except "custom"
+  const customBtn = group.querySelector('[data-size="custom"]');
+  group.innerHTML = '';
+
+  // Add buttons for each paper size
+  for (const name of Object.keys(PAGE_SIZES)) {
+    const btn = document.createElement('button');
+    btn.className = isEject ? 'page-size-btn eject-page-size-btn' : 'page-size-btn';
+    btn.dataset.size = name;
+    btn.textContent = name;
+    if (currentPageSize === name) {
+      btn.classList.add('active');
+    }
+    group.appendChild(btn);
+  }
+
+  // Re-add custom button
+  if (customBtn) {
+    group.appendChild(customBtn.cloneNode(true));
+  }
+}
+
