@@ -4,6 +4,7 @@
 import { debugLog } from './shared/debug.js';
 import { switchTab } from './shared/tabs.js';
 import { escapeHtml } from './shared/utils.js';
+import { setState } from './shared/state.js';
 import { currentPageSize, setCurrentPageSize } from './hardware.js';
 
 // Import sub-modules
@@ -574,14 +575,25 @@ export function initTraceTab() {
             if (result.success) {
               console.log('[SVG Save] ✓ Combined SVG saved:', result.path, `(${capturedLayers.length} layers, ${widthMm}x${heightMm}mm)`);
 
-              // TODO: loadVectors should be imported from vectors module when it's created
+              // Store SVG data in state for eject tab
+              const svgData = {
+                path: result.path,
+                content: svgString
+              };
+              setState({ currentSVGData: svgData });
+
               // Reload vectors to show the new file
               if (typeof loadVectors === 'function') {
                 await loadVectors();
               }
 
-              // Switch to vectors tab
-              switchTab('vectors');
+              // Switch to eject tab and load the saved SVG
+              switchTab('eject');
+
+              // Dynamically import and load eject tab
+              import('./eject.js').then(module => {
+                module.loadEjectTab();
+              });
 
               // Clear trace interface after successful save
               clearTraceInterface();

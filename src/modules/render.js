@@ -255,7 +255,7 @@ export async function loadGcodeFiles() {
  * Load and display a specific G-code file
  * @param {string} filePath - Path to the G-code file
  */
-async function loadGcodeFile(filePath) {
+export async function loadGcodeFile(filePath) {
   try {
     // Read the G-code file
     const result = await window.electronAPI.readFileText(filePath);

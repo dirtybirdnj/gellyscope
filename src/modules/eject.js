@@ -3,6 +3,7 @@
 
 import { debugLog } from './shared/debug.js';
 import { state, setState } from './shared/state.js';
+import { switchTab } from './shared/tabs.js';
 import { toMm, fromMm, mmToInches, mmToCm } from './shared/utils.js';
 import { PAGE_SIZES } from './hardware.js';
 
@@ -565,8 +566,16 @@ async function handleEjectToGcode() {
     debugLog('Eject result:', result);
 
     if (result.success) {
-      alert(`G-code generated successfully!\n\nSaved to ~/gellyroller directory.`);
       debugLog('G-code file created:', result.gcodeFilePath);
+
+      // Switch to render tab and load the generated G-code
+      switchTab('render');
+
+      // Dynamically import and load the G-code file in render tab
+      import('./render.js').then(async (module) => {
+        await module.loadGcodeFiles(); // Refresh the file list
+        await module.loadGcodeFile(result.gcodeFilePath); // Load the specific file
+      });
 
       // Clear eject data after generating
       setState({ currentSVGData: null });
