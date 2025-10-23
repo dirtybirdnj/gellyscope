@@ -2331,7 +2331,7 @@ function drawGcode() {
   // Set up transformation to center and scale the workspace
   ctx.save();
   ctx.translate(containerWidth / 2 + renderPanX, containerHeight / 2 + renderPanY);
-  ctx.scale(scale, -scale); // Flip Y axis for typical G-code coordinate system
+  ctx.scale(scale, scale);
   ctx.translate(-workspaceWidth / 2, -workspaceHeight / 2);
 
   // Draw workspace border
@@ -2477,6 +2477,22 @@ document.getElementById('renderZoomReset')?.addEventListener('click', () => {
   renderZoom = 1;
   renderPanX = 0;
   renderPanY = 0;
+  drawGcode();
+});
+
+// Mouse wheel zoom for render canvas
+renderCanvas?.addEventListener('wheel', (e) => {
+  e.preventDefault();
+
+  // Determine zoom direction based on wheel delta
+  if (e.deltaY < 0) {
+    // Scroll up = zoom in
+    renderZoom *= 1.2;
+  } else {
+    // Scroll down = zoom out
+    renderZoom /= 1.2;
+  }
+
   drawGcode();
 });
 
