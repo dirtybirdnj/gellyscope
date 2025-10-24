@@ -577,20 +577,20 @@ function drawPaperOutline(ctx, scale) {
   ctx.strokeStyle = '#ff00ff'; // Bright magenta/pink
   ctx.lineWidth = 2 / scale;
   ctx.setLineDash([8 / scale, 4 / scale]); // Dashed line to differentiate from work area
-  ctx.strokeRect(left, top, paperWidth, paperHeight);
+  ctx.strokeRect(left, bottom, paperWidth, paperHeight);
   ctx.setLineDash([]);
 
   // Add semi-transparent fill to make it more visible
   ctx.fillStyle = 'rgba(255, 0, 255, 0.05)'; // Very light pink fill
-  ctx.fillRect(left, top, paperWidth, paperHeight);
+  ctx.fillRect(left, bottom, paperWidth, paperHeight);
 
   // Draw "Paper" label
   ctx.scale(1, -1); // Flip text right-side up
   ctx.fillStyle = 'rgba(255, 0, 255, 0.9)';
   ctx.font = `bold ${12 / scale}px monospace`;
   ctx.textAlign = 'left';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText('Paper', left + 5 / scale, -top - 5 / scale);
+  ctx.textBaseline = 'top';
+  ctx.fillText('Paper', left + 5 / scale, -(bottom + paperHeight) + 5 / scale);
 
   ctx.restore();
 }
