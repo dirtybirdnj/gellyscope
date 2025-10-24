@@ -159,6 +159,30 @@ body {
   opacity: 1;
 }
 
+/* Tab warning indicator */
+.tab-button .tab-warning {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: var(--error-color);
+  color: white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 1;
+  border: 2px solid var(--top-bar-bg);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+.tab-button.has-warning {
+  color: var(--error-color);
+}
+
 /* Tab Content */
 .tab-content {
   flex: 1;
@@ -2360,12 +2384,128 @@ input[type="file"] {
   margin: 0 auto;
   overflow-y: auto;
   height: 100%;
-  background: #ffffff;
+  background: var(--canvas-bg);
+}
+
+/* vpype Warning Banner */
+.vpype-warning-banner {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 2px solid var(--error-color);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.warning-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.warning-icon {
+  font-size: 32px;
+}
+
+.warning-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #991b1b;
+  margin: 0;
+}
+
+.warning-message {
+  font-size: 15px;
+  color: #7f1d1d;
+  line-height: 1.6;
+  margin: 0 0 20px 0;
+}
+
+.warning-install h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #991b1b;
+  margin: 0 0 16px 0;
+}
+
+.install-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.install-step {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.step-number {
+  background: var(--error-color);
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-content p {
+  margin: 0 0 8px 0;
+  color: #7f1d1d;
+  font-size: 14px;
+}
+
+.step-content code {
+  display: block;
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  color: #450a0a;
+  margin: 4px 0;
+}
+
+.step-note {
+  font-size: 12px;
+  color: #991b1b;
+  font-style: italic;
+  margin-top: 8px;
+}
+
+.warning-footer {
+  font-size: 13px;
+  color: #7f1d1d;
+  margin: 0;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.warning-footer a {
+  color: #991b1b;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.warning-footer a:hover {
+  color: #7f1d1d;
 }
 
 .hardware-section {
-  background: #f8f8f8;
-  border: 1px solid #d0d0d0;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-light);
   border-radius: 4px;
   padding: 20px;
   margin-bottom: 20px;
@@ -2374,10 +2514,10 @@ input[type="file"] {
 .hardware-section-title {
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   margin: 0 0 16px 0;
   padding-bottom: 8px;
-  border-bottom: 1px solid #d0d0d0;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .hardware-info-grid {
@@ -2395,7 +2535,7 @@ input[type="file"] {
 .hardware-label {
   font-size: 11px;
   font-weight: 600;
-  color: #666;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
@@ -2403,7 +2543,7 @@ input[type="file"] {
 .hardware-value {
   font-size: 14px;
   font-weight: 400;
-  color: #333;
+  color: var(--text-primary);
   font-family: 'Courier New', monospace;
 }
 
@@ -2415,7 +2555,7 @@ input[type="file"] {
   font-size: 13px;
   line-height: 1.5;
   white-space: pre-wrap;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .hardware-input {
@@ -2423,20 +2563,20 @@ input[type="file"] {
   padding: 6px 10px;
   font-size: 13px;
   font-family: 'Courier New', monospace;
-  border: 1px solid #c0c0c0;
-  background: #ffffff;
-  color: #333;
+  border: 1px solid var(--border-light);
+  background: var(--content-bg);
+  color: var(--text-primary);
   border-radius: 3px;
 }
 
 .hardware-input:hover {
-  border-color: #999;
+  border-color: var(--text-secondary);
 }
 
 .hardware-input:focus {
   outline: none;
-  border-color: #007acc;
-  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1);
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(30, 144, 255, 0.2);
 }
 
 /* Paper Sizes Section */

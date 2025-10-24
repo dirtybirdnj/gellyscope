@@ -541,6 +541,49 @@
     <!-- Hardware Tab -->
     <div class="tab-content" id="hardwareTab">
       <div class="hardware-container">
+        <!-- vpype Warning Banner -->
+        <div class="vpype-warning-banner" id="vpypeWarningBanner" style="display: none;">
+          <div class="warning-header">
+            <span class="warning-icon">⚠️</span>
+            <h3 class="warning-title">vpype Required for G-code Generation</h3>
+          </div>
+          <p class="warning-message">
+            You need <strong>vpype</strong> installed to generate G-code files from your vectors.
+            vpype is a powerful command-line tool for manipulating and optimizing SVG files for plotters and CNC machines.
+          </p>
+          <div class="warning-install">
+            <h4>Installation Instructions:</h4>
+            <div class="install-steps">
+              <div class="install-step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                  <p><strong>Install Python 3.9 or later</strong> (if not already installed)</p>
+                  <code>python3 --version</code>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                  <p><strong>Install vpype via pip</strong></p>
+                  <code>pip install vpype</code>
+                  <p class="step-note">Or for user installation: <code>pip install --user vpype</code></p>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                  <p><strong>Verify installation</strong></p>
+                  <code>vpype --version</code>
+                </div>
+              </div>
+            </div>
+            <p class="warning-footer">
+              After installation, restart Gellyroller to detect vpype.
+              For more information, visit <a href="https://vpype.readthedocs.io" target="_blank" rel="noopener">vpype documentation</a>.
+            </p>
+          </div>
+        </div>
+
         <div class="hardware-section">
           <h2 class="hardware-section-title">Virtual CNC Machine</h2>
           <div class="hardware-info-grid">
