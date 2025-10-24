@@ -1,4 +1,5 @@
 import { debugLog } from './shared/debug.js';
+import { workspaceWidth, workspaceHeight } from './hardware.js';
 
 // ============ RENDER TAB ============
 
@@ -443,10 +444,112 @@ export function drawGcode() {
 
   ctx.restore();
 
+  // Draw work area bounding box and dimension lines
+  drawWorkAreaBounds(ctx, containerWidth, containerHeight, scale);
+
   // Draw info overlay
   ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
   ctx.font = '12px monospace';
   ctx.fillText(`Dimensions: ${renderBounds.width.toFixed(2)} × ${renderBounds.height.toFixed(2)} mm`, 10, 20);
   ctx.fillText(`Paths: ${renderPaths.length}`, 10, 35);
   ctx.fillText(`Zoom: ${(renderZoom * 100).toFixed(0)}%`, 10, 50);
+}
+
+/**
+ * Draw the work area bounding box with dimension labels
+ * Shows the CNC machine's work area as a reference frame
+ * @param {CanvasRenderingContext2D} ctx - Canvas context
+ * @param {number} containerWidth - Width of the container
+ * @param {number} containerHeight - Height of the container
+ * @param {number} scale - Current scale factor
+ */
+function drawWorkAreaBounds(ctx, containerWidth, containerHeight, scale) {
+  // Get current workspace dimensions from hardware settings
+  const wsWidth = workspaceWidth;
+  const wsHeight = workspaceHeight;
+
+  // Calculate work area dimensions in canvas pixels
+  const workAreaWidth = wsWidth * scale;
+  const workAreaHeight = wsHeight * scale;
+
+  // Calculate center position (accounting for pan)
+  const centerX = containerWidth / 2 + renderPanX;
+  const centerY = containerHeight / 2 + renderPanY;
+
+  // Calculate corners of the work area
+  const left = centerX - workAreaWidth / 2;
+  const top = centerY - workAreaHeight / 2;
+  const right = centerX + workAreaWidth / 2;
+  const bottom = centerY + workAreaHeight / 2;
+
+  ctx.save();
+
+  // Draw the work area bounding box
+  ctx.strokeStyle = '#ff6600';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([10, 5]);
+  ctx.strokeRect(left, top, workAreaWidth, workAreaHeight);
+  ctx.setLineDash([]);
+
+  // Draw dimension labels
+  ctx.fillStyle = '#ff6600';
+  ctx.font = 'bold 12px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Helper function to convert mm to display format
+  const formatDimension = (mm) => {
+    const inches = (mm / 25.4).toFixed(2);
+    const cm = (mm / 10).toFixed(1);
+    return `${inches}" / ${cm}cm / ${mm.toFixed(0)}mm`;
+  };
+
+  // Top dimension label (width)
+  const topLabelY = top - 20;
+  if (topLabelY > 0) {
+    ctx.fillText(formatDimension(wsWidth), centerX, topLabelY);
+
+    // Draw dimension line
+    ctx.strokeStyle = '#ff6600';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(left, top - 10);
+    ctx.lineTo(left, top - 15);
+    ctx.moveTo(left, top - 12);
+    ctx.lineTo(right, top - 12);
+    ctx.moveTo(right, top - 10);
+    ctx.lineTo(right, top - 15);
+    ctx.stroke();
+  }
+
+  // Right dimension label (height)
+  const rightLabelX = right + 70;
+  if (rightLabelX < containerWidth) {
+    ctx.save();
+    ctx.translate(rightLabelX, centerY);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(formatDimension(wsHeight), 0, 0);
+    ctx.restore();
+
+    // Draw dimension line
+    ctx.strokeStyle = '#ff6600';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(right + 10, top);
+    ctx.lineTo(right + 15, top);
+    ctx.moveTo(right + 12, top);
+    ctx.lineTo(right + 12, bottom);
+    ctx.moveTo(right + 10, bottom);
+    ctx.lineTo(right + 15, bottom);
+    ctx.stroke();
+  }
+
+  // Draw corner labels
+  ctx.font = '10px monospace';
+  ctx.fillStyle = 'rgba(255, 102, 0, 0.7)';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Work Area', left + 5, top + 5);
+
+  ctx.restore();
 }
