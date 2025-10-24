@@ -279,11 +279,12 @@ ipcMain.handle('delete-file', async (event, filePath) => {
 });
 
 // IPC Handler for converting SVG to G-code using vpype
-ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputHeight, unit) => {
+ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputHeight, unit, position = 'center') => {
   try {
     debugLog('=== EJECT-TO-GCODE HANDLER CALLED ===');
     debugLog('SVG file path:', svgFilePath);
     debugLog('Output dimensions:', outputWidth, 'x', outputHeight, unit);
+    debugLog('Work area position:', position);
 
     // Verify the file exists
     if (!fs.existsSync(svgFilePath)) {
@@ -305,6 +306,60 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
 
     debugLog('Converted dimensions to mm:', widthMm, 'x', heightMm);
 
+    // Calculate position offset based on selected position
+    // Work area is assumed to be 400mm × 400mm (from hardware.js defaults)
+    const workAreaWidth = 400;
+    const workAreaHeight = 400;
+    const margin = 5; // 5mm margin for paper
+    const paperWidth = widthMm + (margin * 2);
+    const paperHeight = heightMm + (margin * 2);
+
+    let translateX, translateY;
+
+    // Calculate X offset based on position
+    switch (position) {
+      case 'top-left':
+      case 'center-left':
+      case 'bottom-left':
+        translateX = paperWidth / 2;
+        break;
+      case 'top-center':
+      case 'center':
+      case 'bottom-center':
+        translateX = workAreaWidth / 2;
+        break;
+      case 'top-right':
+      case 'center-right':
+      case 'bottom-right':
+        translateX = workAreaWidth - (paperWidth / 2);
+        break;
+      default:
+        translateX = workAreaWidth / 2; // Default to center
+    }
+
+    // Calculate Y offset based on position
+    switch (position) {
+      case 'top-left':
+      case 'top-center':
+      case 'top-right':
+        translateY = workAreaHeight - (paperHeight / 2);
+        break;
+      case 'center-left':
+      case 'center':
+      case 'center-right':
+        translateY = workAreaHeight / 2;
+        break;
+      case 'bottom-left':
+      case 'bottom-center':
+      case 'bottom-right':
+        translateY = paperHeight / 2;
+        break;
+      default:
+        translateY = workAreaHeight / 2; // Default to center
+    }
+
+    debugLog('Position offsets:', `X: ${translateX}mm, Y: ${translateY}mm`);
+
     // Use gellyroller directory in user's home for G-code output
     const homeDir = os.homedir();
     const gcodePath = path.join(homeDir, 'gellyroller');
@@ -323,13 +378,13 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
     const vpypeConfigPath = path.join(__dirname, 'vpype.toml');
     debugLog('vpype config path:', vpypeConfigPath);
 
-    // Build vpype command - scale to target dimensions and center
-    // The layout command fits the drawing to the specified page size and centers it
+    // Build vpype command - scale to target dimensions and position in work area
+    // The layout command fits the drawing to the specified page size
     const vpypeArgs = [
       '--config', vpypeConfigPath,
       'read', svgFilePath,  // Read original SVG
       'layout', '--fit-to-margins', '0mm', `${widthMm}mmx${heightMm}mm`,  // Scale to output dimensions with no margins
-      'translate', `${widthMm/2}mm`, `${heightMm/2}mm`,  // Translate so center is at (width/2, height/2)
+      'translate', `${translateX}mm`, `${translateY}mm`,  // Position in work area based on user selection
       'gwrite', '-p', 'johnny5', gcodeFilePath
     ];
 

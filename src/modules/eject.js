@@ -17,6 +17,7 @@ let ejectPreviousUnit = 'in'; // Track previous unit for conversion
 let ejectScale = 100; // Scale percentage for the art (100 = 100%)
 let ejectPositionX = 0; // X offset in pixels from center
 let ejectPositionY = 0; // Y offset in pixels from center
+let ejectWorkAreaPosition = 'center'; // Position in work area: top-left, top-center, top-right, center-left, center, center-right, bottom-left, bottom-center, bottom-right
 let isDragging = false;
 let dragStartX = 0;
 let dragStartY = 0;
@@ -435,6 +436,21 @@ function handleLayoutToggle(btn) {
 }
 
 /**
+ * Handle work area position button click
+ */
+function handleWorkAreaPositionClick(btn) {
+  const position = btn.dataset.position;
+
+  // Update active state
+  document.querySelectorAll('.position-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  ejectWorkAreaPosition = position;
+
+  debugLog('Work area position changed:', position);
+}
+
+/**
  * Handle page size button click
  */
 function handlePageSizeClick(btn) {
@@ -684,15 +700,17 @@ async function handleEjectToGcode() {
   ejectToGcodeBtn.innerHTML = '<span>⏳</span> Generating...';
 
   try {
-    // Call the backend to convert SVG to G-code with scaled dimensions
+    // Call the backend to convert SVG to G-code with scaled dimensions and position
     const result = await window.electronAPI.ejectToGcode(
       state.currentSVGData.path,
       scaledOutputWidth,
       scaledOutputHeight,
-      outputUnit
+      outputUnit,
+      ejectWorkAreaPosition
     );
 
     debugLog('Eject result:', result);
+    debugLog('Work area position:', ejectWorkAreaPosition);
 
     if (result.success) {
       debugLog('G-code file created:', result.gcodeFilePath);
@@ -743,6 +761,11 @@ export function initEjectTab() {
   // Layout toggle handlers
   document.querySelectorAll('.eject-layout-toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => handleLayoutToggle(btn));
+  });
+
+  // Work area position button handlers
+  document.querySelectorAll('.position-btn').forEach(btn => {
+    btn.addEventListener('click', () => handleWorkAreaPositionClick(btn));
   });
 
   // Page size button handlers
@@ -808,4 +831,9 @@ export function updateEjectNavButton() {
   if (ejectNavBtn) {
     ejectNavBtn.disabled = !state.currentSVGData;
   }
+}
+
+// Export function to get current work area position
+export function getEjectWorkAreaPosition() {
+  return ejectWorkAreaPosition;
 }
