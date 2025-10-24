@@ -588,7 +588,7 @@ ipcMain.handle('get-system-info', async () => {
       const pythonVersion = await new Promise((resolve) => {
         exec('python3 --version 2>&1 || python --version 2>&1', (error, stdout) => {
           if (error) {
-            resolve('Not found');
+            resolve('Not installed');
           } else {
             resolve(stdout.trim().replace('Python ', ''));
           }
@@ -596,7 +596,25 @@ ipcMain.handle('get-system-info', async () => {
       });
       systemInfo.pythonVersion = pythonVersion;
     } catch (error) {
-      systemInfo.pythonVersion = 'Not found';
+      systemInfo.pythonVersion = 'Not installed';
+    }
+
+    // Get pip version
+    try {
+      const { exec } = require('child_process');
+      const pipVersion = await new Promise((resolve) => {
+        exec('pip --version 2>&1 || pip3 --version 2>&1', (error, stdout) => {
+          if (error) {
+            resolve('Not installed');
+          } else {
+            const versionMatch = stdout.match(/pip\s+([\d.]+)/);
+            resolve(versionMatch ? versionMatch[1] : 'Installed');
+          }
+        });
+      });
+      systemInfo.pipVersion = pipVersion;
+    } catch (error) {
+      systemInfo.pipVersion = 'Not installed';
     }
 
     return { success: true, data: systemInfo };
