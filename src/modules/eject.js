@@ -4,7 +4,7 @@
 import { debugLog } from './shared/debug.js';
 import { state, setState } from './shared/state.js';
 import { toMm, fromMm } from './shared/utils.js';
-import { PAGE_SIZES } from './hardware.js';
+import { PAGE_SIZES, getWorkspaceWidth, getWorkspaceHeight } from './hardware.js';
 
 // ============ MODULE STATE ============
 
@@ -365,12 +365,39 @@ function updateEjectPageSizeButtons() {
   const outputHeight = parseFloat(document.getElementById('ejectCustomHeight').value);
   const outputUnit = document.getElementById('ejectCustomUnit').value;
 
-  // If no valid dimensions, enable all buttons
+  // Get work area dimensions for validation
+  const workAreaWidth = getWorkspaceWidth();
+  const workAreaHeight = getWorkspaceHeight();
+
+  // If no valid dimensions, check only against work area
   if (isNaN(outputWidth) || isNaN(outputHeight) || outputWidth <= 0 || outputHeight <= 0) {
     document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
-      btn.disabled = false;
-      btn.style.opacity = '1';
-      btn.style.cursor = 'pointer';
+      const size = btn.dataset.size;
+
+      // Custom size is always enabled
+      if (size === 'custom') {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        return;
+      }
+
+      // Get page dimensions for this size
+      const pageDimensions = PAGE_SIZES[size];
+      if (!pageDimensions) {
+        return;
+      }
+
+      const [pageWidthMm, pageHeightMm] = pageDimensions;
+
+      // Check if page fits in work area (considering both orientations)
+      const fitsPortrait = pageWidthMm <= workAreaWidth && pageHeightMm <= workAreaHeight;
+      const fitsLandscape = pageWidthMm <= workAreaHeight && pageHeightMm <= workAreaWidth;
+      const fitsInWorkArea = fitsPortrait || fitsLandscape;
+
+      btn.disabled = !fitsInWorkArea;
+      btn.style.opacity = fitsInWorkArea ? '1' : '0.3';
+      btn.style.cursor = fitsInWorkArea ? 'pointer' : 'not-allowed';
     });
     return;
   }
@@ -380,6 +407,7 @@ function updateEjectPageSizeButtons() {
   const outputHeightMm = toMm(outputHeight, outputUnit) * (ejectScale / 100);
 
   debugLog('Checking page sizes for output:', outputWidthMm + 'mm × ' + outputHeightMm + 'mm', '(scale:', ejectScale + '%)');
+  debugLog('Work area:', workAreaWidth + 'mm × ' + workAreaHeight + 'mm');
 
   // Check each page size button
   document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
@@ -404,14 +432,28 @@ function updateEjectPageSizeButtons() {
     // Check if output fits on this page size (considering both orientations)
     const fitsPortrait = outputWidthMm <= pageWidthMm && outputHeightMm <= pageHeightMm;
     const fitsLandscape = outputWidthMm <= pageHeightMm && outputHeightMm <= pageWidthMm;
-    const fits = fitsPortrait || fitsLandscape;
+    const fitsOnPage = fitsPortrait || fitsLandscape;
+
+    // Check if page fits in work area (considering both orientations)
+    const pageInWorkAreaPortrait = pageWidthMm <= workAreaWidth && pageHeightMm <= workAreaHeight;
+    const pageInWorkAreaLandscape = pageWidthMm <= workAreaHeight && pageHeightMm <= workAreaWidth;
+    const fitsInWorkArea = pageInWorkAreaPortrait || pageInWorkAreaLandscape;
+
+    // Enable only if BOTH conditions are true
+    const fits = fitsOnPage && fitsInWorkArea;
 
     // Enable or disable button
     btn.disabled = !fits;
     btn.style.opacity = fits ? '1' : '0.3';
     btn.style.cursor = fits ? 'pointer' : 'not-allowed';
 
-    debugLog(`  ${size}: ${fits ? 'fits' : 'too large'} (${pageWidthMm}×${pageHeightMm}mm)`);
+    if (!fitsInWorkArea) {
+      debugLog(`  ${size}: too large for work area (${pageWidthMm}×${pageHeightMm}mm)`);
+    } else if (!fitsOnPage) {
+      debugLog(`  ${size}: artwork too large (${pageWidthMm}×${pageHeightMm}mm)`);
+    } else {
+      debugLog(`  ${size}: fits (${pageWidthMm}×${pageHeightMm}mm)`);
+    }
   });
 }
 
