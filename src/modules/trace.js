@@ -1135,13 +1135,8 @@ export function initTraceTab() {
             if (result.success) {
               console.log('[SVG Save] ✓ Combined SVG saved:', result.path, `(${capturedLayers.length} layers, ${widthMm}x${heightMm}mm)`);
 
-              // TODO: loadVectors should be imported from vectors module when it's created
-              // Reload vectors to show the new file
-              if (typeof loadVectors === 'function') {
-                await loadVectors();
-              }
-
-              // Switch to vectors tab
+              // Switch to vectors tab - the enhanced switchTab in renderer.js
+              // will automatically call loadVectors() for the vectors tab
               switchTab('vectors');
 
               // Clear trace interface after successful save
