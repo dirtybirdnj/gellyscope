@@ -1,6 +1,5 @@
 // Trace Tab Module
 import { debugLog } from './shared/debug.js';
-import { switchTab } from './shared/tabs.js';
 import { toMm, escapeHtml } from './shared/utils.js';
 import { PAGE_SIZES, currentPageSize, setCurrentPageSize } from './hardware.js';
 
@@ -53,7 +52,7 @@ export function showImageInTraceTab(imageSrc, fileName) {
   }
 
   // Switch to trace tab
-  switchTab('trace');
+  window.switchTab('trace');
 
   // Automatically run the trace process after image loads
   // Only run this for the initial load, not when we update the processed image
@@ -1135,9 +1134,9 @@ export function initTraceTab() {
             if (result.success) {
               console.log('[SVG Save] ✓ Combined SVG saved:', result.path, `(${capturedLayers.length} layers, ${widthMm}x${heightMm}mm)`);
 
-              // Switch to vectors tab - the enhanced switchTab in renderer.js
-              // will automatically call loadVectors() for the vectors tab
-              switchTab('vectors');
+              // Switch to vectors tab - use window.switchTab which is the enhanced
+              // version from renderer.js that automatically calls loadVectors()
+              window.switchTab('vectors');
 
               // Clear trace interface after successful save
               clearTraceInterface();
