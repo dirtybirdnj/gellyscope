@@ -80,29 +80,24 @@ export function loadEjectTab() {
         ejectOriginalAspectRatio = width / height;
         debugLog('Stored original aspect ratio:', ejectOriginalAspectRatio);
 
-        // Set default output dimensions if not already set
+        // Always set output dimensions based on the loaded SVG
         // Default to 4 inches for the smaller dimension, maintaining aspect ratio
-        const currentWidth = document.getElementById('ejectCustomWidth').value;
-        const currentHeight = document.getElementById('ejectCustomHeight').value;
+        let defaultWidth, defaultHeight;
 
-        if (!currentWidth || !currentHeight) {
-          let defaultWidth, defaultHeight;
-
-          if (width < height) {
-            // Portrait or square
-            defaultWidth = 4;
-            defaultHeight = 4 / ejectOriginalAspectRatio;
-          } else {
-            // Landscape
-            defaultHeight = 4;
-            defaultWidth = 4 * ejectOriginalAspectRatio;
-          }
-
-          document.getElementById('ejectCustomWidth').value = defaultWidth.toFixed(2);
-          document.getElementById('ejectCustomHeight').value = defaultHeight.toFixed(2);
-
-          debugLog('Set default output dimensions:', defaultWidth.toFixed(2) + '" × ' + defaultHeight.toFixed(2) + '"');
+        if (width < height) {
+          // Portrait or square
+          defaultWidth = 4;
+          defaultHeight = 4 / ejectOriginalAspectRatio;
+        } else {
+          // Landscape
+          defaultHeight = 4;
+          defaultWidth = 4 * ejectOriginalAspectRatio;
         }
+
+        document.getElementById('ejectCustomWidth').value = defaultWidth.toFixed(2);
+        document.getElementById('ejectCustomHeight').value = defaultHeight.toFixed(2);
+
+        debugLog('Set output dimensions:', defaultWidth.toFixed(2) + '" × ' + defaultHeight.toFixed(2) + '"');
       } else {
         ejectDimensions.textContent = 'Unknown';
       }

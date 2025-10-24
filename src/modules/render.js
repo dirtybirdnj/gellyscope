@@ -1,5 +1,5 @@
 import { debugLog } from './shared/debug.js';
-import { workspaceWidth, workspaceHeight } from './hardware.js';
+import { getWorkspaceWidth, getWorkspaceHeight } from './hardware.js';
 
 // ============ RENDER TAB ============
 
@@ -465,8 +465,8 @@ export function drawGcode() {
  */
 function drawWorkAreaBounds(ctx, containerWidth, containerHeight, scale) {
   // Get current workspace dimensions from hardware settings
-  const wsWidth = workspaceWidth;
-  const wsHeight = workspaceHeight;
+  const wsWidth = getWorkspaceWidth();
+  const wsHeight = getWorkspaceHeight();
 
   // Calculate work area dimensions in canvas pixels
   const workAreaWidth = wsWidth * scale;

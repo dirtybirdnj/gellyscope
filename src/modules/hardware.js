@@ -29,6 +29,15 @@ export let workspaceWidth = 400;
 export let workspaceHeight = 400;
 export let ejectOutputUnit = 'in'; // Output unit for G-code generation
 
+// Getter functions to access current values
+export function getWorkspaceWidth() {
+  return workspaceWidth;
+}
+
+export function getWorkspaceHeight() {
+  return workspaceHeight;
+}
+
 // Track if hardware info has been loaded
 let hardwareInfoLoaded = false;
 
