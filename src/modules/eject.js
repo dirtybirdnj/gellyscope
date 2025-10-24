@@ -695,12 +695,29 @@ async function handleEjectToGcode() {
     debugLog('Eject result:', result);
 
     if (result.success) {
-      alert(`G-code generated successfully!\n\nSaved to ~/gellyroller directory.`);
       debugLog('G-code file created:', result.gcodeFilePath);
 
       // Clear eject data after generating
       setState({ currentSVGData: null });
       updateEjectNavButton();
+
+      // Navigate to render tab with the newly created file
+      window.switchTab('render');
+
+      // Wait a moment for the render tab to load, then select the file
+      setTimeout(async () => {
+        // Find and click the G-code item that matches our file
+        const gcodeItems = document.querySelectorAll('.gcode-item');
+        const fileName = result.gcodeFilePath.split('/').pop();
+
+        for (const item of gcodeItems) {
+          const nameElement = item.querySelector('.gcode-item-name');
+          if (nameElement && nameElement.textContent === fileName) {
+            item.click();
+            break;
+          }
+        }
+      }, 100);
     } else {
       alert(`Failed to generate G-code:\n\n${result.error}\n\n${result.stderr || ''}`);
       console.error('Eject failed:', result);

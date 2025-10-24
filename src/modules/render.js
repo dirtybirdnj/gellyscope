@@ -442,10 +442,10 @@ export function drawGcode() {
     ctx.stroke();
   }
 
-  ctx.restore();
+  // Draw work area bounding box in the same coordinate space as G-code
+  drawWorkAreaBounds(ctx, scale);
 
-  // Draw work area bounding box and dimension lines
-  drawWorkAreaBounds(ctx, containerWidth, containerHeight, scale);
+  ctx.restore();
 
   // Draw info overlay
   ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
@@ -453,22 +453,57 @@ export function drawGcode() {
   ctx.fillText(`Dimensions: ${renderBounds.width.toFixed(2)} × ${renderBounds.height.toFixed(2)} mm`, 10, 20);
   ctx.fillText(`Paths: ${renderPaths.length}`, 10, 35);
   ctx.fillText(`Zoom: ${(renderZoom * 100).toFixed(0)}%`, 10, 50);
+
+  // Draw work area dimensions in screen space
+  drawWorkAreaDimensions(ctx, containerWidth, containerHeight, scale);
 }
 
 /**
- * Draw the work area bounding box with dimension labels
+ * Draw the work area bounding box in G-code coordinate space
  * Shows the CNC machine's work area as a reference frame
- * @param {CanvasRenderingContext2D} ctx - Canvas context
+ * @param {CanvasRenderingContext2D} ctx - Canvas context (in transformed G-code space)
+ * @param {number} scale - Current scale factor
+ */
+function drawWorkAreaBounds(ctx, scale) {
+  // Get current workspace dimensions from hardware settings (in mm)
+  const wsWidth = getWorkspaceWidth();
+  const wsHeight = getWorkspaceHeight();
+
+  // Draw the work area bounding box centered at origin (in mm coordinates)
+  const left = -wsWidth / 2;
+  const top = -wsHeight / 2;
+
+  // Draw the bounding box
+  ctx.strokeStyle = '#ff6600';
+  ctx.lineWidth = 2 / scale; // Line width needs to be scaled
+  ctx.setLineDash([10 / scale, 5 / scale]); // Dash pattern needs to be scaled
+  ctx.strokeRect(left, top, wsWidth, wsHeight);
+  ctx.setLineDash([]);
+
+  // Draw "Work Area" label
+  ctx.save();
+  ctx.scale(1, -1); // Flip text right-side up (since Y is flipped in G-code space)
+  ctx.fillStyle = 'rgba(255, 102, 0, 0.8)';
+  ctx.font = `${12 / scale}px monospace`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Work Area', left + 5 / scale, -top - 15 / scale);
+  ctx.restore();
+}
+
+/**
+ * Draw work area dimension labels in screen space
+ * @param {CanvasRenderingContext2D} ctx - Canvas context (in screen space)
  * @param {number} containerWidth - Width of the container
  * @param {number} containerHeight - Height of the container
  * @param {number} scale - Current scale factor
  */
-function drawWorkAreaBounds(ctx, containerWidth, containerHeight, scale) {
+function drawWorkAreaDimensions(ctx, containerWidth, containerHeight, scale) {
   // Get current workspace dimensions from hardware settings
   const wsWidth = getWorkspaceWidth();
   const wsHeight = getWorkspaceHeight();
 
-  // Calculate work area dimensions in canvas pixels
+  // Calculate work area dimensions in screen pixels
   const workAreaWidth = wsWidth * scale;
   const workAreaHeight = wsHeight * scale;
 
@@ -476,26 +511,13 @@ function drawWorkAreaBounds(ctx, containerWidth, containerHeight, scale) {
   const centerX = containerWidth / 2 + renderPanX;
   const centerY = containerHeight / 2 + renderPanY;
 
-  // Calculate corners of the work area
+  // Calculate corners
   const left = centerX - workAreaWidth / 2;
   const top = centerY - workAreaHeight / 2;
   const right = centerX + workAreaWidth / 2;
   const bottom = centerY + workAreaHeight / 2;
 
   ctx.save();
-
-  // Draw the work area bounding box
-  ctx.strokeStyle = '#ff6600';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([10, 5]);
-  ctx.strokeRect(left, top, workAreaWidth, workAreaHeight);
-  ctx.setLineDash([]);
-
-  // Draw dimension labels
-  ctx.fillStyle = '#ff6600';
-  ctx.font = 'bold 12px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
 
   // Helper function to convert mm to display format
   const formatDimension = (mm) => {
@@ -504,9 +526,15 @@ function drawWorkAreaBounds(ctx, containerWidth, containerHeight, scale) {
     return `${inches}" / ${cm}cm / ${mm.toFixed(0)}mm`;
   };
 
+  // Draw dimension labels
+  ctx.fillStyle = '#ff6600';
+  ctx.font = 'bold 12px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
   // Top dimension label (width)
   const topLabelY = top - 20;
-  if (topLabelY > 0) {
+  if (topLabelY > 10) {
     ctx.fillText(formatDimension(wsWidth), centerX, topLabelY);
 
     // Draw dimension line
@@ -524,7 +552,7 @@ function drawWorkAreaBounds(ctx, containerWidth, containerHeight, scale) {
 
   // Right dimension label (height)
   const rightLabelX = right + 70;
-  if (rightLabelX < containerWidth) {
+  if (rightLabelX < containerWidth - 10) {
     ctx.save();
     ctx.translate(rightLabelX, centerY);
     ctx.rotate(-Math.PI / 2);
@@ -543,13 +571,6 @@ function drawWorkAreaBounds(ctx, containerWidth, containerHeight, scale) {
     ctx.lineTo(right + 15, bottom);
     ctx.stroke();
   }
-
-  // Draw corner labels
-  ctx.font = '10px monospace';
-  ctx.fillStyle = 'rgba(255, 102, 0, 0.7)';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  ctx.fillText('Work Area', left + 5, top + 5);
 
   ctx.restore();
 }
