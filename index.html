@@ -469,10 +469,26 @@
                 <option value="in" selected>inches</option>
               </select>
             </div>
+            <div class="work-area-note" id="ejectWorkAreaNote" style="display: none;">
+              <span class="note-text">⚠️ Artwork too large for available paper sizes. <a href="#" id="ejectWorkAreaHelp" class="help-link">Adjust work area or scale</a></span>
+              <div class="help-details" id="ejectWorkAreaHelpDetails" style="display: none;">
+                <p><strong>Your artwork is larger than the available paper sizes.</strong></p>
+                <p>Options to fix this:</p>
+                <ul>
+                  <li><strong>Reduce Scale:</strong> Use the scale slider above to make artwork smaller (e.g., 50%)</li>
+                  <li><strong>Increase Work Area:</strong> Go to Hardware tab and increase workspace dimensions if your CNC supports it</li>
+                  <li><strong>Use Custom Size:</strong> Click "Custom" button and enter larger dimensions that fit your work area</li>
+                </ul>
+                <p>Red-shaded buttons indicate pages too small for current artwork size.</p>
+              </div>
+            </div>
           </div>
           <div class="toolbar-section toolbar-section-right">
             <button class="eject-action-btn" id="ejectToGcodeBtn">
               <span>🚀</span> Generate G-code
+            </button>
+            <button class="settings-btn" id="ejectSettingsBtn" title="Hardware Settings">
+              <span>⚙️</span>
             </button>
           </div>
         </div>

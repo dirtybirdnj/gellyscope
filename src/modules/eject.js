@@ -374,11 +374,10 @@ function updateEjectPageSizeButtons() {
     document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
       const size = btn.dataset.size;
 
-      // Custom size is always enabled
+      // Custom size is always visible
       if (size === 'custom') {
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.style.cursor = 'pointer';
+        btn.style.display = '';
+        btn.classList.remove('too-small');
         return;
       }
 
@@ -395,9 +394,9 @@ function updateEjectPageSizeButtons() {
       const fitsLandscape = pageWidthMm <= workAreaHeight && pageHeightMm <= workAreaWidth;
       const fitsInWorkArea = fitsPortrait || fitsLandscape;
 
-      btn.disabled = !fitsInWorkArea;
-      btn.style.opacity = fitsInWorkArea ? '1' : '0.3';
-      btn.style.cursor = fitsInWorkArea ? 'pointer' : 'not-allowed';
+      // Hide if too large for work area, otherwise show
+      btn.style.display = fitsInWorkArea ? '' : 'none';
+      btn.classList.remove('too-small');
     });
     return;
   }
@@ -409,15 +408,17 @@ function updateEjectPageSizeButtons() {
   debugLog('Checking page sizes for output:', outputWidthMm + 'mm × ' + outputHeightMm + 'mm', '(scale:', ejectScale + '%)');
   debugLog('Work area:', workAreaWidth + 'mm × ' + workAreaHeight + 'mm');
 
+  // Track if any pages are too small
+  let hasPagesTooSmall = false;
+
   // Check each page size button
   document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
     const size = btn.dataset.size;
 
-    // Custom size is always enabled
+    // Custom size is always visible
     if (size === 'custom') {
-      btn.disabled = false;
-      btn.style.opacity = '1';
-      btn.style.cursor = 'pointer';
+      btn.style.display = '';
+      btn.classList.remove('too-small');
       return;
     }
 
@@ -439,22 +440,38 @@ function updateEjectPageSizeButtons() {
     const pageInWorkAreaLandscape = pageWidthMm <= workAreaHeight && pageHeightMm <= workAreaWidth;
     const fitsInWorkArea = pageInWorkAreaPortrait || pageInWorkAreaLandscape;
 
-    // Enable only if BOTH conditions are true
-    const fits = fitsOnPage && fitsInWorkArea;
-
-    // Enable or disable button
-    btn.disabled = !fits;
-    btn.style.opacity = fits ? '1' : '0.3';
-    btn.style.cursor = fits ? 'pointer' : 'not-allowed';
-
+    // Hide if too large for work area
     if (!fitsInWorkArea) {
-      debugLog(`  ${size}: too large for work area (${pageWidthMm}×${pageHeightMm}mm)`);
-    } else if (!fitsOnPage) {
-      debugLog(`  ${size}: artwork too large (${pageWidthMm}×${pageHeightMm}mm)`);
+      btn.style.display = 'none';
+      btn.classList.remove('too-small');
+      debugLog(`  ${size}: hidden (too large for work area ${pageWidthMm}×${pageHeightMm}mm)`);
+      return;
+    }
+
+    // Show the button
+    btn.style.display = '';
+
+    // If artwork doesn't fit on page, shade red
+    if (!fitsOnPage) {
+      btn.classList.add('too-small');
+      hasPagesTooSmall = true;
+      debugLog(`  ${size}: too small for artwork (${pageWidthMm}×${pageHeightMm}mm)`);
     } else {
+      btn.classList.remove('too-small');
       debugLog(`  ${size}: fits (${pageWidthMm}×${pageHeightMm}mm)`);
     }
   });
+
+  // Show/hide the help note about work area
+  const workAreaNote = document.getElementById('ejectWorkAreaNote');
+  if (workAreaNote) {
+    // Show note if all visible pages are too small
+    const visibleButtons = Array.from(document.querySelectorAll('.eject-page-size-btn'))
+      .filter(btn => btn.style.display !== 'none' && btn.dataset.size !== 'custom');
+    const allTooSmall = visibleButtons.length > 0 && visibleButtons.every(btn => btn.classList.contains('too-small'));
+
+    workAreaNote.style.display = allTooSmall ? 'block' : 'none';
+  }
 }
 
 // ============ EVENT HANDLERS ============
@@ -857,6 +874,25 @@ export function initEjectTab() {
   const ejectToGcodeBtn = document.getElementById('ejectToGcodeBtn');
   if (ejectToGcodeBtn) {
     ejectToGcodeBtn.addEventListener('click', handleEjectToGcode);
+  }
+
+  // Settings button handler (navigate to Hardware tab)
+  const ejectSettingsBtn = document.getElementById('ejectSettingsBtn');
+  if (ejectSettingsBtn) {
+    ejectSettingsBtn.addEventListener('click', () => {
+      window.switchTab('hardware');
+    });
+  }
+
+  // Help link handler (toggle help details)
+  const ejectWorkAreaHelp = document.getElementById('ejectWorkAreaHelp');
+  const ejectWorkAreaHelpDetails = document.getElementById('ejectWorkAreaHelpDetails');
+  if (ejectWorkAreaHelp && ejectWorkAreaHelpDetails) {
+    ejectWorkAreaHelp.addEventListener('click', (e) => {
+      e.preventDefault();
+      const isVisible = ejectWorkAreaHelpDetails.style.display !== 'none';
+      ejectWorkAreaHelpDetails.style.display = isVisible ? 'none' : 'block';
+    });
   }
 
   // Window resize handler
