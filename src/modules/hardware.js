@@ -79,6 +79,210 @@ function updateHardwareTabWarning() {
 }
 
 /**
+ * Update the warning banner with contextual installation instructions
+ */
+function updateWarningBanner(banner, pythonOk, pipAvailable, pythonVersion, platform) {
+  banner.style.display = 'block';
+
+  // Determine what needs to be installed
+  const needsPython = !pythonOk;
+  const needsPip = pythonOk && !pipAvailable;
+  const needsVpype = pythonOk && pipAvailable;
+
+  let content = '';
+
+  if (needsPython) {
+    // Python not installed or wrong version
+    content = generatePythonWarning(pythonVersion, platform);
+  } else if (needsPip) {
+    // Python OK but pip missing
+    content = generatePipWarning(platform);
+  } else {
+    // Python and pip OK, just need vpype
+    content = generateVpypeWarning();
+  }
+
+  banner.innerHTML = content;
+}
+
+/**
+ * Generate warning for missing or old Python
+ */
+function generatePythonWarning(currentVersion, platform) {
+  const isWindows = platform?.toLowerCase().includes('win');
+  const isMac = platform?.toLowerCase().includes('darwin') || platform?.toLowerCase().includes('mac');
+  const isLinux = !isWindows && !isMac;
+
+  return `
+    <div class="warning-header">
+      <span class="warning-icon">⚠️</span>
+      <h3 class="warning-title">Python 3.9+ Required</h3>
+    </div>
+    <p class="warning-message">
+      ${currentVersion && currentVersion !== 'Not installed'
+        ? `Your current Python version (${currentVersion}) is too old. vpype requires Python 3.9 or later.`
+        : 'Python is not installed. vpype requires Python 3.9 or later to run.'}
+    </p>
+    <div class="warning-install">
+      <h4>Install Python:</h4>
+      <div class="install-steps">
+        ${isWindows ? `
+        <div class="install-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <p><strong>Download Python from python.org</strong></p>
+            <p>Visit <a href="https://www.python.org/downloads/" target="_blank" rel="noopener">python.org/downloads</a> and download Python 3.9 or later</p>
+            <p class="step-note">⚠️ Important: Check "Add Python to PATH" during installation</p>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <p><strong>Verify installation</strong></p>
+            <code>python --version</code>
+            <p class="step-note">Open a new Command Prompt or PowerShell window after installation</p>
+          </div>
+        </div>
+        ` : isMac ? `
+        <div class="install-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <p><strong>Install Homebrew</strong> (if not already installed)</p>
+            <code>/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</code>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <p><strong>Install Python via Homebrew</strong></p>
+            <code>brew install python@3.11</code>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <p><strong>Verify installation</strong></p>
+            <code>python3 --version</code>
+          </div>
+        </div>
+        ` : `
+        <div class="install-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <p><strong>Install Python using your package manager</strong></p>
+            <p>Ubuntu/Debian:</p>
+            <code>sudo apt update && sudo apt install python3 python3-pip</code>
+            <p>Fedora:</p>
+            <code>sudo dnf install python3 python3-pip</code>
+            <p>Arch Linux:</p>
+            <code>sudo pacman -S python python-pip</code>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <p><strong>Verify installation</strong></p>
+            <code>python3 --version</code>
+          </div>
+        </div>
+        `}
+      </div>
+      <p class="warning-footer">
+        After installing Python, restart Gellyroller and return to this tab to continue with vpype installation.
+      </p>
+    </div>
+  `;
+}
+
+/**
+ * Generate warning for missing pip
+ */
+function generatePipWarning(platform) {
+  const isWindows = platform?.toLowerCase().includes('win');
+
+  return `
+    <div class="warning-header">
+      <span class="warning-icon">⚠️</span>
+      <h3 class="warning-title">pip Required</h3>
+    </div>
+    <p class="warning-message">
+      Python is installed, but <strong>pip</strong> (Python's package installer) is missing.
+      You need pip to install vpype.
+    </p>
+    <div class="warning-install">
+      <h4>Install pip:</h4>
+      <div class="install-steps">
+        <div class="install-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <p><strong>Download get-pip.py</strong></p>
+            <code>curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py</code>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <p><strong>Run the installer</strong></p>
+            <code>${isWindows ? 'python' : 'python3'} get-pip.py</code>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <p><strong>Verify installation</strong></p>
+            <code>pip --version</code>
+          </div>
+        </div>
+      </div>
+      <p class="warning-footer">
+        After installing pip, restart Gellyroller to continue with vpype installation.
+      </p>
+    </div>
+  `;
+}
+
+/**
+ * Generate warning for missing vpype
+ */
+function generateVpypeWarning() {
+  return `
+    <div class="warning-header">
+      <span class="warning-icon">⚠️</span>
+      <h3 class="warning-title">vpype Required for G-code Generation</h3>
+    </div>
+    <p class="warning-message">
+      You need <strong>vpype</strong> installed to generate G-code files from your vectors.
+      vpype is a powerful command-line tool for manipulating and optimizing SVG files for plotters and CNC machines.
+    </p>
+    <div class="warning-install">
+      <h4>Installation Instructions:</h4>
+      <div class="install-steps">
+        <div class="install-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <p><strong>Install vpype via pip</strong></p>
+            <code>pip install vpype</code>
+            <p class="step-note">Or for user installation: <code>pip install --user vpype</code></p>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <p><strong>Verify installation</strong></p>
+            <code>vpype --version</code>
+          </div>
+        </div>
+      </div>
+      <p class="warning-footer">
+        After installation, restart Gellyroller to detect vpype.
+        For more information, visit <a href="https://vpype.readthedocs.io" target="_blank" rel="noopener">vpype documentation</a>.
+      </p>
+    </div>
+  `;
+}
+
+
+/**
  * Initialize the Hardware tab
  * Sets up event listeners for the Hardware tab
  */
@@ -127,21 +331,46 @@ export async function loadHardwareInfo() {
 
     // Get system information
     const systemInfoResult = await window.electronAPI.getSystemInfo();
+    let pythonVersion = null;
+    let pythonMajor = 0;
+    let pythonMinor = 0;
+    let pipAvailable = false;
+
     if (systemInfoResult.success) {
       const info = systemInfoResult.data;
       document.getElementById('hwNodeVersion').textContent = info.nodeVersion;
       document.getElementById('hwNpmVersion').textContent = info.npmVersion;
       document.getElementById('hwPythonVersion').textContent = info.pythonVersion;
+      document.getElementById('hwPipVersion').textContent = info.pipVersion || 'Not installed';
       document.getElementById('hwPlatform').textContent = info.platform;
+
+      // Parse Python version
+      pythonVersion = info.pythonVersion;
+      if (pythonVersion && pythonVersion !== 'Not installed') {
+        const versionMatch = pythonVersion.match(/(\d+)\.(\d+)/);
+        if (versionMatch) {
+          pythonMajor = parseInt(versionMatch[1]);
+          pythonMinor = parseInt(versionMatch[2]);
+        }
+      }
+
+      // Check if pip is available
+      pipAvailable = info.pipVersion && info.pipVersion !== 'Not installed';
     } else {
       document.getElementById('hwNodeVersion').textContent = 'Error loading';
       document.getElementById('hwNpmVersion').textContent = 'Error loading';
       document.getElementById('hwPythonVersion').textContent = 'Error loading';
+      document.getElementById('hwPipVersion').textContent = 'Error loading';
       document.getElementById('hwPlatform').textContent = 'Error loading';
     }
 
     // Get vpype information
     const vpypeInfoResult = await window.electronAPI.getVpypeInfo();
+
+    // Determine what's missing and update warning banner accordingly
+    const pythonOk = pythonMajor > 3 || (pythonMajor === 3 && pythonMinor >= 9);
+    const warningBanner = document.getElementById('vpypeWarningBanner');
+
     if (vpypeInfoResult.success) {
       const vpypeInfo = vpypeInfoResult.data;
 
@@ -151,8 +380,7 @@ export async function loadHardwareInfo() {
         document.getElementById('hwVpypeStatus').style.color = '#4ade80';
         document.getElementById('hwVpypeVersion').textContent = vpypeInfo.version;
 
-        // Hide warning banner
-        const warningBanner = document.getElementById('vpypeWarningBanner');
+        // Hide warning banner - everything is good
         if (warningBanner) {
           warningBanner.style.display = 'none';
         }
@@ -181,10 +409,9 @@ export async function loadHardwareInfo() {
           <div class="hardware-value" style="opacity: 0.5;">vpype not installed</div>
         `;
 
-        // Show warning banner
-        const warningBanner = document.getElementById('vpypeWarningBanner');
+        // Show warning banner with appropriate message
         if (warningBanner) {
-          warningBanner.style.display = 'block';
+          updateWarningBanner(warningBanner, pythonOk, pipAvailable, pythonVersion, systemInfoResult.data?.platform);
         }
       }
     } else {
@@ -193,9 +420,8 @@ export async function loadHardwareInfo() {
       document.getElementById('hwVpypeStatus').style.color = '#f87171';
 
       // Show warning banner
-      const warningBanner = document.getElementById('vpypeWarningBanner');
       if (warningBanner) {
-        warningBanner.style.display = 'block';
+        updateWarningBanner(warningBanner, pythonOk, pipAvailable, pythonVersion, systemInfoResult.data?.platform);
       }
     }
 
