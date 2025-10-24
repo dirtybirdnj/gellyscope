@@ -34,16 +34,16 @@ let dragOffsetY = 0;
 export function loadEjectTab() {
   const ejectMessage = document.getElementById('ejectMessage');
   const ejectSvgContainer = document.getElementById('ejectSvgContainer');
-  const ejectInfoBar = document.getElementById('ejectInfoBar');
   const ejectDimensions = document.getElementById('ejectDimensions');
-  const ejectOutputToolbar = document.getElementById('ejectOutputToolbar');
+  const ejectTopToolbar = document.getElementById('ejectTopToolbar');
+  const ejectBottomToolbar = document.getElementById('ejectBottomToolbar');
 
   if (state.currentSVGData && state.currentSVGData.content) {
     // Hide message and show SVG container
     ejectMessage.style.display = 'none';
     ejectSvgContainer.style.display = 'flex';
-    ejectInfoBar.style.display = 'flex';
-    ejectOutputToolbar.style.display = 'flex';
+    ejectTopToolbar.style.display = 'flex';
+    ejectBottomToolbar.style.display = 'flex';
 
     // Reset position and scale for new SVG
     ejectPositionX = 0;
@@ -143,8 +143,8 @@ export function loadEjectTab() {
     // Show message and hide SVG container
     ejectMessage.style.display = 'block';
     ejectSvgContainer.style.display = 'none';
-    ejectInfoBar.style.display = 'none';
-    ejectOutputToolbar.style.display = 'none';
+    ejectTopToolbar.style.display = 'none';
+    ejectBottomToolbar.style.display = 'none';
     ejectMessage.textContent = 'No vector image loaded';
 
     // Update status bar to show no vector loaded
