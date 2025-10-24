@@ -456,6 +456,9 @@ export function drawGcode() {
   // Draw paper outline showing where to place paper on work area
   drawPaperOutline(ctx, scale);
 
+  // Draw reference lines from paper to work area edges
+  drawPaperReferenceLines(ctx, scale);
+
   ctx.restore();
 
   // Draw info overlay
@@ -541,6 +544,113 @@ function drawPaperOutline(ctx, scale) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillText('Paper', left + 5 / scale, -(bottom + paperHeight) + 5 / scale);
+
+  ctx.restore();
+}
+
+/**
+ * Draw reference lines from paper edges to work area edges with measurements
+ * Helps operators position paper precisely on CNC bed
+ * @param {CanvasRenderingContext2D} ctx - Canvas context (in transformed G-code space)
+ * @param {number} scale - Current scale factor
+ */
+function drawPaperReferenceLines(ctx, scale) {
+  // Paper bounds (same as drawPaperOutline)
+  const margin = 5;
+  const paperLeft = renderBounds.minX - margin;
+  const paperBottom = renderBounds.minY - margin;
+  const paperWidth = renderBounds.width + (margin * 2);
+  const paperHeight = renderBounds.height + (margin * 2);
+  const paperRight = paperLeft + paperWidth;
+  const paperTop = paperBottom + paperHeight;
+
+  // Work area bounds
+  const wsWidth = getWorkspaceWidth();
+  const wsHeight = getWorkspaceHeight();
+
+  ctx.save();
+
+  // Style for reference lines
+  ctx.strokeStyle = 'rgba(255, 0, 255, 0.4)'; // Semi-transparent pink
+  ctx.lineWidth = 1 / scale;
+  ctx.setLineDash([4 / scale, 4 / scale]); // Dotted line
+
+  // Text style for measurements
+  ctx.fillStyle = 'rgba(255, 0, 255, 0.9)';
+  ctx.font = `bold ${10 / scale}px monospace`;
+  ctx.scale(1, -1); // Flip text right-side up
+
+  // LEFT: From left edge of paper to left edge of work area (X=0)
+  const distanceLeft = paperLeft;
+  if (distanceLeft > 0) {
+    ctx.beginPath();
+    ctx.moveTo(0, -(paperBottom + paperHeight / 2));
+    ctx.lineTo(paperLeft, -(paperBottom + paperHeight / 2));
+    ctx.scale(1, -1);
+    ctx.stroke();
+    ctx.scale(1, -1);
+
+    // Measurement at midpoint
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`${distanceLeft.toFixed(1)}mm`, distanceLeft / 2, -(paperBottom + paperHeight / 2) + 3 / scale);
+  }
+
+  // RIGHT: From right edge of paper to right edge of work area
+  const distanceRight = wsWidth - paperRight;
+  if (distanceRight > 0) {
+    ctx.beginPath();
+    ctx.moveTo(paperRight, -(paperBottom + paperHeight / 2));
+    ctx.lineTo(wsWidth, -(paperBottom + paperHeight / 2));
+    ctx.scale(1, -1);
+    ctx.stroke();
+    ctx.scale(1, -1);
+
+    // Measurement at midpoint
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`${distanceRight.toFixed(1)}mm`, paperRight + distanceRight / 2, -(paperBottom + paperHeight / 2) + 3 / scale);
+  }
+
+  // BOTTOM: From bottom edge of paper to bottom edge of work area (Y=0)
+  const distanceBottom = paperBottom;
+  if (distanceBottom > 0) {
+    ctx.beginPath();
+    ctx.moveTo(paperLeft + paperWidth / 2, 0);
+    ctx.lineTo(paperLeft + paperWidth / 2, paperBottom);
+    ctx.scale(1, -1);
+    ctx.stroke();
+    ctx.scale(1, -1);
+
+    // Measurement at midpoint (rotated)
+    ctx.save();
+    ctx.translate(paperLeft + paperWidth / 2, -distanceBottom / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`${distanceBottom.toFixed(1)}mm`, 0, 3 / scale);
+    ctx.restore();
+  }
+
+  // TOP: From top edge of paper to top edge of work area
+  const distanceTop = wsHeight - paperTop;
+  if (distanceTop > 0) {
+    ctx.beginPath();
+    ctx.moveTo(paperLeft + paperWidth / 2, paperTop);
+    ctx.lineTo(paperLeft + paperWidth / 2, wsHeight);
+    ctx.scale(1, -1);
+    ctx.stroke();
+    ctx.scale(1, -1);
+
+    // Measurement at midpoint (rotated)
+    ctx.save();
+    ctx.translate(paperLeft + paperWidth / 2, -(paperTop + distanceTop / 2));
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`${distanceTop.toFixed(1)}mm`, 0, 3 / scale);
+    ctx.restore();
+  }
 
   ctx.restore();
 }
