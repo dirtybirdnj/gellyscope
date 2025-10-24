@@ -280,8 +280,6 @@ ipcMain.handle('delete-file', async (event, filePath) => {
 
 // IPC Handler for converting SVG to G-code using vpype
 ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputHeight, unit) => {
-  let tempFilePath = null;
-
   try {
     debugLog('=== EJECT-TO-GCODE HANDLER CALLED ===');
     debugLog('SVG file path:', svgFilePath);
@@ -307,47 +305,6 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
 
     debugLog('Converted dimensions to mm:', widthMm, 'x', heightMm);
 
-    // Read and scale the SVG content
-    let svgContent = fs.readFileSync(svgFilePath, 'utf8');
-    debugLog('Original SVG length:', svgContent.length);
-
-    // Parse SVG to modify viewBox
-    // Match viewBox attribute
-    const viewBoxMatch = svgContent.match(/viewBox=["']([^"']+)["']/);
-
-    if (viewBoxMatch) {
-      const viewBoxValues = viewBoxMatch[1].split(/\s+/).map(parseFloat);
-      const [minX, minY, origWidth, origHeight] = viewBoxValues;
-
-      debugLog('Original viewBox:', viewBoxValues);
-      debugLog('Scaling to:', widthMm, 'x', heightMm, 'mm');
-
-      // Create new viewBox with target dimensions in mm
-      const newViewBox = `${minX} ${minY} ${widthMm} ${heightMm}`;
-      svgContent = svgContent.replace(/viewBox=["'][^"']+["']/, `viewBox="${newViewBox}"`);
-
-      debugLog('New viewBox:', newViewBox);
-    } else {
-      // If no viewBox, try to add one based on width/height attributes
-      const widthMatch = svgContent.match(/width=["']([^"']+)["']/);
-      const heightMatch = svgContent.match(/height=["']([^"']+)["']/);
-
-      if (widthMatch && heightMatch) {
-        const origWidth = parseFloat(widthMatch[1]);
-        const origHeight = parseFloat(heightMatch[1]);
-
-        // Insert viewBox after opening svg tag
-        const viewBox = `viewBox="0 0 ${widthMm} ${heightMm}"`;
-        svgContent = svgContent.replace(/<svg/, `<svg ${viewBox}`);
-
-        debugLog('Added viewBox:', viewBox);
-      }
-    }
-
-    // Also set width and height attributes to mm
-    svgContent = svgContent.replace(/width=["'][^"']+["']/, `width="${widthMm}mm"`);
-    svgContent = svgContent.replace(/height=["'][^"']+["']/, `height="${heightMm}mm"`);
-
     // Use gellyroller directory in user's home for G-code output
     const homeDir = os.homedir();
     const gcodePath = path.join(homeDir, 'gellyroller');
@@ -356,14 +313,9 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
       debugLog('Created gellyroller directory:', gcodePath);
     }
 
-    // Write scaled SVG to temporary file
+    // Generate output filename
     const baseName = path.basename(svgFilePath, path.extname(svgFilePath));
     const timestamp = Date.now();
-    tempFilePath = path.join(gcodePath, `${baseName}_${timestamp}_scaled.svg`);
-    fs.writeFileSync(tempFilePath, svgContent, 'utf8');
-    debugLog('Scaled SVG written to:', tempFilePath);
-
-    // Generate output filename
     const gcodeFilePath = path.join(gcodePath, `${baseName}_${timestamp}.gcode`);
     debugLog('Output G-code path:', gcodeFilePath);
 
@@ -371,10 +323,13 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
     const vpypeConfigPath = path.join(__dirname, 'vpype.toml');
     debugLog('vpype config path:', vpypeConfigPath);
 
-    // Build vpype command - use project config and scaled SVG
+    // Build vpype command - scale to target dimensions and center
+    // The layout command fits the drawing to the specified page size and centers it
     const vpypeArgs = [
       '--config', vpypeConfigPath,
-      'read', tempFilePath,
+      'read', svgFilePath,  // Read original SVG
+      'layout', '--fit-to-margins', '0mm', `${widthMm}mmx${heightMm}mm`,  // Scale to output dimensions with no margins
+      'translate', `${widthMm/2}mm`, `${heightMm/2}mm`,  // Translate so center is at (width/2, height/2)
       'gwrite', '-p', 'johnny5', gcodeFilePath
     ];
 
@@ -399,16 +354,8 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
 
       vpype.on('close', (code) => {
         debugLog('vpype process exited with code:', code);
-
-        // Clean up temporary file
-        if (tempFilePath && fs.existsSync(tempFilePath)) {
-          try {
-            fs.unlinkSync(tempFilePath);
-            debugLog('Cleaned up temp file:', tempFilePath);
-          } catch (err) {
-            console.error('Error cleaning up temp file:', err);
-          }
-        }
+        debugLog('vpype stdout:', stdout);
+        debugLog('vpype stderr:', stderr);
 
         if (code === 0) {
           // Check if output file was created
@@ -422,30 +369,22 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
           } else {
             resolve({
               success: false,
-              error: 'G-code file was not created'
+              error: 'G-code file was not created',
+              stderr: stderr
             });
           }
         } else {
           resolve({
             success: false,
             error: `vpype exited with code ${code}`,
-            stderr: stderr
+            stderr: stderr,
+            stdout: stdout
           });
         }
       });
 
       vpype.on('error', (err) => {
         console.error('Error spawning vpype:', err);
-
-        // Clean up temporary file on error
-        if (tempFilePath && fs.existsSync(tempFilePath)) {
-          try {
-            fs.unlinkSync(tempFilePath);
-          } catch (cleanupErr) {
-            console.error('Error cleaning up temp file:', cleanupErr);
-          }
-        }
-
         resolve({
           success: false,
           error: 'Failed to execute vpype. Make sure vpype and vpype-gcode are installed.',
@@ -455,16 +394,6 @@ ipcMain.handle('eject-to-gcode', async (event, svgFilePath, outputWidth, outputH
     });
   } catch (error) {
     console.error('Error in eject-to-gcode handler:', error);
-
-    // Clean up temporary file on error
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      try {
-        fs.unlinkSync(tempFilePath);
-      } catch (cleanupErr) {
-        console.error('Error cleaning up temp file:', cleanupErr);
-      }
-    }
-
     return { success: false, error: error.message };
   }
 });
