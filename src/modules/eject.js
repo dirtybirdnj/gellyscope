@@ -4,7 +4,7 @@
 import { debugLog } from './shared/debug.js';
 import { state, setState } from './shared/state.js';
 import { toMm, fromMm } from './shared/utils.js';
-import { PAGE_SIZES } from './hardware.js';
+import { PAGE_SIZES, getWorkspaceWidth, getWorkspaceHeight } from './hardware.js';
 
 // ============ MODULE STATE ============
 
@@ -14,6 +14,15 @@ let ejectLayout = 'portrait'; // 'portrait' or 'landscape'
 let ejectPageBackgroundElement = null;
 let ejectOriginalAspectRatio = 1; // Store original SVG aspect ratio
 let ejectPreviousUnit = 'in'; // Track previous unit for conversion
+let ejectScale = 100; // Scale percentage for the art (100 = 100%)
+let ejectPositionX = 0; // X offset in pixels from center
+let ejectPositionY = 0; // Y offset in pixels from center
+let ejectWorkAreaPosition = 'center'; // Position in work area: top-left, top-center, top-right, center-left, center, center-right, bottom-left, bottom-center, bottom-right
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
 
 // ============ CORE FUNCTIONS ============
 
@@ -34,6 +43,17 @@ export function loadEjectTab() {
     ejectSvgContainer.style.display = 'flex';
     ejectInfoBar.style.display = 'flex';
     ejectOutputToolbar.style.display = 'flex';
+
+    // Reset position and scale for new SVG
+    ejectPositionX = 0;
+    ejectPositionY = 0;
+    ejectScale = 100;
+
+    // Update scale slider if it exists
+    const scaleSlider = document.getElementById('ejectScaleSlider');
+    const scaleValue = document.getElementById('ejectScaleValue');
+    if (scaleSlider) scaleSlider.value = 100;
+    if (scaleValue) scaleValue.textContent = '100%';
 
     ejectSvgContainer.innerHTML = state.currentSVGData.content;
 
@@ -61,29 +81,24 @@ export function loadEjectTab() {
         ejectOriginalAspectRatio = width / height;
         debugLog('Stored original aspect ratio:', ejectOriginalAspectRatio);
 
-        // Set default output dimensions if not already set
+        // Always set output dimensions based on the loaded SVG
         // Default to 4 inches for the smaller dimension, maintaining aspect ratio
-        const currentWidth = document.getElementById('ejectCustomWidth').value;
-        const currentHeight = document.getElementById('ejectCustomHeight').value;
+        let defaultWidth, defaultHeight;
 
-        if (!currentWidth || !currentHeight) {
-          let defaultWidth, defaultHeight;
-
-          if (width < height) {
-            // Portrait or square
-            defaultWidth = 4;
-            defaultHeight = 4 / ejectOriginalAspectRatio;
-          } else {
-            // Landscape
-            defaultHeight = 4;
-            defaultWidth = 4 * ejectOriginalAspectRatio;
-          }
-
-          document.getElementById('ejectCustomWidth').value = defaultWidth.toFixed(2);
-          document.getElementById('ejectCustomHeight').value = defaultHeight.toFixed(2);
-
-          debugLog('Set default output dimensions:', defaultWidth.toFixed(2) + '" × ' + defaultHeight.toFixed(2) + '"');
+        if (width < height) {
+          // Portrait or square
+          defaultWidth = 4;
+          defaultHeight = 4 / ejectOriginalAspectRatio;
+        } else {
+          // Landscape
+          defaultHeight = 4;
+          defaultWidth = 4 * ejectOriginalAspectRatio;
         }
+
+        document.getElementById('ejectCustomWidth').value = defaultWidth.toFixed(2);
+        document.getElementById('ejectCustomHeight').value = defaultHeight.toFixed(2);
+
+        debugLog('Set output dimensions:', defaultWidth.toFixed(2) + '" × ' + defaultHeight.toFixed(2) + '"');
       } else {
         ejectDimensions.textContent = 'Unknown';
       }
@@ -300,13 +315,25 @@ function updateEjectPageBackground() {
     scaledHeight = displayHeight;
   }
 
-  // Scale the svg container to fit the page
-  ejectSvgContainer.style.width = scaledWidth + 'px';
-  ejectSvgContainer.style.height = scaledHeight + 'px';
-  ejectSvgContainer.style.maxWidth = scaledWidth + 'px';
-  ejectSvgContainer.style.maxHeight = scaledHeight + 'px';
+  // Apply scale factor to the dimensions
+  const scaleFactor = ejectScale / 100;
+  const finalWidth = scaledWidth * scaleFactor;
+  const finalHeight = scaledHeight * scaleFactor;
 
-  debugLog('Eject page background updated:', ejectPageSize, widthMm + 'mm × ' + heightMm + 'mm');
+  // Scale the svg container to fit the page
+  ejectSvgContainer.style.width = finalWidth + 'px';
+  ejectSvgContainer.style.height = finalHeight + 'px';
+  ejectSvgContainer.style.maxWidth = finalWidth + 'px';
+  ejectSvgContainer.style.maxHeight = finalHeight + 'px';
+
+  // Apply position offset
+  ejectSvgContainer.style.left = `calc(50% + ${ejectPositionX}px)`;
+  ejectSvgContainer.style.top = `calc(50% + ${ejectPositionY}px)`;
+  ejectSvgContainer.style.transform = 'translate(-50%, -50%)';
+  ejectSvgContainer.style.position = 'absolute';
+  ejectSvgContainer.style.cursor = 'move';
+
+  debugLog('Eject page background updated:', ejectPageSize, widthMm + 'mm × ' + heightMm + 'mm', 'scale:', ejectScale + '%');
 }
 
 /**
@@ -338,31 +365,60 @@ function updateEjectPageSizeButtons() {
   const outputHeight = parseFloat(document.getElementById('ejectCustomHeight').value);
   const outputUnit = document.getElementById('ejectCustomUnit').value;
 
-  // If no valid dimensions, enable all buttons
+  // Get work area dimensions for validation
+  const workAreaWidth = getWorkspaceWidth();
+  const workAreaHeight = getWorkspaceHeight();
+
+  // If no valid dimensions, check only against work area
   if (isNaN(outputWidth) || isNaN(outputHeight) || outputWidth <= 0 || outputHeight <= 0) {
     document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
-      btn.disabled = false;
-      btn.style.opacity = '1';
-      btn.style.cursor = 'pointer';
+      const size = btn.dataset.size;
+
+      // Custom size is always visible
+      if (size === 'custom') {
+        btn.style.display = '';
+        btn.classList.remove('too-small');
+        return;
+      }
+
+      // Get page dimensions for this size
+      const pageDimensions = PAGE_SIZES[size];
+      if (!pageDimensions) {
+        return;
+      }
+
+      const [pageWidthMm, pageHeightMm] = pageDimensions;
+
+      // Check if page fits in work area (considering both orientations)
+      const fitsPortrait = pageWidthMm <= workAreaWidth && pageHeightMm <= workAreaHeight;
+      const fitsLandscape = pageWidthMm <= workAreaHeight && pageHeightMm <= workAreaWidth;
+      const fitsInWorkArea = fitsPortrait || fitsLandscape;
+
+      // Hide if too large for work area, otherwise show
+      btn.style.display = fitsInWorkArea ? '' : 'none';
+      btn.classList.remove('too-small');
     });
     return;
   }
 
-  // Convert output dimensions to mm
-  const outputWidthMm = toMm(outputWidth, outputUnit);
-  const outputHeightMm = toMm(outputHeight, outputUnit);
+  // Convert output dimensions to mm and apply scale factor
+  const outputWidthMm = toMm(outputWidth, outputUnit) * (ejectScale / 100);
+  const outputHeightMm = toMm(outputHeight, outputUnit) * (ejectScale / 100);
 
-  debugLog('Checking page sizes for output:', outputWidthMm + 'mm × ' + outputHeightMm + 'mm');
+  debugLog('Checking page sizes for output:', outputWidthMm + 'mm × ' + outputHeightMm + 'mm', '(scale:', ejectScale + '%)');
+  debugLog('Work area:', workAreaWidth + 'mm × ' + workAreaHeight + 'mm');
+
+  // Track if any pages are too small
+  let hasPagesTooSmall = false;
 
   // Check each page size button
   document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
     const size = btn.dataset.size;
 
-    // Custom size is always enabled
+    // Custom size is always visible
     if (size === 'custom') {
-      btn.disabled = false;
-      btn.style.opacity = '1';
-      btn.style.cursor = 'pointer';
+      btn.style.display = '';
+      btn.classList.remove('too-small');
       return;
     }
 
@@ -377,15 +433,45 @@ function updateEjectPageSizeButtons() {
     // Check if output fits on this page size (considering both orientations)
     const fitsPortrait = outputWidthMm <= pageWidthMm && outputHeightMm <= pageHeightMm;
     const fitsLandscape = outputWidthMm <= pageHeightMm && outputHeightMm <= pageWidthMm;
-    const fits = fitsPortrait || fitsLandscape;
+    const fitsOnPage = fitsPortrait || fitsLandscape;
 
-    // Enable or disable button
-    btn.disabled = !fits;
-    btn.style.opacity = fits ? '1' : '0.3';
-    btn.style.cursor = fits ? 'pointer' : 'not-allowed';
+    // Check if page fits in work area (considering both orientations)
+    const pageInWorkAreaPortrait = pageWidthMm <= workAreaWidth && pageHeightMm <= workAreaHeight;
+    const pageInWorkAreaLandscape = pageWidthMm <= workAreaHeight && pageHeightMm <= workAreaWidth;
+    const fitsInWorkArea = pageInWorkAreaPortrait || pageInWorkAreaLandscape;
 
-    debugLog(`  ${size}: ${fits ? 'fits' : 'too large'} (${pageWidthMm}×${pageHeightMm}mm)`);
+    // Hide if too large for work area
+    if (!fitsInWorkArea) {
+      btn.style.display = 'none';
+      btn.classList.remove('too-small');
+      debugLog(`  ${size}: hidden (too large for work area ${pageWidthMm}×${pageHeightMm}mm)`);
+      return;
+    }
+
+    // Show the button
+    btn.style.display = '';
+
+    // If artwork doesn't fit on page, shade red
+    if (!fitsOnPage) {
+      btn.classList.add('too-small');
+      hasPagesTooSmall = true;
+      debugLog(`  ${size}: too small for artwork (${pageWidthMm}×${pageHeightMm}mm)`);
+    } else {
+      btn.classList.remove('too-small');
+      debugLog(`  ${size}: fits (${pageWidthMm}×${pageHeightMm}mm)`);
+    }
   });
+
+  // Show/hide the help note about work area
+  const workAreaNote = document.getElementById('ejectWorkAreaNote');
+  if (workAreaNote) {
+    // Show note if all visible pages are too small
+    const visibleButtons = Array.from(document.querySelectorAll('.eject-page-size-btn'))
+      .filter(btn => btn.style.display !== 'none' && btn.dataset.size !== 'custom');
+    const allTooSmall = visibleButtons.length > 0 && visibleButtons.every(btn => btn.classList.contains('too-small'));
+
+    workAreaNote.style.display = allTooSmall ? 'block' : 'none';
+  }
 }
 
 // ============ EVENT HANDLERS ============
@@ -406,6 +492,21 @@ function handleLayoutToggle(btn) {
   updateEjectPageBackground();
 
   debugLog('Eject layout changed:', layout);
+}
+
+/**
+ * Handle work area position button click
+ */
+function handleWorkAreaPositionClick(btn) {
+  const position = btn.dataset.position;
+
+  // Update active state
+  document.querySelectorAll('.position-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  ejectWorkAreaPosition = position;
+
+  debugLog('Work area position changed:', position);
 }
 
 /**
@@ -526,6 +627,91 @@ function handleUnitChange() {
 }
 
 /**
+ * Handle scale slider input
+ */
+function handleEjectScaleInput() {
+  const scaleSlider = document.getElementById('ejectScaleSlider');
+  const scaleValue = document.getElementById('ejectScaleValue');
+
+  if (scaleSlider && scaleValue) {
+    ejectScale = parseInt(scaleSlider.value);
+    scaleValue.textContent = ejectScale + '%';
+
+    // Update the page background with new scale
+    if (ejectPageBackgroundElement) {
+      updateEjectPageBackground();
+    }
+
+    // Update available page sizes based on scaled dimensions
+    updateEjectPageSizeButtons();
+
+    debugLog('Scale changed:', ejectScale + '%');
+  }
+}
+
+/**
+ * Handle mouse down on SVG container (start drag)
+ */
+function handleSvgMouseDown(e) {
+  if (e.button !== 0) return; // Only left mouse button
+
+  isDragging = true;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  dragOffsetX = ejectPositionX;
+  dragOffsetY = ejectPositionY;
+
+  // Change cursor
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+  if (ejectSvgContainer) {
+    ejectSvgContainer.style.cursor = 'grabbing';
+  }
+
+  e.preventDefault();
+}
+
+/**
+ * Handle mouse move (drag)
+ */
+function handleSvgMouseMove(e) {
+  if (!isDragging) return;
+
+  const deltaX = e.clientX - dragStartX;
+  const deltaY = e.clientY - dragStartY;
+
+  ejectPositionX = dragOffsetX + deltaX;
+  ejectPositionY = dragOffsetY + deltaY;
+
+  // Update SVG container position
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+  if (ejectSvgContainer) {
+    ejectSvgContainer.style.left = `calc(50% + ${ejectPositionX}px)`;
+    ejectSvgContainer.style.top = `calc(50% + ${ejectPositionY}px)`;
+  }
+
+  e.preventDefault();
+}
+
+/**
+ * Handle mouse up (end drag)
+ */
+function handleSvgMouseUp(e) {
+  if (!isDragging) return;
+
+  isDragging = false;
+
+  // Restore cursor
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+  if (ejectSvgContainer) {
+    ejectSvgContainer.style.cursor = 'move';
+  }
+
+  debugLog('Art repositioned:', ejectPositionX + 'px,', ejectPositionY + 'px');
+
+  e.preventDefault();
+}
+
+/**
  * Handle window resize
  */
 function handleWindowResize() {
@@ -546,7 +732,7 @@ async function handleEjectToGcode() {
     return;
   }
 
-  // Get output dimensions
+  // Get output dimensions and apply scale
   const outputWidth = parseFloat(document.getElementById('ejectCustomWidth').value);
   const outputHeight = parseFloat(document.getElementById('ejectCustomHeight').value);
   const outputUnit = document.getElementById('ejectCustomUnit').value;
@@ -557,8 +743,14 @@ async function handleEjectToGcode() {
     return;
   }
 
+  // Apply scale factor to output dimensions
+  const scaleFactor = ejectScale / 100;
+  const scaledOutputWidth = outputWidth * scaleFactor;
+  const scaledOutputHeight = outputHeight * scaleFactor;
+
   debugLog('Current SVG path:', state.currentSVGData.path);
-  debugLog('Output dimensions:', outputWidth, 'x', outputHeight, outputUnit);
+  debugLog('Output dimensions (base):', outputWidth, 'x', outputHeight, outputUnit);
+  debugLog('Output dimensions (scaled):', scaledOutputWidth, 'x', scaledOutputHeight, outputUnit, '(' + ejectScale + '%)');
 
   // Disable button and show loading state
   const ejectToGcodeBtn = document.getElementById('ejectToGcodeBtn');
@@ -567,23 +759,42 @@ async function handleEjectToGcode() {
   ejectToGcodeBtn.innerHTML = '<span>⏳</span> Generating...';
 
   try {
-    // Call the backend to convert SVG to G-code
+    // Call the backend to convert SVG to G-code with scaled dimensions and position
     const result = await window.electronAPI.ejectToGcode(
       state.currentSVGData.path,
-      outputWidth,
-      outputHeight,
-      outputUnit
+      scaledOutputWidth,
+      scaledOutputHeight,
+      outputUnit,
+      ejectWorkAreaPosition
     );
 
     debugLog('Eject result:', result);
+    debugLog('Work area position:', ejectWorkAreaPosition);
 
     if (result.success) {
-      alert(`G-code generated successfully!\n\nSaved to ~/gellyroller directory.`);
       debugLog('G-code file created:', result.gcodeFilePath);
 
       // Clear eject data after generating
       setState({ currentSVGData: null });
       updateEjectNavButton();
+
+      // Navigate to render tab with the newly created file
+      window.switchTab('render');
+
+      // Wait a moment for the render tab to load, then select the file
+      setTimeout(async () => {
+        // Find and click the G-code item that matches our file
+        const gcodeItems = document.querySelectorAll('.gcode-item');
+        const fileName = result.gcodeFilePath.split('/').pop();
+
+        for (const item of gcodeItems) {
+          const nameElement = item.querySelector('.gcode-item-name');
+          if (nameElement && nameElement.textContent === fileName) {
+            item.click();
+            break;
+          }
+        }
+      }, 100);
     } else {
       alert(`Failed to generate G-code:\n\n${result.error}\n\n${result.stderr || ''}`);
       console.error('Eject failed:', result);
@@ -609,6 +820,11 @@ export function initEjectTab() {
   // Layout toggle handlers
   document.querySelectorAll('.eject-layout-toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => handleLayoutToggle(btn));
+  });
+
+  // Work area position button handlers
+  document.querySelectorAll('.position-btn').forEach(btn => {
+    btn.addEventListener('click', () => handleWorkAreaPositionClick(btn));
   });
 
   // Page size button handlers
@@ -640,10 +856,43 @@ export function initEjectTab() {
     ejectCustomUnit.addEventListener('change', handleUnitChange);
   }
 
+  // Scale slider handler
+  const ejectScaleSlider = document.getElementById('ejectScaleSlider');
+  if (ejectScaleSlider) {
+    ejectScaleSlider.addEventListener('input', handleEjectScaleInput);
+  }
+
+  // SVG container drag handlers
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+  if (ejectSvgContainer) {
+    ejectSvgContainer.addEventListener('mousedown', handleSvgMouseDown);
+    document.addEventListener('mousemove', handleSvgMouseMove);
+    document.addEventListener('mouseup', handleSvgMouseUp);
+  }
+
   // Generate G-code button handler
   const ejectToGcodeBtn = document.getElementById('ejectToGcodeBtn');
   if (ejectToGcodeBtn) {
     ejectToGcodeBtn.addEventListener('click', handleEjectToGcode);
+  }
+
+  // Settings button handler (navigate to Hardware tab)
+  const ejectSettingsBtn = document.getElementById('ejectSettingsBtn');
+  if (ejectSettingsBtn) {
+    ejectSettingsBtn.addEventListener('click', () => {
+      window.switchTab('hardware');
+    });
+  }
+
+  // Help link handler (toggle help details)
+  const ejectWorkAreaHelp = document.getElementById('ejectWorkAreaHelp');
+  const ejectWorkAreaHelpDetails = document.getElementById('ejectWorkAreaHelpDetails');
+  if (ejectWorkAreaHelp && ejectWorkAreaHelpDetails) {
+    ejectWorkAreaHelp.addEventListener('click', (e) => {
+      e.preventDefault();
+      const isVisible = ejectWorkAreaHelpDetails.style.display !== 'none';
+      ejectWorkAreaHelpDetails.style.display = isVisible ? 'none' : 'block';
+    });
   }
 
   // Window resize handler
@@ -660,4 +909,9 @@ export function updateEjectNavButton() {
   if (ejectNavBtn) {
     ejectNavBtn.disabled = !state.currentSVGData;
   }
+}
+
+// Export function to get current work area position
+export function getEjectWorkAreaPosition() {
+  return ejectWorkAreaPosition;
 }

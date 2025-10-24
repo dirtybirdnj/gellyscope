@@ -3,11 +3,11 @@
 
 [gwrite.johnny5]
 unit = "mm"
-document_start = "G21\nG90\nM42 P0 S1\nG0 X100 Y100\n"
-document_end = "M42 P0 S1\nG0 X200 Y200\n"
+document_start = "G21\nG90\nM42 P0 S1\n"
+document_end = "M42 P0 S1\n"
+segment_first = "M42 P0 S0\nG1 X{x:.4f} Y{y:.4f}\n"
 segment = "G1 X{x:.4f} Y{y:.4f}\n"
-segment_first = "G1 X{x:.4f} Y{y:.4f}\nM42 P0 S0\n"
-segment_last = "G1 X{x:.4f} Y{y:.4f}\n"
-line_join = "M42 P0 S1\n"
+segment_last = "G1 X{x:.4f} Y{y:.4f}\nM42 P0 S1\n"
+line_join = ""
 vertical_flip = false
 info = "This gcode profile is for the j5 plotter bot"

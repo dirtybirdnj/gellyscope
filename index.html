@@ -426,6 +426,27 @@
 
             <div class="toolbar-divider"></div>
 
+            <label class="toolbar-label">Scale</label>
+            <input type="range" class="output-scale-slider" id="ejectScaleSlider" min="10" max="400" value="100" step="5">
+            <span class="toolbar-value" id="ejectScaleValue">100%</span>
+
+            <div class="toolbar-divider"></div>
+
+            <label class="toolbar-label">Work Area Position</label>
+            <div class="work-area-position-grid" id="workAreaPositionGrid">
+              <button class="position-btn" data-position="top-left" title="Top Left">↖</button>
+              <button class="position-btn" data-position="top-center" title="Top Center">↑</button>
+              <button class="position-btn" data-position="top-right" title="Top Right">↗</button>
+              <button class="position-btn" data-position="center-left" title="Center Left">←</button>
+              <button class="position-btn active" data-position="center" title="Center">⊙</button>
+              <button class="position-btn" data-position="center-right" title="Center Right">→</button>
+              <button class="position-btn" data-position="bottom-left" title="Bottom Left">↙</button>
+              <button class="position-btn" data-position="bottom-center" title="Bottom Center">↓</button>
+              <button class="position-btn" data-position="bottom-right" title="Bottom Right">↘</button>
+            </div>
+
+            <div class="toolbar-divider"></div>
+
             <label class="toolbar-label">Page Size</label>
             <div class="page-size-group">
               <button class="page-size-btn eject-page-size-btn" data-size="A0">A0</button>
@@ -439,19 +460,35 @@
               <button class="page-size-btn eject-page-size-btn" data-size="custom">Custom</button>
             </div>
             <div class="custom-size-inputs" id="ejectCustomSizeInputs" style="display: none;">
-              <input type="number" class="custom-input" id="ejectCustomWidth" placeholder="Width" min="1" step="0.1" value="12">
+              <input type="number" class="custom-input" id="ejectCustomWidth" placeholder="Width" min="1" step="0.1">
               <span class="custom-separator">×</span>
-              <input type="number" class="custom-input" id="ejectCustomHeight" placeholder="Height" min="1" step="0.1" value="24">
+              <input type="number" class="custom-input" id="ejectCustomHeight" placeholder="Height" min="1" step="0.1">
               <select class="custom-unit" id="ejectCustomUnit">
                 <option value="mm">mm</option>
                 <option value="cm">cm</option>
                 <option value="in" selected>inches</option>
               </select>
             </div>
+            <div class="work-area-note" id="ejectWorkAreaNote" style="display: none;">
+              <span class="note-text">⚠️ Artwork too large for available paper sizes. <a href="#" id="ejectWorkAreaHelp" class="help-link">Adjust work area or scale</a></span>
+              <div class="help-details" id="ejectWorkAreaHelpDetails" style="display: none;">
+                <p><strong>Your artwork is larger than the available paper sizes.</strong></p>
+                <p>Options to fix this:</p>
+                <ul>
+                  <li><strong>Reduce Scale:</strong> Use the scale slider above to make artwork smaller (e.g., 50%)</li>
+                  <li><strong>Increase Work Area:</strong> Go to Hardware tab and increase workspace dimensions if your CNC supports it</li>
+                  <li><strong>Use Custom Size:</strong> Click "Custom" button and enter larger dimensions that fit your work area</li>
+                </ul>
+                <p>Red-shaded buttons indicate pages too small for current artwork size.</p>
+              </div>
+            </div>
           </div>
           <div class="toolbar-section toolbar-section-right">
             <button class="eject-action-btn" id="ejectToGcodeBtn">
               <span>🚀</span> Generate G-code
+            </button>
+            <button class="settings-btn" id="ejectSettingsBtn" title="Hardware Settings">
+              <span>⚙️</span>
             </button>
           </div>
         </div>

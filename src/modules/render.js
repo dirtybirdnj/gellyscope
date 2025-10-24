@@ -1,4 +1,6 @@
 import { debugLog } from './shared/debug.js';
+import { getWorkspaceWidth, getWorkspaceHeight } from './hardware.js';
+import { getEjectWorkAreaPosition } from './eject.js';
 
 // ============ RENDER TAB ============
 
@@ -404,10 +406,14 @@ export function drawGcode() {
   canvas.width = containerWidth;
   canvas.height = containerHeight;
 
-  // Calculate scale to fit the drawing in the canvas with padding
+  // Get work area dimensions - this is the SINGLE work area that exists
+  const wsWidth = getWorkspaceWidth();
+  const wsHeight = getWorkspaceHeight();
+
+  // Calculate scale to fit the WORK AREA (not the artwork) in the canvas with padding
   const padding = 40;
-  const scaleX = (containerWidth - 2 * padding) / renderBounds.width;
-  const scaleY = (containerHeight - 2 * padding) / renderBounds.height;
+  const scaleX = (containerWidth - 2 * padding) / wsWidth;
+  const scaleY = (containerHeight - 2 * padding) / wsHeight;
   renderBaseScale = Math.min(scaleX, scaleY);
 
   const scale = renderBaseScale * renderZoom;
@@ -416,13 +422,16 @@ export function drawGcode() {
   ctx.fillStyle = '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Set up transformation to center and scale the drawing
+  // Set up transformation to center the WORK AREA (the CNC machine bed)
+  // This is the ONLY work area - same one shown on eject tab
   ctx.save();
   ctx.translate(containerWidth / 2 + renderPanX, containerHeight / 2 + renderPanY);
   ctx.scale(scale, -scale); // Flip Y axis for typical G-code coordinate system
-  ctx.translate(-renderBounds.minX - renderBounds.width / 2, -renderBounds.minY - renderBounds.height / 2);
+  ctx.translate(-wsWidth / 2, -wsHeight / 2); // Center the work area at origin
 
   // Draw all paths
+  // G-code coordinates are absolute positions in work area (0,0 to wsWidth,wsHeight)
+  // Our transformation has positioned origin at work area bottom-left, so draw directly
   ctx.strokeStyle = '#00ff00';
   ctx.lineWidth = 0.5 / scale; // Adjust line width based on scale
   ctx.lineCap = 'round';
@@ -441,6 +450,15 @@ export function drawGcode() {
     ctx.stroke();
   }
 
+  // Draw work area bounding box in the same coordinate space as G-code
+  drawWorkAreaBounds(ctx, scale);
+
+  // Draw paper outline showing where to place paper on work area
+  drawPaperOutline(ctx, scale);
+
+  // Draw reference lines from paper to work area edges
+  drawPaperReferenceLines(ctx, scale);
+
   ctx.restore();
 
   // Draw info overlay
@@ -449,4 +467,374 @@ export function drawGcode() {
   ctx.fillText(`Dimensions: ${renderBounds.width.toFixed(2)} × ${renderBounds.height.toFixed(2)} mm`, 10, 20);
   ctx.fillText(`Paths: ${renderPaths.length}`, 10, 35);
   ctx.fillText(`Zoom: ${(renderZoom * 100).toFixed(0)}%`, 10, 50);
+
+  // Draw work area dimensions in screen space
+  drawWorkAreaDimensions(ctx, containerWidth, containerHeight, scale);
+
+  // Draw paper dimensions in screen space
+  drawPaperDimensions(ctx, containerWidth, containerHeight, scale);
+}
+
+/**
+ * Draw the work area bounding box in G-code coordinate space
+ * Shows the CNC machine's work area as a reference frame
+ * This is the ONLY work area - same one shown on eject tab
+ * @param {CanvasRenderingContext2D} ctx - Canvas context (in transformed G-code space)
+ * @param {number} scale - Current scale factor
+ */
+function drawWorkAreaBounds(ctx, scale) {
+  // Get current workspace dimensions from hardware settings (in mm)
+  const wsWidth = getWorkspaceWidth();
+  const wsHeight = getWorkspaceHeight();
+
+  // Draw the work area bounding box from (0,0) to (wsWidth, wsHeight)
+  // Transformation has already positioned this correctly (centered in view)
+  ctx.strokeStyle = '#ff6600';
+  ctx.lineWidth = 2 / scale; // Line width needs to be scaled
+  ctx.setLineDash([10 / scale, 5 / scale]); // Dash pattern needs to be scaled
+  ctx.strokeRect(0, 0, wsWidth, wsHeight);
+  ctx.setLineDash([]);
+
+  // Draw "Work Area" label
+  ctx.save();
+  ctx.scale(1, -1); // Flip text right-side up (since Y is flipped in G-code space)
+  ctx.fillStyle = 'rgba(255, 102, 0, 0.8)';
+  ctx.font = `${12 / scale}px monospace`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('Work Area', 5 / scale, -5 / scale);
+  ctx.restore();
+}
+
+/**
+ * Draw paper outline showing where operator should place paper
+ * Shows the size of paper needed, positioned around the actual artwork
+ * @param {CanvasRenderingContext2D} ctx - Canvas context (in transformed G-code space)
+ * @param {number} scale - Current scale factor
+ */
+function drawPaperOutline(ctx, scale) {
+  // Paper encompasses the artwork with margin
+  // The artwork position in work area is defined by renderBounds (actual G-code coordinates)
+  const margin = 5; // 5mm margin around artwork
+
+  // Paper position is based on where the artwork actually is in the work area
+  // renderBounds contains minX, maxX, minY, maxY from the actual G-code
+  const left = renderBounds.minX - margin;
+  const bottom = renderBounds.minY - margin;
+  const paperWidth = renderBounds.width + (margin * 2);
+  const paperHeight = renderBounds.height + (margin * 2);
+
+  ctx.save();
+
+  // Draw the paper outline
+  ctx.strokeStyle = '#ff00ff'; // Bright magenta/pink
+  ctx.lineWidth = 2 / scale;
+  ctx.setLineDash([8 / scale, 4 / scale]); // Dashed line to differentiate from work area
+  ctx.strokeRect(left, bottom, paperWidth, paperHeight);
+  ctx.setLineDash([]);
+
+  // Add semi-transparent fill to make it more visible
+  ctx.fillStyle = 'rgba(255, 0, 255, 0.05)'; // Very light pink fill
+  ctx.fillRect(left, bottom, paperWidth, paperHeight);
+
+  // Draw "Paper" label
+  ctx.scale(1, -1); // Flip text right-side up
+  ctx.fillStyle = 'rgba(255, 0, 255, 0.9)';
+  ctx.font = `bold ${12 / scale}px monospace`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Paper', left + 5 / scale, -(bottom + paperHeight) + 5 / scale);
+
+  ctx.restore();
+}
+
+/**
+ * Draw reference lines from paper edges to work area edges with measurements
+ * Helps operators position paper precisely on CNC bed
+ * @param {CanvasRenderingContext2D} ctx - Canvas context (in transformed G-code space)
+ * @param {number} scale - Current scale factor
+ */
+function drawPaperReferenceLines(ctx, scale) {
+  // Paper bounds (same as drawPaperOutline)
+  const margin = 5;
+  const paperLeft = renderBounds.minX - margin;
+  const paperBottom = renderBounds.minY - margin;
+  const paperWidth = renderBounds.width + (margin * 2);
+  const paperHeight = renderBounds.height + (margin * 2);
+  const paperRight = paperLeft + paperWidth;
+  const paperTop = paperBottom + paperHeight;
+
+  // Work area bounds
+  const wsWidth = getWorkspaceWidth();
+  const wsHeight = getWorkspaceHeight();
+
+  ctx.save();
+
+  // Style for reference lines
+  ctx.strokeStyle = 'rgba(255, 0, 255, 0.4)'; // Semi-transparent pink
+  ctx.lineWidth = 1 / scale;
+  ctx.setLineDash([4 / scale, 4 / scale]); // Dotted line
+
+  // Text style for measurements
+  ctx.fillStyle = 'rgba(255, 0, 255, 0.9)';
+  ctx.font = `bold ${10 / scale}px monospace`;
+  ctx.scale(1, -1); // Flip text right-side up
+
+  // LEFT: From left edge of paper to left edge of work area (X=0)
+  const distanceLeft = paperLeft;
+  if (distanceLeft > 0) {
+    ctx.beginPath();
+    ctx.moveTo(0, -(paperBottom + paperHeight / 2));
+    ctx.lineTo(paperLeft, -(paperBottom + paperHeight / 2));
+    ctx.scale(1, -1);
+    ctx.stroke();
+    ctx.scale(1, -1);
+
+    // Measurement at midpoint
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`${distanceLeft.toFixed(1)}mm`, distanceLeft / 2, -(paperBottom + paperHeight / 2) + 3 / scale);
+  }
+
+  // RIGHT: From right edge of paper to right edge of work area
+  const distanceRight = wsWidth - paperRight;
+  if (distanceRight > 0) {
+    ctx.beginPath();
+    ctx.moveTo(paperRight, -(paperBottom + paperHeight / 2));
+    ctx.lineTo(wsWidth, -(paperBottom + paperHeight / 2));
+    ctx.scale(1, -1);
+    ctx.stroke();
+    ctx.scale(1, -1);
+
+    // Measurement at midpoint
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`${distanceRight.toFixed(1)}mm`, paperRight + distanceRight / 2, -(paperBottom + paperHeight / 2) + 3 / scale);
+  }
+
+  // BOTTOM: From bottom edge of paper to bottom edge of work area (Y=0)
+  const distanceBottom = paperBottom;
+  if (distanceBottom > 0) {
+    ctx.beginPath();
+    ctx.moveTo(paperLeft + paperWidth / 2, 0);
+    ctx.lineTo(paperLeft + paperWidth / 2, paperBottom);
+    ctx.scale(1, -1);
+    ctx.stroke();
+    ctx.scale(1, -1);
+
+    // Measurement at midpoint (rotated)
+    ctx.save();
+    ctx.translate(paperLeft + paperWidth / 2, -distanceBottom / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`${distanceBottom.toFixed(1)}mm`, 0, 3 / scale);
+    ctx.restore();
+  }
+
+  // TOP: From top edge of paper to top edge of work area
+  const distanceTop = wsHeight - paperTop;
+  if (distanceTop > 0) {
+    ctx.beginPath();
+    ctx.moveTo(paperLeft + paperWidth / 2, paperTop);
+    ctx.lineTo(paperLeft + paperWidth / 2, wsHeight);
+    ctx.scale(1, -1);
+    ctx.stroke();
+    ctx.scale(1, -1);
+
+    // Measurement at midpoint (rotated)
+    ctx.save();
+    ctx.translate(paperLeft + paperWidth / 2, -(paperTop + distanceTop / 2));
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`${distanceTop.toFixed(1)}mm`, 0, 3 / scale);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Draw work area dimension labels in screen space
+ * @param {CanvasRenderingContext2D} ctx - Canvas context (in screen space)
+ * @param {number} containerWidth - Width of the container
+ * @param {number} containerHeight - Height of the container
+ * @param {number} scale - Current scale factor
+ */
+function drawWorkAreaDimensions(ctx, containerWidth, containerHeight, scale) {
+  // Get current workspace dimensions from hardware settings
+  const wsWidth = getWorkspaceWidth();
+  const wsHeight = getWorkspaceHeight();
+
+  // Calculate work area dimensions in screen pixels
+  const workAreaWidth = wsWidth * scale;
+  const workAreaHeight = wsHeight * scale;
+
+  // Calculate center position (accounting for pan)
+  const centerX = containerWidth / 2 + renderPanX;
+  const centerY = containerHeight / 2 + renderPanY;
+
+  // Calculate corners
+  const left = centerX - workAreaWidth / 2;
+  const top = centerY - workAreaHeight / 2;
+  const right = centerX + workAreaWidth / 2;
+  const bottom = centerY + workAreaHeight / 2;
+
+  ctx.save();
+
+  // Helper function to convert mm to display format
+  const formatDimension = (mm) => {
+    const inches = (mm / 25.4).toFixed(2);
+    const cm = (mm / 10).toFixed(1);
+    return `${inches}" / ${cm}cm / ${mm.toFixed(0)}mm`;
+  };
+
+  // Draw dimension labels
+  ctx.fillStyle = '#ff6600';
+  ctx.font = 'bold 12px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Top dimension label (width)
+  const topLabelY = top - 20;
+  if (topLabelY > 10) {
+    ctx.fillText(formatDimension(wsWidth), centerX, topLabelY);
+
+    // Draw dimension line
+    ctx.strokeStyle = '#ff6600';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(left, top - 10);
+    ctx.lineTo(left, top - 15);
+    ctx.moveTo(left, top - 12);
+    ctx.lineTo(right, top - 12);
+    ctx.moveTo(right, top - 10);
+    ctx.lineTo(right, top - 15);
+    ctx.stroke();
+  }
+
+  // Right dimension label (height)
+  const rightLabelX = right + 70;
+  if (rightLabelX < containerWidth - 10) {
+    ctx.save();
+    ctx.translate(rightLabelX, centerY);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(formatDimension(wsHeight), 0, 0);
+    ctx.restore();
+
+    // Draw dimension line
+    ctx.strokeStyle = '#ff6600';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(right + 10, top);
+    ctx.lineTo(right + 15, top);
+    ctx.moveTo(right + 12, top);
+    ctx.lineTo(right + 12, bottom);
+    ctx.moveTo(right + 10, bottom);
+    ctx.lineTo(right + 15, bottom);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Draw paper dimension labels in screen space
+ * @param {CanvasRenderingContext2D} ctx - Canvas context (in screen space)
+ * @param {number} containerWidth - Width of the container
+ * @param {number} containerHeight - Height of the container
+ * @param {number} scale - Current scale factor
+ */
+function drawPaperDimensions(ctx, containerWidth, containerHeight, scale) {
+  // Paper size and position in work area coordinates
+  const margin = 5;
+  const paperWidth = renderBounds.width + (margin * 2);
+  const paperHeight = renderBounds.height + (margin * 2);
+
+  // Paper position in work area (matches drawPaperOutline)
+  const workAreaLeft = renderBounds.minX - margin;
+  const workAreaBottom = renderBounds.minY - margin;
+
+  // Get work area dimensions
+  const wsWidth = getWorkspaceWidth();
+  const wsHeight = getWorkspaceHeight();
+
+  // Convert work area coordinates to screen coordinates
+  // Work area is centered in view and Y is flipped
+  const workAreaCenterX = wsWidth / 2;
+  const workAreaCenterY = wsHeight / 2;
+
+  // Paper position relative to work area center
+  const relX = workAreaLeft - workAreaCenterX;
+  const relY = workAreaBottom - workAreaCenterY;
+
+  // Transform to screen space (accounting for pan and Y flip)
+  const screenCenterX = containerWidth / 2 + renderPanX;
+  const screenCenterY = containerHeight / 2 + renderPanY;
+
+  const left = screenCenterX + (relX * scale);
+  const bottom = screenCenterY - (relY * scale); // Y is flipped
+  const right = left + (paperWidth * scale);
+  const top = bottom - (paperHeight * scale); // Y is flipped
+
+  const centerX = (left + right) / 2;
+  const centerY = (top + bottom) / 2;
+
+  ctx.save();
+
+  // Helper function to convert mm to display format
+  const formatDimension = (mm) => {
+    const inches = (mm / 25.4).toFixed(2);
+    const cm = (mm / 10).toFixed(1);
+    return `${inches}" / ${cm}cm / ${mm.toFixed(0)}mm`;
+  };
+
+  // Draw dimension labels
+  ctx.fillStyle = '#ff00ff';
+  ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Bottom dimension label (width) - below paper outline
+  const bottomLabelY = bottom + 15;
+  if (bottomLabelY < containerHeight - 10) {
+    ctx.fillText(`Paper: ${formatDimension(paperWidth)}`, centerX, bottomLabelY);
+
+    // Draw dimension line
+    ctx.strokeStyle = '#ff00ff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(left, bottom + 5);
+    ctx.lineTo(left, bottom + 10);
+    ctx.moveTo(left, bottom + 7);
+    ctx.lineTo(right, bottom + 7);
+    ctx.moveTo(right, bottom + 5);
+    ctx.lineTo(right, bottom + 10);
+    ctx.stroke();
+  }
+
+  // Left dimension label (height) - to the left of paper
+  const leftLabelX = left - 70;
+  if (leftLabelX > 10) {
+    ctx.save();
+    ctx.translate(leftLabelX, centerY);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(`Paper: ${formatDimension(paperHeight)}`, 0, 0);
+    ctx.restore();
+
+    // Draw dimension line
+    ctx.strokeStyle = '#ff00ff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(left - 5, top);
+    ctx.lineTo(left - 10, top);
+    ctx.moveTo(left - 7, top);
+    ctx.lineTo(left - 7, bottom);
+    ctx.moveTo(left - 5, bottom);
+    ctx.lineTo(left - 10, bottom);
+    ctx.stroke();
+  }
+
+  ctx.restore();
 }
