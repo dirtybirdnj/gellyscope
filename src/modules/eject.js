@@ -14,6 +14,14 @@ let ejectLayout = 'portrait'; // 'portrait' or 'landscape'
 let ejectPageBackgroundElement = null;
 let ejectOriginalAspectRatio = 1; // Store original SVG aspect ratio
 let ejectPreviousUnit = 'in'; // Track previous unit for conversion
+let ejectScale = 100; // Scale percentage for the art (100 = 100%)
+let ejectPositionX = 0; // X offset in pixels from center
+let ejectPositionY = 0; // Y offset in pixels from center
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
 
 // ============ CORE FUNCTIONS ============
 
@@ -34,6 +42,17 @@ export function loadEjectTab() {
     ejectSvgContainer.style.display = 'flex';
     ejectInfoBar.style.display = 'flex';
     ejectOutputToolbar.style.display = 'flex';
+
+    // Reset position and scale for new SVG
+    ejectPositionX = 0;
+    ejectPositionY = 0;
+    ejectScale = 100;
+
+    // Update scale slider if it exists
+    const scaleSlider = document.getElementById('ejectScaleSlider');
+    const scaleValue = document.getElementById('ejectScaleValue');
+    if (scaleSlider) scaleSlider.value = 100;
+    if (scaleValue) scaleValue.textContent = '100%';
 
     ejectSvgContainer.innerHTML = state.currentSVGData.content;
 
@@ -300,13 +319,25 @@ function updateEjectPageBackground() {
     scaledHeight = displayHeight;
   }
 
-  // Scale the svg container to fit the page
-  ejectSvgContainer.style.width = scaledWidth + 'px';
-  ejectSvgContainer.style.height = scaledHeight + 'px';
-  ejectSvgContainer.style.maxWidth = scaledWidth + 'px';
-  ejectSvgContainer.style.maxHeight = scaledHeight + 'px';
+  // Apply scale factor to the dimensions
+  const scaleFactor = ejectScale / 100;
+  const finalWidth = scaledWidth * scaleFactor;
+  const finalHeight = scaledHeight * scaleFactor;
 
-  debugLog('Eject page background updated:', ejectPageSize, widthMm + 'mm × ' + heightMm + 'mm');
+  // Scale the svg container to fit the page
+  ejectSvgContainer.style.width = finalWidth + 'px';
+  ejectSvgContainer.style.height = finalHeight + 'px';
+  ejectSvgContainer.style.maxWidth = finalWidth + 'px';
+  ejectSvgContainer.style.maxHeight = finalHeight + 'px';
+
+  // Apply position offset
+  ejectSvgContainer.style.left = `calc(50% + ${ejectPositionX}px)`;
+  ejectSvgContainer.style.top = `calc(50% + ${ejectPositionY}px)`;
+  ejectSvgContainer.style.transform = 'translate(-50%, -50%)';
+  ejectSvgContainer.style.position = 'absolute';
+  ejectSvgContainer.style.cursor = 'move';
+
+  debugLog('Eject page background updated:', ejectPageSize, widthMm + 'mm × ' + heightMm + 'mm', 'scale:', ejectScale + '%');
 }
 
 /**
@@ -348,11 +379,11 @@ function updateEjectPageSizeButtons() {
     return;
   }
 
-  // Convert output dimensions to mm
-  const outputWidthMm = toMm(outputWidth, outputUnit);
-  const outputHeightMm = toMm(outputHeight, outputUnit);
+  // Convert output dimensions to mm and apply scale factor
+  const outputWidthMm = toMm(outputWidth, outputUnit) * (ejectScale / 100);
+  const outputHeightMm = toMm(outputHeight, outputUnit) * (ejectScale / 100);
 
-  debugLog('Checking page sizes for output:', outputWidthMm + 'mm × ' + outputHeightMm + 'mm');
+  debugLog('Checking page sizes for output:', outputWidthMm + 'mm × ' + outputHeightMm + 'mm', '(scale:', ejectScale + '%)');
 
   // Check each page size button
   document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
@@ -526,6 +557,91 @@ function handleUnitChange() {
 }
 
 /**
+ * Handle scale slider input
+ */
+function handleEjectScaleInput() {
+  const scaleSlider = document.getElementById('ejectScaleSlider');
+  const scaleValue = document.getElementById('ejectScaleValue');
+
+  if (scaleSlider && scaleValue) {
+    ejectScale = parseInt(scaleSlider.value);
+    scaleValue.textContent = ejectScale + '%';
+
+    // Update the page background with new scale
+    if (ejectPageBackgroundElement) {
+      updateEjectPageBackground();
+    }
+
+    // Update available page sizes based on scaled dimensions
+    updateEjectPageSizeButtons();
+
+    debugLog('Scale changed:', ejectScale + '%');
+  }
+}
+
+/**
+ * Handle mouse down on SVG container (start drag)
+ */
+function handleSvgMouseDown(e) {
+  if (e.button !== 0) return; // Only left mouse button
+
+  isDragging = true;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  dragOffsetX = ejectPositionX;
+  dragOffsetY = ejectPositionY;
+
+  // Change cursor
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+  if (ejectSvgContainer) {
+    ejectSvgContainer.style.cursor = 'grabbing';
+  }
+
+  e.preventDefault();
+}
+
+/**
+ * Handle mouse move (drag)
+ */
+function handleSvgMouseMove(e) {
+  if (!isDragging) return;
+
+  const deltaX = e.clientX - dragStartX;
+  const deltaY = e.clientY - dragStartY;
+
+  ejectPositionX = dragOffsetX + deltaX;
+  ejectPositionY = dragOffsetY + deltaY;
+
+  // Update SVG container position
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+  if (ejectSvgContainer) {
+    ejectSvgContainer.style.left = `calc(50% + ${ejectPositionX}px)`;
+    ejectSvgContainer.style.top = `calc(50% + ${ejectPositionY}px)`;
+  }
+
+  e.preventDefault();
+}
+
+/**
+ * Handle mouse up (end drag)
+ */
+function handleSvgMouseUp(e) {
+  if (!isDragging) return;
+
+  isDragging = false;
+
+  // Restore cursor
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+  if (ejectSvgContainer) {
+    ejectSvgContainer.style.cursor = 'move';
+  }
+
+  debugLog('Art repositioned:', ejectPositionX + 'px,', ejectPositionY + 'px');
+
+  e.preventDefault();
+}
+
+/**
  * Handle window resize
  */
 function handleWindowResize() {
@@ -546,7 +662,7 @@ async function handleEjectToGcode() {
     return;
   }
 
-  // Get output dimensions
+  // Get output dimensions and apply scale
   const outputWidth = parseFloat(document.getElementById('ejectCustomWidth').value);
   const outputHeight = parseFloat(document.getElementById('ejectCustomHeight').value);
   const outputUnit = document.getElementById('ejectCustomUnit').value;
@@ -557,8 +673,14 @@ async function handleEjectToGcode() {
     return;
   }
 
+  // Apply scale factor to output dimensions
+  const scaleFactor = ejectScale / 100;
+  const scaledOutputWidth = outputWidth * scaleFactor;
+  const scaledOutputHeight = outputHeight * scaleFactor;
+
   debugLog('Current SVG path:', state.currentSVGData.path);
-  debugLog('Output dimensions:', outputWidth, 'x', outputHeight, outputUnit);
+  debugLog('Output dimensions (base):', outputWidth, 'x', outputHeight, outputUnit);
+  debugLog('Output dimensions (scaled):', scaledOutputWidth, 'x', scaledOutputHeight, outputUnit, '(' + ejectScale + '%)');
 
   // Disable button and show loading state
   const ejectToGcodeBtn = document.getElementById('ejectToGcodeBtn');
@@ -567,11 +689,11 @@ async function handleEjectToGcode() {
   ejectToGcodeBtn.innerHTML = '<span>⏳</span> Generating...';
 
   try {
-    // Call the backend to convert SVG to G-code
+    // Call the backend to convert SVG to G-code with scaled dimensions
     const result = await window.electronAPI.ejectToGcode(
       state.currentSVGData.path,
-      outputWidth,
-      outputHeight,
+      scaledOutputWidth,
+      scaledOutputHeight,
       outputUnit
     );
 
@@ -638,6 +760,20 @@ export function initEjectTab() {
 
   if (ejectCustomUnit) {
     ejectCustomUnit.addEventListener('change', handleUnitChange);
+  }
+
+  // Scale slider handler
+  const ejectScaleSlider = document.getElementById('ejectScaleSlider');
+  if (ejectScaleSlider) {
+    ejectScaleSlider.addEventListener('input', handleEjectScaleInput);
+  }
+
+  // SVG container drag handlers
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+  if (ejectSvgContainer) {
+    ejectSvgContainer.addEventListener('mousedown', handleSvgMouseDown);
+    document.addEventListener('mousemove', handleSvgMouseMove);
+    document.addEventListener('mouseup', handleSvgMouseUp);
   }
 
   // Generate G-code button handler
