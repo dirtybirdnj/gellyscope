@@ -505,71 +505,21 @@ function drawWorkAreaBounds(ctx, scale) {
 
 /**
  * Draw paper outline showing where operator should place paper
- * Shows the size of paper needed, positioned based on eject tab selection
+ * Shows the size of paper needed, positioned around the actual artwork
  * @param {CanvasRenderingContext2D} ctx - Canvas context (in transformed G-code space)
  * @param {number} scale - Current scale factor
  */
 function drawPaperOutline(ctx, scale) {
-  // Paper size is based on the artwork bounding box with some margin
+  // Paper encompasses the artwork with margin
+  // The artwork position in work area is defined by renderBounds (actual G-code coordinates)
   const margin = 5; // 5mm margin around artwork
+
+  // Paper position is based on where the artwork actually is in the work area
+  // renderBounds contains minX, maxX, minY, maxY from the actual G-code
+  const left = renderBounds.minX - margin;
+  const bottom = renderBounds.minY - margin;
   const paperWidth = renderBounds.width + (margin * 2);
   const paperHeight = renderBounds.height + (margin * 2);
-
-  // Get work area dimensions
-  const workAreaWidth = getWorkspaceWidth();
-  const workAreaHeight = getWorkspaceHeight();
-
-  // Get selected position from eject tab
-  const position = getEjectWorkAreaPosition();
-
-  // Calculate paper CENTER position based on selection (matches main.js logic)
-  let paperCenterX, paperCenterY;
-
-  // Calculate X position (center of paper)
-  switch (position) {
-    case 'top-left':
-    case 'center-left':
-    case 'bottom-left':
-      paperCenterX = paperWidth / 2;
-      break;
-    case 'top-center':
-    case 'center':
-    case 'bottom-center':
-      paperCenterX = workAreaWidth / 2;
-      break;
-    case 'top-right':
-    case 'center-right':
-    case 'bottom-right':
-      paperCenterX = workAreaWidth - (paperWidth / 2);
-      break;
-    default:
-      paperCenterX = workAreaWidth / 2; // Default to center
-  }
-
-  // Calculate Y position (center of paper)
-  switch (position) {
-    case 'top-left':
-    case 'top-center':
-    case 'top-right':
-      paperCenterY = workAreaHeight - (paperHeight / 2);
-      break;
-    case 'center-left':
-    case 'center':
-    case 'center-right':
-      paperCenterY = workAreaHeight / 2;
-      break;
-    case 'bottom-left':
-    case 'bottom-center':
-    case 'bottom-right':
-      paperCenterY = paperHeight / 2;
-      break;
-    default:
-      paperCenterY = workAreaHeight / 2; // Default to center
-  }
-
-  // Calculate paper corners from center
-  const left = paperCenterX - paperWidth / 2;
-  const bottom = paperCenterY - paperHeight / 2;
 
   ctx.save();
 
