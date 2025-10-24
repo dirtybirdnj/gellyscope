@@ -5,6 +5,7 @@ import { debugLog } from './shared/debug.js';
 import { state, setState } from './shared/state.js';
 import { toMm, fromMm } from './shared/utils.js';
 import { PAGE_SIZES, getWorkspaceWidth, getWorkspaceHeight } from './hardware.js';
+import { updateStatusBar } from './shared/statusBar.js';
 
 // ============ MODULE STATE ============
 
@@ -123,6 +124,21 @@ export function loadEjectTab() {
 
     // Update page size buttons based on output dimensions
     updateEjectPageSizeButtons();
+
+    // Update status bar with eject information
+    const workspaceWidth = getWorkspaceWidth();
+    const workspaceHeight = getWorkspaceHeight();
+    const outputWidth = parseFloat(document.getElementById('ejectCustomWidth').value);
+    const outputHeight = parseFloat(document.getElementById('ejectCustomHeight').value);
+    const outputUnit = document.getElementById('ejectCustomUnit').value;
+
+    updateStatusBar('eject', {
+      pageSize: ejectPageSize === 'custom' ? 'Custom' : ejectPageSize,
+      layout: ejectLayout.charAt(0).toUpperCase() + ejectLayout.slice(1),
+      scale: ejectScale,
+      workArea: `${workspaceWidth} × ${workspaceHeight} mm`,
+      outputDimensions: `${outputWidth.toFixed(1)} × ${outputHeight.toFixed(1)} ${outputUnit}`
+    });
   } else {
     // Show message and hide SVG container
     ejectMessage.style.display = 'block';
@@ -130,6 +146,9 @@ export function loadEjectTab() {
     ejectInfoBar.style.display = 'none';
     ejectOutputToolbar.style.display = 'none';
     ejectMessage.textContent = 'No vector image loaded';
+
+    // Update status bar to show no vector loaded
+    updateStatusBar('eject', {});
   }
 
   // Update eject nav button state
@@ -492,6 +511,21 @@ function handleLayoutToggle(btn) {
   updateEjectPageBackground();
 
   debugLog('Eject layout changed:', layout);
+
+  // Update status bar
+  const workspaceWidth = getWorkspaceWidth();
+  const workspaceHeight = getWorkspaceHeight();
+  const outputWidth = parseFloat(document.getElementById('ejectCustomWidth').value);
+  const outputHeight = parseFloat(document.getElementById('ejectCustomHeight').value);
+  const outputUnit = document.getElementById('ejectCustomUnit').value;
+
+  updateStatusBar('eject', {
+    pageSize: ejectPageSize === 'custom' ? 'Custom' : ejectPageSize,
+    layout: layout.charAt(0).toUpperCase() + layout.slice(1),
+    scale: ejectScale,
+    workArea: `${workspaceWidth} × ${workspaceHeight} mm`,
+    outputDimensions: `${outputWidth.toFixed(1)} × ${outputHeight.toFixed(1)} ${outputUnit}`
+  });
 }
 
 /**
@@ -646,6 +680,21 @@ function handleEjectScaleInput() {
     updateEjectPageSizeButtons();
 
     debugLog('Scale changed:', ejectScale + '%');
+
+    // Update status bar
+    const workspaceWidth = getWorkspaceWidth();
+    const workspaceHeight = getWorkspaceHeight();
+    const outputWidth = parseFloat(document.getElementById('ejectCustomWidth').value);
+    const outputHeight = parseFloat(document.getElementById('ejectCustomHeight').value);
+    const outputUnit = document.getElementById('ejectCustomUnit').value;
+
+    updateStatusBar('eject', {
+      pageSize: ejectPageSize === 'custom' ? 'Custom' : ejectPageSize,
+      layout: ejectLayout.charAt(0).toUpperCase() + ejectLayout.slice(1),
+      scale: ejectScale,
+      workArea: `${workspaceWidth} × ${workspaceHeight} mm`,
+      outputDimensions: `${outputWidth.toFixed(1)} × ${outputHeight.toFixed(1)} ${outputUnit}`
+    });
   }
 }
 
