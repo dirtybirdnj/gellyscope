@@ -9,16 +9,21 @@
 </head>
 <body>
   <div class="app-container">
-    <!-- Tab Navigation -->
+    <!-- Top Navigation Bar - Photoshop Style -->
     <div class="tab-nav">
-      <button class="tab-button active" data-tab="camera">📷 Camera</button>
-      <button class="tab-button" data-tab="images">🖼️ Images</button>
-      <button class="tab-button" data-tab="trace">✏️ Trace</button>
-      <button class="tab-button" data-tab="vectors">📐 Vectors</button>
-      <button class="tab-button" data-tab="eject" id="ejectNavBtn" disabled>📤 Eject</button>
-      <button class="tab-button" data-tab="render">🎨 Render</button>
-      <button class="tab-button" data-tab="hardware">⚙️ Hardware</button>
-      <button class="tab-button" data-tab="scope" style="display: none;">Scope</button>
+      <div class="app-logo">
+        🪼 Gellyroller
+      </div>
+      <div class="tab-nav-buttons">
+        <button class="tab-button active" data-tab="camera" data-tooltip="Camera">📷</button>
+        <button class="tab-button" data-tab="images" data-tooltip="Images">🖼️</button>
+        <button class="tab-button" data-tab="trace" data-tooltip="Trace">✏️</button>
+        <button class="tab-button" data-tab="vectors" data-tooltip="Vectors">📐</button>
+        <button class="tab-button" data-tab="eject" id="ejectNavBtn" disabled data-tooltip="Eject">📤</button>
+        <button class="tab-button" data-tab="render" data-tooltip="Render">🎨</button>
+        <button class="tab-button" data-tab="hardware" data-tooltip="Hardware">⚙️</button>
+        <button class="tab-button" data-tab="scope" style="display: none;" data-tooltip="Scope">🔍</button>
+      </div>
     </div>
 
     <!-- Home Tab -->
@@ -720,6 +725,18 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Bottom Status Bar - Photoshop Style -->
+    <div class="status-bar" id="statusBar">
+      <div class="status-bar-item">
+        <span class="status-bar-label">Status:</span>
+        <span class="status-bar-value" id="statusBarStatus">Ready</span>
+      </div>
+      <div class="status-bar-divider"></div>
+      <div class="status-bar-item" id="statusBarInfo">
+        <!-- Dynamic content will be inserted here -->
       </div>
     </div>
   </div>

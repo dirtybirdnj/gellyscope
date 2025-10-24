@@ -1,5 +1,42 @@
 /* styles.css - Gellyscope Application Styles */
 
+/* Design Tokens - Photoshop-inspired Dark Theme */
+:root {
+  /* Background Colors */
+  --top-bar-bg: #2d2d2d;
+  --panel-bg: #323232;
+  --canvas-bg: #282828;
+  --panel-header-bg: #3d3d3d;
+  --content-bg: #1e1e1e;
+
+  /* Border Colors */
+  --border-color: #1a1a1a;
+  --border-light: #4a4a4a;
+  --divider-color: #555555;
+
+  /* Text Colors */
+  --text-primary: #cccccc;
+  --text-secondary: #999999;
+  --text-tertiary: #666666;
+  --text-dark: #333333;
+
+  /* Accent Colors */
+  --accent-blue: #1e90ff;
+  --accent-hover: #4a4a4a;
+  --accent-active: #2196f3;
+
+  /* Status Colors */
+  --success-color: #4caf50;
+  --error-color: #ff6b6b;
+  --warning-color: #ffa726;
+
+  /* Sizing */
+  --top-bar-height: 44px;
+  --bottom-bar-height: 32px;
+  --panel-padding: 12px;
+  --border-radius: 4px;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -9,8 +46,8 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow: hidden;
-  background: #ffffff;
-  color: #333333;
+  background: var(--canvas-bg);
+  color: var(--text-primary);
 }
 
 .app-container {
@@ -19,45 +56,107 @@ body {
   height: 100vh;
 }
 
-/* Tab Navigation */
+/* Tab Navigation - Photoshop Style Top Bar */
 .tab-nav {
   display: flex;
-  background: #f5f5f5;
-  border-bottom: 1px solid #d0d0d0;
+  align-items: center;
+  background: var(--top-bar-bg);
+  border-bottom: 1px solid var(--border-color);
   padding: 0;
+  height: var(--top-bar-height);
+  flex-shrink: 0;
+}
+
+.app-logo {
+  padding: 0 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  border-right: 1px solid var(--border-light);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  flex: 1;
 }
 
 .tab-button {
-  padding: 12px 24px;
+  padding: 8px 12px;
   background: none;
   border: none;
-  color: #666666;
+  color: var(--text-secondary);
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 20px;
   transition: background 0.2s, color 0.2s;
-  border-bottom: 2px solid transparent;
+  border-radius: 4px;
+  position: relative;
+  min-width: 40px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tab-button:hover {
-  background: #e8e8e8;
-  color: #333333;
+  background: var(--accent-hover);
+  color: var(--text-primary);
 }
 
 .tab-button.active {
-  color: #007acc;
-  border-bottom-color: #007acc;
-  background: #ffffff;
+  color: var(--accent-blue);
+  background: var(--accent-hover);
+}
+
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 2px;
+  background: var(--accent-blue);
+  border-radius: 2px 2px 0 0;
 }
 
 .tab-button:disabled {
-  opacity: 0.4;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
 .tab-button:disabled:hover {
   background: none;
-  color: #666666;
+  color: var(--text-secondary);
+}
+
+/* Tab button tooltips */
+.tab-button::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 1000;
+}
+
+.tab-button:hover::before {
+  opacity: 1;
 }
 
 /* Tab Content */
@@ -65,10 +164,46 @@ body {
   flex: 1;
   display: none;
   min-height: 0;
+  flex-direction: column;
 }
 
 .tab-content.active {
   display: flex;
+}
+
+/* Bottom Status Bar - Photoshop Style */
+.status-bar {
+  display: flex;
+  align-items: center;
+  background: var(--top-bar-bg);
+  border-top: 1px solid var(--border-color);
+  padding: 0 16px;
+  height: var(--bottom-bar-height);
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  gap: 16px;
+}
+
+.status-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-bar-label {
+  color: var(--text-tertiary);
+}
+
+.status-bar-value {
+  color: var(--text-primary);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.status-bar-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-light);
 }
 
 .container {
@@ -82,22 +217,22 @@ body {
 .left-panel {
   width: 300px;
   min-width: 300px;
-  background: #f9f9f9;
-  border-right: 1px solid #d0d0d0;
+  background: var(--panel-bg);
+  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
 .panel-header {
-  padding: 12px 16px;
-  background: #f0f0f0;
-  border-bottom: 1px solid #d0d0d0;
+  padding: 10px 12px;
+  background: var(--panel-header-bg);
+  border-bottom: 1px solid var(--border-color);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #555555;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
 }
 
 .layers-list {
@@ -471,8 +606,8 @@ body {
 .right-panel {
   width: 320px;
   min-width: 320px;
-  background: #f9f9f9;
-  border-left: 1px solid #d0d0d0;
+  background: var(--panel-bg);
+  border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
