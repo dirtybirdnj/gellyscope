@@ -9,16 +9,21 @@
 </head>
 <body>
   <div class="app-container">
-    <!-- Tab Navigation -->
+    <!-- Top Navigation Bar - Photoshop Style -->
     <div class="tab-nav">
-      <button class="tab-button active" data-tab="camera">📷 Camera</button>
-      <button class="tab-button" data-tab="images">🖼️ Images</button>
-      <button class="tab-button" data-tab="trace">✏️ Trace</button>
-      <button class="tab-button" data-tab="vectors">📐 Vectors</button>
-      <button class="tab-button" data-tab="eject" id="ejectNavBtn" disabled>📤 Eject</button>
-      <button class="tab-button" data-tab="render">🎨 Render</button>
-      <button class="tab-button" data-tab="hardware">⚙️ Hardware</button>
-      <button class="tab-button" data-tab="scope" style="display: none;">Scope</button>
+      <div class="app-logo">
+        🪼 Gellyroller
+      </div>
+      <div class="tab-nav-buttons">
+        <button class="tab-button active" data-tab="camera" data-tooltip="Camera">📷</button>
+        <button class="tab-button" data-tab="images" data-tooltip="Images">🖼️</button>
+        <button class="tab-button" data-tab="trace" data-tooltip="Trace">✏️</button>
+        <button class="tab-button" data-tab="vectors" data-tooltip="Vectors">📐</button>
+        <button class="tab-button" data-tab="eject" id="ejectNavBtn" disabled data-tooltip="Eject">📤</button>
+        <button class="tab-button" data-tab="render" data-tooltip="Render">🎨</button>
+        <button class="tab-button" data-tab="hardware" data-tooltip="Hardware">⚙️</button>
+        <button class="tab-button" data-tab="scope" style="display: none;" data-tooltip="Scope">🔍</button>
+      </div>
     </div>
 
     <!-- Home Tab -->
@@ -400,49 +405,18 @@
     <!-- Eject Tab -->
     <div class="tab-content" id="ejectTab">
       <div class="eject-container">
-        <div class="eject-info-bar" id="ejectInfoBar" style="display: none;">
-          <div class="eject-info-item">
-            <span class="eject-info-label">Input Dimensions:</span>
-            <span class="eject-info-value" id="ejectDimensions">—</span>
-          </div>
-        </div>
-        <div class="eject-viewer" id="ejectViewer">
-          <div class="eject-message" id="ejectMessage">
-            No vector image loaded
-          </div>
-          <div class="eject-svg-container" id="ejectSvgContainer" style="display: none;">
-            <!-- SVG will be displayed here -->
-          </div>
-        </div>
-
-        <!-- Output Toolbar -->
-        <div class="output-toolbar" id="ejectOutputToolbar" style="display: none;">
+        <!-- Top Toolbar: Dimensions, Layout, Page Size -->
+        <div class="output-toolbar" id="ejectTopToolbar" style="display: none;">
           <div class="toolbar-section">
+            <label class="toolbar-label">Input Dimensions:</label>
+            <span class="toolbar-value" id="ejectDimensions">—</span>
+
+            <div class="toolbar-divider"></div>
+
             <label class="toolbar-label">Layout</label>
             <div class="layout-toggle-group">
               <button class="layout-toggle-btn eject-layout-toggle-btn active" data-layout="portrait" title="Portrait">⬜</button>
               <button class="layout-toggle-btn eject-layout-toggle-btn" data-layout="landscape" title="Landscape">▭</button>
-            </div>
-
-            <div class="toolbar-divider"></div>
-
-            <label class="toolbar-label">Scale</label>
-            <input type="range" class="output-scale-slider" id="ejectScaleSlider" min="10" max="400" value="100" step="5">
-            <span class="toolbar-value" id="ejectScaleValue">100%</span>
-
-            <div class="toolbar-divider"></div>
-
-            <label class="toolbar-label">Work Area Position</label>
-            <div class="work-area-position-grid" id="workAreaPositionGrid">
-              <button class="position-btn" data-position="top-left" title="Top Left">↖</button>
-              <button class="position-btn" data-position="top-center" title="Top Center">↑</button>
-              <button class="position-btn" data-position="top-right" title="Top Right">↗</button>
-              <button class="position-btn" data-position="center-left" title="Center Left">←</button>
-              <button class="position-btn active" data-position="center" title="Center">⊙</button>
-              <button class="position-btn" data-position="center-right" title="Center Right">→</button>
-              <button class="position-btn" data-position="bottom-left" title="Bottom Left">↙</button>
-              <button class="position-btn" data-position="bottom-center" title="Bottom Center">↓</button>
-              <button class="position-btn" data-position="bottom-right" title="Bottom Right">↘</button>
             </div>
 
             <div class="toolbar-divider"></div>
@@ -475,12 +449,45 @@
                 <p><strong>Your artwork is larger than the available paper sizes.</strong></p>
                 <p>Options to fix this:</p>
                 <ul>
-                  <li><strong>Reduce Scale:</strong> Use the scale slider above to make artwork smaller (e.g., 50%)</li>
+                  <li><strong>Reduce Scale:</strong> Use the scale slider below to make artwork smaller (e.g., 50%)</li>
                   <li><strong>Increase Work Area:</strong> Go to Hardware tab and increase workspace dimensions if your CNC supports it</li>
                   <li><strong>Use Custom Size:</strong> Click "Custom" button and enter larger dimensions that fit your work area</li>
                 </ul>
                 <p>Red-shaded buttons indicate pages too small for current artwork size.</p>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="eject-viewer" id="ejectViewer">
+          <div class="eject-message" id="ejectMessage">
+            No vector image loaded
+          </div>
+          <div class="eject-svg-container" id="ejectSvgContainer" style="display: none;">
+            <!-- SVG will be displayed here -->
+          </div>
+        </div>
+
+        <!-- Bottom Toolbar: Scale, Work Area Position, Actions -->
+        <div class="output-toolbar" id="ejectBottomToolbar" style="display: none;">
+          <div class="toolbar-section">
+            <label class="toolbar-label">Scale</label>
+            <input type="range" class="output-scale-slider" id="ejectScaleSlider" min="10" max="400" value="100" step="5">
+            <span class="toolbar-value" id="ejectScaleValue">100%</span>
+
+            <div class="toolbar-divider"></div>
+
+            <label class="toolbar-label">Work Area Position</label>
+            <div class="work-area-position-grid" id="workAreaPositionGrid">
+              <button class="position-btn" data-position="top-left" title="Top Left">↖</button>
+              <button class="position-btn" data-position="top-center" title="Top Center">↑</button>
+              <button class="position-btn" data-position="top-right" title="Top Right">↗</button>
+              <button class="position-btn" data-position="center-left" title="Center Left">←</button>
+              <button class="position-btn active" data-position="center" title="Center">⊙</button>
+              <button class="position-btn" data-position="center-right" title="Center Right">→</button>
+              <button class="position-btn" data-position="bottom-left" title="Bottom Left">↙</button>
+              <button class="position-btn" data-position="bottom-center" title="Bottom Center">↓</button>
+              <button class="position-btn" data-position="bottom-right" title="Bottom Right">↘</button>
             </div>
           </div>
           <div class="toolbar-section toolbar-section-right">
@@ -534,6 +541,49 @@
     <!-- Hardware Tab -->
     <div class="tab-content" id="hardwareTab">
       <div class="hardware-container">
+        <!-- vpype Warning Banner -->
+        <div class="vpype-warning-banner" id="vpypeWarningBanner" style="display: none;">
+          <div class="warning-header">
+            <span class="warning-icon">⚠️</span>
+            <h3 class="warning-title">vpype Required for G-code Generation</h3>
+          </div>
+          <p class="warning-message">
+            You need <strong>vpype</strong> installed to generate G-code files from your vectors.
+            vpype is a powerful command-line tool for manipulating and optimizing SVG files for plotters and CNC machines.
+          </p>
+          <div class="warning-install">
+            <h4>Installation Instructions:</h4>
+            <div class="install-steps">
+              <div class="install-step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                  <p><strong>Install Python 3.9 or later</strong> (if not already installed)</p>
+                  <code>python3 --version</code>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                  <p><strong>Install vpype via pip</strong></p>
+                  <code>pip install vpype</code>
+                  <p class="step-note">Or for user installation: <code>pip install --user vpype</code></p>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                  <p><strong>Verify installation</strong></p>
+                  <code>vpype --version</code>
+                </div>
+              </div>
+            </div>
+            <p class="warning-footer">
+              After installation, restart Gellyroller to detect vpype.
+              For more information, visit <a href="https://vpype.readthedocs.io" target="_blank" rel="noopener">vpype documentation</a>.
+            </p>
+          </div>
+        </div>
+
         <div class="hardware-section">
           <h2 class="hardware-section-title">Virtual CNC Machine</h2>
           <div class="hardware-info-grid">
@@ -720,6 +770,18 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Bottom Status Bar - Photoshop Style -->
+    <div class="status-bar" id="statusBar">
+      <div class="status-bar-item">
+        <span class="status-bar-label">Status:</span>
+        <span class="status-bar-value" id="statusBarStatus">Ready</span>
+      </div>
+      <div class="status-bar-divider"></div>
+      <div class="status-bar-item" id="statusBarInfo">
+        <!-- Dynamic content will be inserted here -->
       </div>
     </div>
   </div>

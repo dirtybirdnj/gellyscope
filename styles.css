@@ -1,5 +1,42 @@
 /* styles.css - Gellyscope Application Styles */
 
+/* Design Tokens - Photoshop-inspired Dark Theme */
+:root {
+  /* Background Colors */
+  --top-bar-bg: #2d2d2d;
+  --panel-bg: #323232;
+  --canvas-bg: #282828;
+  --panel-header-bg: #3d3d3d;
+  --content-bg: #1e1e1e;
+
+  /* Border Colors */
+  --border-color: #1a1a1a;
+  --border-light: #4a4a4a;
+  --divider-color: #555555;
+
+  /* Text Colors */
+  --text-primary: #cccccc;
+  --text-secondary: #999999;
+  --text-tertiary: #666666;
+  --text-dark: #333333;
+
+  /* Accent Colors */
+  --accent-blue: #1e90ff;
+  --accent-hover: #4a4a4a;
+  --accent-active: #2196f3;
+
+  /* Status Colors */
+  --success-color: #4caf50;
+  --error-color: #ff6b6b;
+  --warning-color: #ffa726;
+
+  /* Sizing */
+  --top-bar-height: 44px;
+  --bottom-bar-height: 32px;
+  --panel-padding: 12px;
+  --border-radius: 4px;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -9,8 +46,8 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow: hidden;
-  background: #ffffff;
-  color: #333333;
+  background: var(--canvas-bg);
+  color: var(--text-primary);
 }
 
 .app-container {
@@ -19,45 +56,131 @@ body {
   height: 100vh;
 }
 
-/* Tab Navigation */
+/* Tab Navigation - Photoshop Style Top Bar */
 .tab-nav {
   display: flex;
-  background: #f5f5f5;
-  border-bottom: 1px solid #d0d0d0;
+  align-items: center;
+  background: var(--top-bar-bg);
+  border-bottom: 1px solid var(--border-color);
   padding: 0;
+  height: var(--top-bar-height);
+  flex-shrink: 0;
+}
+
+.app-logo {
+  padding: 0 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  border-right: 1px solid var(--border-light);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  flex: 1;
 }
 
 .tab-button {
-  padding: 12px 24px;
+  padding: 8px 12px;
   background: none;
   border: none;
-  color: #666666;
+  color: var(--text-secondary);
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 20px;
   transition: background 0.2s, color 0.2s;
-  border-bottom: 2px solid transparent;
+  border-radius: 4px;
+  position: relative;
+  min-width: 40px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tab-button:hover {
-  background: #e8e8e8;
-  color: #333333;
+  background: var(--accent-hover);
+  color: var(--text-primary);
 }
 
 .tab-button.active {
-  color: #007acc;
-  border-bottom-color: #007acc;
-  background: #ffffff;
+  color: var(--accent-blue);
+  background: var(--accent-hover);
+}
+
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 2px;
+  background: var(--accent-blue);
+  border-radius: 2px 2px 0 0;
 }
 
 .tab-button:disabled {
-  opacity: 0.4;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
 .tab-button:disabled:hover {
   background: none;
-  color: #666666;
+  color: var(--text-secondary);
+}
+
+/* Tab button tooltips */
+.tab-button::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 1000;
+}
+
+.tab-button:hover::before {
+  opacity: 1;
+}
+
+/* Tab warning indicator */
+.tab-button .tab-warning {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: var(--error-color);
+  color: white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 1;
+  border: 2px solid var(--top-bar-bg);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+.tab-button.has-warning {
+  color: var(--error-color);
 }
 
 /* Tab Content */
@@ -65,10 +188,46 @@ body {
   flex: 1;
   display: none;
   min-height: 0;
+  flex-direction: column;
 }
 
 .tab-content.active {
   display: flex;
+}
+
+/* Bottom Status Bar - Photoshop Style */
+.status-bar {
+  display: flex;
+  align-items: center;
+  background: var(--top-bar-bg);
+  border-top: 1px solid var(--border-color);
+  padding: 0 16px;
+  height: var(--bottom-bar-height);
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  gap: 16px;
+}
+
+.status-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-bar-label {
+  color: var(--text-tertiary);
+}
+
+.status-bar-value {
+  color: var(--text-primary);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.status-bar-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-light);
 }
 
 .container {
@@ -82,22 +241,22 @@ body {
 .left-panel {
   width: 300px;
   min-width: 300px;
-  background: #f9f9f9;
-  border-right: 1px solid #d0d0d0;
+  background: var(--panel-bg);
+  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
 .panel-header {
-  padding: 12px 16px;
-  background: #f0f0f0;
-  border-bottom: 1px solid #d0d0d0;
+  padding: 10px 12px;
+  background: var(--panel-header-bg);
+  border-bottom: 1px solid var(--border-color);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #555555;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
 }
 
 .layers-list {
@@ -471,8 +630,8 @@ body {
 .right-panel {
   width: 320px;
   min-width: 320px;
-  background: #f9f9f9;
-  border-left: 1px solid #d0d0d0;
+  background: var(--panel-bg);
+  border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2225,12 +2384,128 @@ input[type="file"] {
   margin: 0 auto;
   overflow-y: auto;
   height: 100%;
-  background: #ffffff;
+  background: var(--canvas-bg);
+}
+
+/* vpype Warning Banner */
+.vpype-warning-banner {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 2px solid var(--error-color);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.warning-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.warning-icon {
+  font-size: 32px;
+}
+
+.warning-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #991b1b;
+  margin: 0;
+}
+
+.warning-message {
+  font-size: 15px;
+  color: #7f1d1d;
+  line-height: 1.6;
+  margin: 0 0 20px 0;
+}
+
+.warning-install h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #991b1b;
+  margin: 0 0 16px 0;
+}
+
+.install-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.install-step {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.step-number {
+  background: var(--error-color);
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-content p {
+  margin: 0 0 8px 0;
+  color: #7f1d1d;
+  font-size: 14px;
+}
+
+.step-content code {
+  display: block;
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  color: #450a0a;
+  margin: 4px 0;
+}
+
+.step-note {
+  font-size: 12px;
+  color: #991b1b;
+  font-style: italic;
+  margin-top: 8px;
+}
+
+.warning-footer {
+  font-size: 13px;
+  color: #7f1d1d;
+  margin: 0;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.warning-footer a {
+  color: #991b1b;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.warning-footer a:hover {
+  color: #7f1d1d;
 }
 
 .hardware-section {
-  background: #f8f8f8;
-  border: 1px solid #d0d0d0;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-light);
   border-radius: 4px;
   padding: 20px;
   margin-bottom: 20px;
@@ -2239,10 +2514,10 @@ input[type="file"] {
 .hardware-section-title {
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   margin: 0 0 16px 0;
   padding-bottom: 8px;
-  border-bottom: 1px solid #d0d0d0;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .hardware-info-grid {
@@ -2260,7 +2535,7 @@ input[type="file"] {
 .hardware-label {
   font-size: 11px;
   font-weight: 600;
-  color: #666;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
@@ -2268,7 +2543,7 @@ input[type="file"] {
 .hardware-value {
   font-size: 14px;
   font-weight: 400;
-  color: #333;
+  color: var(--text-primary);
   font-family: 'Courier New', monospace;
 }
 
@@ -2280,7 +2555,7 @@ input[type="file"] {
   font-size: 13px;
   line-height: 1.5;
   white-space: pre-wrap;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .hardware-input {
@@ -2288,20 +2563,20 @@ input[type="file"] {
   padding: 6px 10px;
   font-size: 13px;
   font-family: 'Courier New', monospace;
-  border: 1px solid #c0c0c0;
-  background: #ffffff;
-  color: #333;
+  border: 1px solid var(--border-light);
+  background: var(--content-bg);
+  color: var(--text-primary);
   border-radius: 3px;
 }
 
 .hardware-input:hover {
-  border-color: #999;
+  border-color: var(--text-secondary);
 }
 
 .hardware-input:focus {
   outline: none;
-  border-color: #007acc;
-  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1);
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(30, 144, 255, 0.2);
 }
 
 /* Paper Sizes Section */

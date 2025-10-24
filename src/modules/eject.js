@@ -5,6 +5,7 @@ import { debugLog } from './shared/debug.js';
 import { state, setState } from './shared/state.js';
 import { toMm, fromMm } from './shared/utils.js';
 import { PAGE_SIZES, getWorkspaceWidth, getWorkspaceHeight } from './hardware.js';
+import { updateStatusBar } from './shared/statusBar.js';
 
 // ============ MODULE STATE ============
 
@@ -33,16 +34,16 @@ let dragOffsetY = 0;
 export function loadEjectTab() {
   const ejectMessage = document.getElementById('ejectMessage');
   const ejectSvgContainer = document.getElementById('ejectSvgContainer');
-  const ejectInfoBar = document.getElementById('ejectInfoBar');
   const ejectDimensions = document.getElementById('ejectDimensions');
-  const ejectOutputToolbar = document.getElementById('ejectOutputToolbar');
+  const ejectTopToolbar = document.getElementById('ejectTopToolbar');
+  const ejectBottomToolbar = document.getElementById('ejectBottomToolbar');
 
   if (state.currentSVGData && state.currentSVGData.content) {
     // Hide message and show SVG container
     ejectMessage.style.display = 'none';
     ejectSvgContainer.style.display = 'flex';
-    ejectInfoBar.style.display = 'flex';
-    ejectOutputToolbar.style.display = 'flex';
+    ejectTopToolbar.style.display = 'flex';
+    ejectBottomToolbar.style.display = 'flex';
 
     // Reset position and scale for new SVG
     ejectPositionX = 0;
@@ -123,13 +124,31 @@ export function loadEjectTab() {
 
     // Update page size buttons based on output dimensions
     updateEjectPageSizeButtons();
+
+    // Update status bar with eject information
+    const workspaceWidth = getWorkspaceWidth();
+    const workspaceHeight = getWorkspaceHeight();
+    const outputWidth = parseFloat(document.getElementById('ejectCustomWidth').value);
+    const outputHeight = parseFloat(document.getElementById('ejectCustomHeight').value);
+    const outputUnit = document.getElementById('ejectCustomUnit').value;
+
+    updateStatusBar('eject', {
+      pageSize: ejectPageSize === 'custom' ? 'Custom' : ejectPageSize,
+      layout: ejectLayout.charAt(0).toUpperCase() + ejectLayout.slice(1),
+      scale: ejectScale,
+      workArea: `${workspaceWidth} × ${workspaceHeight} mm`,
+      outputDimensions: `${outputWidth.toFixed(1)} × ${outputHeight.toFixed(1)} ${outputUnit}`
+    });
   } else {
     // Show message and hide SVG container
     ejectMessage.style.display = 'block';
     ejectSvgContainer.style.display = 'none';
-    ejectInfoBar.style.display = 'none';
-    ejectOutputToolbar.style.display = 'none';
+    ejectTopToolbar.style.display = 'none';
+    ejectBottomToolbar.style.display = 'none';
     ejectMessage.textContent = 'No vector image loaded';
+
+    // Update status bar to show no vector loaded
+    updateStatusBar('eject', {});
   }
 
   // Update eject nav button state
@@ -492,6 +511,21 @@ function handleLayoutToggle(btn) {
   updateEjectPageBackground();
 
   debugLog('Eject layout changed:', layout);
+
+  // Update status bar
+  const workspaceWidth = getWorkspaceWidth();
+  const workspaceHeight = getWorkspaceHeight();
+  const outputWidth = parseFloat(document.getElementById('ejectCustomWidth').value);
+  const outputHeight = parseFloat(document.getElementById('ejectCustomHeight').value);
+  const outputUnit = document.getElementById('ejectCustomUnit').value;
+
+  updateStatusBar('eject', {
+    pageSize: ejectPageSize === 'custom' ? 'Custom' : ejectPageSize,
+    layout: layout.charAt(0).toUpperCase() + layout.slice(1),
+    scale: ejectScale,
+    workArea: `${workspaceWidth} × ${workspaceHeight} mm`,
+    outputDimensions: `${outputWidth.toFixed(1)} × ${outputHeight.toFixed(1)} ${outputUnit}`
+  });
 }
 
 /**
@@ -646,6 +680,21 @@ function handleEjectScaleInput() {
     updateEjectPageSizeButtons();
 
     debugLog('Scale changed:', ejectScale + '%');
+
+    // Update status bar
+    const workspaceWidth = getWorkspaceWidth();
+    const workspaceHeight = getWorkspaceHeight();
+    const outputWidth = parseFloat(document.getElementById('ejectCustomWidth').value);
+    const outputHeight = parseFloat(document.getElementById('ejectCustomHeight').value);
+    const outputUnit = document.getElementById('ejectCustomUnit').value;
+
+    updateStatusBar('eject', {
+      pageSize: ejectPageSize === 'custom' ? 'Custom' : ejectPageSize,
+      layout: ejectLayout.charAt(0).toUpperCase() + ejectLayout.slice(1),
+      scale: ejectScale,
+      workArea: `${workspaceWidth} × ${workspaceHeight} mm`,
+      outputDimensions: `${outputWidth.toFixed(1)} × ${outputHeight.toFixed(1)} ${outputUnit}`
+    });
   }
 }
 

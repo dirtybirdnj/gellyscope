@@ -5,6 +5,7 @@
 import { initializeGellyroller } from './modules/shared/init.js';
 import { initTabNavigation, switchTab } from './modules/shared/tabs.js';
 import { initArrowButtons, initCollapsibleSections } from './modules/shared/ui-controls.js';
+import { updateStatusBar } from './modules/shared/statusBar.js';
 
 // Import tab modules
 import { initHomeTab, loadHomeScreen } from './modules/home.js';
@@ -27,6 +28,9 @@ const baseSwitchTab = switchTab;
 window.switchTab = function(tabName) {
   // Call base tab switching logic
   baseSwitchTab(tabName);
+
+  // Update status bar for new tab
+  updateStatusBar(tabName, {});
 
   // Load content for specific tabs
   if (tabName === 'home') {

@@ -24,6 +24,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    title: 'Gellyroller',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

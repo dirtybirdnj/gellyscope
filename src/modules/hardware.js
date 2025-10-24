@@ -41,6 +41,43 @@ export function getWorkspaceHeight() {
 // Track if hardware info has been loaded
 let hardwareInfoLoaded = false;
 
+// Track vpype installation status
+let vpypeInstalled = false;
+
+/**
+ * Get vpype installation status
+ */
+export function isVpypeInstalled() {
+  return vpypeInstalled;
+}
+
+/**
+ * Update hardware tab button to show warning if vpype is not installed
+ */
+function updateHardwareTabWarning() {
+  const hardwareTabBtn = document.querySelector('[data-tab="hardware"]');
+  if (!hardwareTabBtn) return;
+
+  if (!vpypeInstalled) {
+    // Add warning indicator to tab button
+    if (!hardwareTabBtn.querySelector('.tab-warning')) {
+      const warningIcon = document.createElement('span');
+      warningIcon.className = 'tab-warning';
+      warningIcon.textContent = '!';
+      warningIcon.title = 'vpype not installed';
+      hardwareTabBtn.appendChild(warningIcon);
+    }
+    hardwareTabBtn.classList.add('has-warning');
+  } else {
+    // Remove warning indicator
+    const warningIcon = hardwareTabBtn.querySelector('.tab-warning');
+    if (warningIcon) {
+      warningIcon.remove();
+    }
+    hardwareTabBtn.classList.remove('has-warning');
+  }
+}
+
 /**
  * Initialize the Hardware tab
  * Sets up event listeners for the Hardware tab
@@ -109,9 +146,16 @@ export async function loadHardwareInfo() {
       const vpypeInfo = vpypeInfoResult.data;
 
       if (vpypeInfo.installed) {
+        vpypeInstalled = true;
         document.getElementById('hwVpypeStatus').textContent = '✓ Installed';
         document.getElementById('hwVpypeStatus').style.color = '#4ade80';
         document.getElementById('hwVpypeVersion').textContent = vpypeInfo.version;
+
+        // Hide warning banner
+        const warningBanner = document.getElementById('vpypeWarningBanner');
+        if (warningBanner) {
+          warningBanner.style.display = 'none';
+        }
 
         // Display plugins
         const pluginsContainer = document.getElementById('hwVpypePlugins');
@@ -128,6 +172,7 @@ export async function loadHardwareInfo() {
           `;
         }
       } else {
+        vpypeInstalled = false;
         document.getElementById('hwVpypeStatus').textContent = '✗ Not Installed';
         document.getElementById('hwVpypeStatus').style.color = '#f87171';
         document.getElementById('hwVpypeVersion').textContent = '-';
@@ -135,11 +180,27 @@ export async function loadHardwareInfo() {
           <div class="hardware-label" style="margin-top: 16px; margin-bottom: 8px;">Plugins</div>
           <div class="hardware-value" style="opacity: 0.5;">vpype not installed</div>
         `;
+
+        // Show warning banner
+        const warningBanner = document.getElementById('vpypeWarningBanner');
+        if (warningBanner) {
+          warningBanner.style.display = 'block';
+        }
       }
     } else {
+      vpypeInstalled = false;
       document.getElementById('hwVpypeStatus').textContent = 'Error checking';
       document.getElementById('hwVpypeStatus').style.color = '#f87171';
+
+      // Show warning banner
+      const warningBanner = document.getElementById('vpypeWarningBanner');
+      if (warningBanner) {
+        warningBanner.style.display = 'block';
+      }
     }
+
+    // Update tab warning indicator
+    updateHardwareTabWarning();
 
     // Populate paper sizes list
     populatePaperSizesList();

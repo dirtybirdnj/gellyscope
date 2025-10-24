@@ -2,6 +2,7 @@
 import { debugLog } from './shared/debug.js';
 import { toMm, escapeHtml } from './shared/utils.js';
 import { PAGE_SIZES, currentPageSize, setCurrentPageSize } from './hardware.js';
+import { updateStatusBar } from './shared/statusBar.js';
 
 // ============ MODULE STATE ============
 
@@ -281,6 +282,21 @@ async function performTrace() {
       const captureBtn = document.getElementById('captureTraceBtn');
       if (captureBtn) {
         captureBtn.disabled = false;
+      }
+
+      // Update status bar with trace information
+      if (window.currentTraceImage) {
+        const turnPolicy = document.getElementById('turnPolicySelect').value;
+        const turdSize = parseInt(document.getElementById('turdSizeSlider').value);
+        const nodeCount = paths.length;
+
+        updateStatusBar('trace', {
+          imageName: window.currentTraceImage.fileName || 'Unknown',
+          dimensions: `${window.currentTraceImage.originalWidth} × ${window.currentTraceImage.originalHeight} px`,
+          turnPolicy: turnPolicy,
+          turdSize: turdSize,
+          nodeCount: nodeCount
+        });
       }
 
       // Update page background after trace

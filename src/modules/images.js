@@ -1,5 +1,6 @@
 // Images Tab Module
 import { debugLog } from './shared/debug.js';
+import { updateStatusBar } from './shared/statusBar.js';
 
 export function initImagesTab() {
   const uploadImageBtn = document.getElementById('uploadImageBtn');
@@ -153,9 +154,17 @@ export async function loadImages() {
     }
 
     debugLog('Loaded', result.files.length, 'images');
+
+    // Update status bar with image count
+    updateStatusBar('images', {
+      count: result.files.length
+    });
   } catch (error) {
     console.error('Error loading images:', error);
     imageGrid.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">Error loading images</div>';
+
+    // Update status bar to show error state
+    updateStatusBar('images', {});
   }
 }
 
