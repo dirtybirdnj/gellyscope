@@ -445,6 +445,9 @@ export function drawGcode() {
   // Draw work area bounding box in the same coordinate space as G-code
   drawWorkAreaBounds(ctx, scale);
 
+  // Draw paper outline showing where to place paper on work area
+  drawPaperOutline(ctx, scale);
+
   ctx.restore();
 
   // Draw info overlay
@@ -456,6 +459,9 @@ export function drawGcode() {
 
   // Draw work area dimensions in screen space
   drawWorkAreaDimensions(ctx, containerWidth, containerHeight, scale);
+
+  // Draw paper dimensions in screen space
+  drawPaperDimensions(ctx, containerWidth, containerHeight, scale);
 }
 
 /**
@@ -488,6 +494,46 @@ function drawWorkAreaBounds(ctx, scale) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillText('Work Area', left + 5 / scale, -top - 15 / scale);
+  ctx.restore();
+}
+
+/**
+ * Draw paper outline showing where operator should place paper
+ * Shows the size of paper needed, centered in the work area
+ * @param {CanvasRenderingContext2D} ctx - Canvas context (in transformed G-code space)
+ * @param {number} scale - Current scale factor
+ */
+function drawPaperOutline(ctx, scale) {
+  // Paper size is based on the artwork bounding box with some margin
+  const margin = 5; // 5mm margin around artwork
+  const paperWidth = renderBounds.width + (margin * 2);
+  const paperHeight = renderBounds.height + (margin * 2);
+
+  // Center the paper at origin
+  const left = -paperWidth / 2;
+  const top = -paperHeight / 2;
+
+  ctx.save();
+
+  // Draw the paper outline
+  ctx.strokeStyle = '#ff00ff'; // Bright magenta/pink
+  ctx.lineWidth = 2 / scale;
+  ctx.setLineDash([8 / scale, 4 / scale]); // Dashed line to differentiate from work area
+  ctx.strokeRect(left, top, paperWidth, paperHeight);
+  ctx.setLineDash([]);
+
+  // Add semi-transparent fill to make it more visible
+  ctx.fillStyle = 'rgba(255, 0, 255, 0.05)'; // Very light pink fill
+  ctx.fillRect(left, top, paperWidth, paperHeight);
+
+  // Draw "Paper" label
+  ctx.scale(1, -1); // Flip text right-side up
+  ctx.fillStyle = 'rgba(255, 0, 255, 0.9)';
+  ctx.font = `bold ${12 / scale}px monospace`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('Paper', left + 5 / scale, -top - 5 / scale);
+
   ctx.restore();
 }
 
@@ -569,6 +615,91 @@ function drawWorkAreaDimensions(ctx, containerWidth, containerHeight, scale) {
     ctx.lineTo(right + 12, bottom);
     ctx.moveTo(right + 10, bottom);
     ctx.lineTo(right + 15, bottom);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Draw paper dimension labels in screen space
+ * @param {CanvasRenderingContext2D} ctx - Canvas context (in screen space)
+ * @param {number} containerWidth - Width of the container
+ * @param {number} containerHeight - Height of the container
+ * @param {number} scale - Current scale factor
+ */
+function drawPaperDimensions(ctx, containerWidth, containerHeight, scale) {
+  // Paper size with margin
+  const margin = 5;
+  const paperWidth = renderBounds.width + (margin * 2);
+  const paperHeight = renderBounds.height + (margin * 2);
+
+  // Calculate paper dimensions in screen pixels
+  const paperWidthPx = paperWidth * scale;
+  const paperHeightPx = paperHeight * scale;
+
+  // Calculate center position (accounting for pan)
+  const centerX = containerWidth / 2 + renderPanX;
+  const centerY = containerHeight / 2 + renderPanY;
+
+  // Calculate corners
+  const left = centerX - paperWidthPx / 2;
+  const top = centerY - paperHeightPx / 2;
+  const right = centerX + paperWidthPx / 2;
+  const bottom = centerY + paperHeightPx / 2;
+
+  ctx.save();
+
+  // Helper function to convert mm to display format
+  const formatDimension = (mm) => {
+    const inches = (mm / 25.4).toFixed(2);
+    const cm = (mm / 10).toFixed(1);
+    return `${inches}" / ${cm}cm / ${mm.toFixed(0)}mm`;
+  };
+
+  // Draw dimension labels
+  ctx.fillStyle = '#ff00ff';
+  ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Bottom dimension label (width) - below paper outline
+  const bottomLabelY = bottom + 15;
+  if (bottomLabelY < containerHeight - 10) {
+    ctx.fillText(`Paper: ${formatDimension(paperWidth)}`, centerX, bottomLabelY);
+
+    // Draw dimension line
+    ctx.strokeStyle = '#ff00ff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(left, bottom + 5);
+    ctx.lineTo(left, bottom + 10);
+    ctx.moveTo(left, bottom + 7);
+    ctx.lineTo(right, bottom + 7);
+    ctx.moveTo(right, bottom + 5);
+    ctx.lineTo(right, bottom + 10);
+    ctx.stroke();
+  }
+
+  // Left dimension label (height) - to the left of paper
+  const leftLabelX = left - 70;
+  if (leftLabelX > 10) {
+    ctx.save();
+    ctx.translate(leftLabelX, centerY);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(`Paper: ${formatDimension(paperHeight)}`, 0, 0);
+    ctx.restore();
+
+    // Draw dimension line
+    ctx.strokeStyle = '#ff00ff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(left - 5, top);
+    ctx.lineTo(left - 10, top);
+    ctx.moveTo(left - 7, top);
+    ctx.lineTo(left - 7, bottom);
+    ctx.moveTo(left - 5, bottom);
+    ctx.lineTo(left - 10, bottom);
     ctx.stroke();
   }
 
