@@ -637,24 +637,39 @@ function drawWorkAreaDimensions(ctx, containerWidth, containerHeight, scale) {
  * @param {number} scale - Current scale factor
  */
 function drawPaperDimensions(ctx, containerWidth, containerHeight, scale) {
-  // Paper size with margin
+  // Paper size and position in work area coordinates
   const margin = 5;
   const paperWidth = renderBounds.width + (margin * 2);
   const paperHeight = renderBounds.height + (margin * 2);
 
-  // Calculate paper dimensions in screen pixels
-  const paperWidthPx = paperWidth * scale;
-  const paperHeightPx = paperHeight * scale;
+  // Paper position in work area (matches drawPaperOutline)
+  const workAreaLeft = renderBounds.minX - margin;
+  const workAreaBottom = renderBounds.minY - margin;
 
-  // Calculate center position (accounting for pan)
-  const centerX = containerWidth / 2 + renderPanX;
-  const centerY = containerHeight / 2 + renderPanY;
+  // Get work area dimensions
+  const wsWidth = getWorkspaceWidth();
+  const wsHeight = getWorkspaceHeight();
 
-  // Calculate corners
-  const left = centerX - paperWidthPx / 2;
-  const top = centerY - paperHeightPx / 2;
-  const right = centerX + paperWidthPx / 2;
-  const bottom = centerY + paperHeightPx / 2;
+  // Convert work area coordinates to screen coordinates
+  // Work area is centered in view and Y is flipped
+  const workAreaCenterX = wsWidth / 2;
+  const workAreaCenterY = wsHeight / 2;
+
+  // Paper position relative to work area center
+  const relX = workAreaLeft - workAreaCenterX;
+  const relY = workAreaBottom - workAreaCenterY;
+
+  // Transform to screen space (accounting for pan and Y flip)
+  const screenCenterX = containerWidth / 2 + renderPanX;
+  const screenCenterY = containerHeight / 2 + renderPanY;
+
+  const left = screenCenterX + (relX * scale);
+  const bottom = screenCenterY - (relY * scale); // Y is flipped
+  const right = left + (paperWidth * scale);
+  const top = bottom - (paperHeight * scale); // Y is flipped
+
+  const centerX = (left + right) / 2;
+  const centerY = (top + bottom) / 2;
 
   ctx.save();
 
