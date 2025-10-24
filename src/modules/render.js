@@ -406,10 +406,14 @@ export function drawGcode() {
   canvas.width = containerWidth;
   canvas.height = containerHeight;
 
-  // Calculate scale to fit the drawing in the canvas with padding
+  // Get work area dimensions - this is the SINGLE work area that exists
+  const wsWidth = getWorkspaceWidth();
+  const wsHeight = getWorkspaceHeight();
+
+  // Calculate scale to fit the WORK AREA (not the artwork) in the canvas with padding
   const padding = 40;
-  const scaleX = (containerWidth - 2 * padding) / renderBounds.width;
-  const scaleY = (containerHeight - 2 * padding) / renderBounds.height;
+  const scaleX = (containerWidth - 2 * padding) / wsWidth;
+  const scaleY = (containerHeight - 2 * padding) / wsHeight;
   renderBaseScale = Math.min(scaleX, scaleY);
 
   const scale = renderBaseScale * renderZoom;
@@ -418,13 +422,16 @@ export function drawGcode() {
   ctx.fillStyle = '#1a1a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Set up transformation to center and scale the drawing
+  // Set up transformation to center the WORK AREA (the CNC machine bed)
+  // This is the ONLY work area - same one shown on eject tab
   ctx.save();
   ctx.translate(containerWidth / 2 + renderPanX, containerHeight / 2 + renderPanY);
   ctx.scale(scale, -scale); // Flip Y axis for typical G-code coordinate system
-  ctx.translate(-renderBounds.minX - renderBounds.width / 2, -renderBounds.minY - renderBounds.height / 2);
+  ctx.translate(-wsWidth / 2, -wsHeight / 2); // Center the work area at origin
 
   // Draw all paths
+  // G-code coordinates are absolute positions in work area (0,0 to wsWidth,wsHeight)
+  // Our transformation has positioned origin at work area bottom-left, so draw directly
   ctx.strokeStyle = '#00ff00';
   ctx.lineWidth = 0.5 / scale; // Adjust line width based on scale
   ctx.lineCap = 'round';
@@ -468,6 +475,7 @@ export function drawGcode() {
 /**
  * Draw the work area bounding box in G-code coordinate space
  * Shows the CNC machine's work area as a reference frame
+ * This is the ONLY work area - same one shown on eject tab
  * @param {CanvasRenderingContext2D} ctx - Canvas context (in transformed G-code space)
  * @param {number} scale - Current scale factor
  */
@@ -476,15 +484,12 @@ function drawWorkAreaBounds(ctx, scale) {
   const wsWidth = getWorkspaceWidth();
   const wsHeight = getWorkspaceHeight();
 
-  // Draw the work area bounding box centered at origin (in mm coordinates)
-  const left = -wsWidth / 2;
-  const top = -wsHeight / 2;
-
-  // Draw the bounding box
+  // Draw the work area bounding box from (0,0) to (wsWidth, wsHeight)
+  // Transformation has already positioned this correctly (centered in view)
   ctx.strokeStyle = '#ff6600';
   ctx.lineWidth = 2 / scale; // Line width needs to be scaled
   ctx.setLineDash([10 / scale, 5 / scale]); // Dash pattern needs to be scaled
-  ctx.strokeRect(left, top, wsWidth, wsHeight);
+  ctx.strokeRect(0, 0, wsWidth, wsHeight);
   ctx.setLineDash([]);
 
   // Draw "Work Area" label
@@ -493,8 +498,8 @@ function drawWorkAreaBounds(ctx, scale) {
   ctx.fillStyle = 'rgba(255, 102, 0, 0.8)';
   ctx.font = `${12 / scale}px monospace`;
   ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  ctx.fillText('Work Area', left + 5 / scale, -top - 15 / scale);
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('Work Area', 5 / scale, -5 / scale);
   ctx.restore();
 }
 
@@ -517,53 +522,54 @@ function drawPaperOutline(ctx, scale) {
   // Get selected position from eject tab
   const position = getEjectWorkAreaPosition();
 
-  // Calculate paper position based on selection
+  // Calculate paper CENTER position based on selection (matches main.js logic)
   let paperCenterX, paperCenterY;
 
-  // Calculate X position
+  // Calculate X position (center of paper)
   switch (position) {
     case 'top-left':
     case 'center-left':
     case 'bottom-left':
-      paperCenterX = paperWidth / 2 - workAreaWidth / 2;
+      paperCenterX = paperWidth / 2;
       break;
     case 'top-center':
     case 'center':
     case 'bottom-center':
-      paperCenterX = 0;
+      paperCenterX = workAreaWidth / 2;
       break;
     case 'top-right':
     case 'center-right':
     case 'bottom-right':
-      paperCenterX = workAreaWidth / 2 - paperWidth / 2;
+      paperCenterX = workAreaWidth - (paperWidth / 2);
       break;
     default:
-      paperCenterX = 0; // Default to center
+      paperCenterX = workAreaWidth / 2; // Default to center
   }
 
-  // Calculate Y position
+  // Calculate Y position (center of paper)
   switch (position) {
     case 'top-left':
     case 'top-center':
     case 'top-right':
-      paperCenterY = workAreaHeight / 2 - paperHeight / 2;
+      paperCenterY = workAreaHeight - (paperHeight / 2);
       break;
     case 'center-left':
     case 'center':
     case 'center-right':
-      paperCenterY = 0;
+      paperCenterY = workAreaHeight / 2;
       break;
     case 'bottom-left':
     case 'bottom-center':
     case 'bottom-right':
-      paperCenterY = paperHeight / 2 - workAreaHeight / 2;
+      paperCenterY = paperHeight / 2;
       break;
     default:
-      paperCenterY = 0; // Default to center
+      paperCenterY = workAreaHeight / 2; // Default to center
   }
 
+  // Calculate paper corners from center
   const left = paperCenterX - paperWidth / 2;
-  const top = paperCenterY - paperHeight / 2;
+  const bottom = paperCenterY - paperHeight / 2;
 
   ctx.save();
 
