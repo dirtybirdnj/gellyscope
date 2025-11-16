@@ -1294,6 +1294,62 @@ export function initTraceTab() {
       }
     }
   });
+
+  // ============ UPLOAD IMAGE BUTTON ============
+
+  // Setup upload button on trace page
+  const traceUploadImageBtn = document.getElementById('traceUploadImageBtn');
+  const traceImageUploadInput = document.getElementById('traceImageUploadInput');
+
+  if (traceUploadImageBtn && traceImageUploadInput) {
+    traceUploadImageBtn.addEventListener('click', () => {
+      traceImageUploadInput.click();
+    });
+
+    traceImageUploadInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/png', 'image/bmp'];
+      if (!validTypes.includes(file.type)) {
+        alert('Please select a valid image file (JPEG, PNG, or BMP)');
+        return;
+      }
+
+      try {
+        // Read file as data URL
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const imageData = event.target.result;
+
+          // Save image to gellyroller directory
+          const result = await window.electronAPI.saveImage(imageData, file.name);
+
+          if (result.success) {
+            debugLog('Image uploaded successfully:', result.filename);
+
+            // Load the image directly into the trace tab
+            showImageInTraceTab(imageData, file.name);
+          } else {
+            alert(`Failed to upload image: ${result.error}`);
+          }
+        };
+
+        reader.onerror = () => {
+          alert('Failed to read file');
+        };
+
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('Error uploading image: ' + error.message);
+      }
+
+      // Clear the input so the same file can be uploaded again if needed
+      e.target.value = '';
+    });
+  }
 }
 
 // ============ CLEAR INTERFACE ============

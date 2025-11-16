@@ -98,6 +98,10 @@
       <div class="container">
         <!-- Left Panel: Layers -->
         <div class="left-panel">
+          <div style="padding: 12px; border-bottom: 1px solid var(--border-color);">
+            <input type="file" id="traceImageUploadInput" accept=".jpg,.jpeg,.png,.bmp" style="display: none;">
+            <button class="control-btn" id="traceUploadImageBtn" style="width: 100%;">📤 Upload Image</button>
+          </div>
           <div class="panel-header">Layers</div>
           <div class="layers-list" id="traceLayersList">
             <div style="padding: 16px; text-align: center; opacity: 0.5; font-size: 13px;">
@@ -423,14 +427,14 @@
 
             <label class="toolbar-label">Page Size</label>
             <div class="page-size-group">
-              <button class="page-size-btn eject-page-size-btn" data-size="A0">A0</button>
-              <button class="page-size-btn eject-page-size-btn" data-size="A1">A1</button>
-              <button class="page-size-btn eject-page-size-btn" data-size="A2">A2</button>
-              <button class="page-size-btn eject-page-size-btn" data-size="A3">A3</button>
+              <button class="page-size-btn eject-page-size-btn" data-size="Letter">Letter</button>
+              <button class="page-size-btn eject-page-size-btn" data-size="Legal">Legal</button>
+              <button class="page-size-btn eject-page-size-btn" data-size="Tabloid">Tabloid</button>
               <button class="page-size-btn eject-page-size-btn active" data-size="A4">A4</button>
+              <button class="page-size-btn eject-page-size-btn" data-size="A3">A3</button>
               <button class="page-size-btn eject-page-size-btn" data-size="A5">A5</button>
-              <button class="page-size-btn eject-page-size-btn" data-size="A6">A6</button>
-              <button class="page-size-btn eject-page-size-btn" data-size="A7">A7</button>
+              <button class="page-size-btn eject-page-size-btn" data-size="B4">B4</button>
+              <button class="page-size-btn eject-page-size-btn" data-size="B5">B5</button>
               <button class="page-size-btn eject-page-size-btn" data-size="custom">Custom</button>
             </div>
             <div class="custom-size-inputs" id="ejectCustomSizeInputs" style="display: none;">
@@ -477,20 +481,20 @@
 
             <div class="toolbar-divider"></div>
 
-            <label class="toolbar-label">Work Area Position</label>
-            <div class="work-area-position-grid" id="workAreaPositionGrid">
-              <button class="position-btn" data-position="top-left" title="Top Left">↖</button>
-              <button class="position-btn" data-position="top-center" title="Top Center">↑</button>
-              <button class="position-btn" data-position="top-right" title="Top Right">↗</button>
-              <button class="position-btn" data-position="center-left" title="Center Left">←</button>
-              <button class="position-btn active" data-position="center" title="Center">⊙</button>
-              <button class="position-btn" data-position="center-right" title="Center Right">→</button>
-              <button class="position-btn" data-position="bottom-left" title="Bottom Left">↙</button>
-              <button class="position-btn" data-position="bottom-center" title="Bottom Center">↓</button>
-              <button class="position-btn" data-position="bottom-right" title="Bottom Right">↘</button>
+            <label class="toolbar-label">Alignment</label>
+            <div style="display: flex; gap: 8px;">
+              <button class="toolbar-action-btn" id="horizontalCenterBtn" title="Center artwork horizontally on page">
+                <span>↔</span> Horizontal Center
+              </button>
+              <button class="toolbar-action-btn" id="verticalCenterBtn" title="Center artwork vertically on page">
+                <span>↕</span> Vertical Center
+              </button>
             </div>
           </div>
           <div class="toolbar-section toolbar-section-right">
+            <button class="toolbar-action-btn save-svg-btn" id="ejectSaveSvgBtn">
+              <span>💾</span> Save SVG
+            </button>
             <button class="eject-action-btn" id="ejectToGcodeBtn">
               <span>🚀</span> Generate G-code
             </button>

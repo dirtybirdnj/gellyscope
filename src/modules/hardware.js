@@ -12,14 +12,19 @@ export let PAGE_SIZES = {
   'A4': [210, 297],
   'A5': [148, 210],
   'A6': [105, 148],
-  'A7': [74, 105]
+  'A7': [74, 105],
+  'Letter': [215.9, 279.4],   // 8.5" × 11"
+  'Legal': [215.9, 355.6],    // 8.5" × 14"
+  'Tabloid': [279.4, 431.8],  // 11" × 17"
+  'B4': [250, 353],           // B4 (JIS)
+  'B5': [176, 250]            // B5 (JIS)
 };
 
 // Track which sizes are default (cannot be deleted)
-export const DEFAULT_SIZES = new Set(['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7']);
+export const DEFAULT_SIZES = new Set(['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'Letter', 'Legal', 'Tabloid', 'B4', 'B5']);
 
 // Track which sizes are locked (predefined sizes start locked)
-export let LOCKED_SIZES = new Set(['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7']);
+export let LOCKED_SIZES = new Set(['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'Letter', 'Legal', 'Tabloid', 'B4', 'B5']);
 
 // Current page size selection (shared across tabs)
 export let currentPageSize = 'A4';
