@@ -80,6 +80,15 @@ export async function loadVectors() {
         await handleVectorEject(file.path);
       });
 
+      // Create Download SVG button
+      const downloadBtn = document.createElement('button');
+      downloadBtn.className = 'vector-btn download-btn';
+      downloadBtn.textContent = 'SVG';
+      downloadBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await handleVectorDownload(file.path, file.name);
+      });
+
       // Create Delete button
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'vector-btn delete-btn';
@@ -90,6 +99,7 @@ export async function loadVectors() {
       });
 
       buttonsContainer.appendChild(ejectBtn);
+      buttonsContainer.appendChild(downloadBtn);
       buttonsContainer.appendChild(deleteBtn);
       vectorItem.appendChild(buttonsContainer);
 
@@ -140,6 +150,40 @@ async function handleVectorEject(filePath) {
   } catch (error) {
     console.error('Error ejecting vector:', error);
     alert('Error loading vector: ' + error.message);
+  }
+}
+
+async function handleVectorDownload(filePath, fileName) {
+  try {
+    debugLog('Downloading vector:', filePath);
+
+    // Read the file content
+    const fileContent = await window.electronAPI.readFileText(filePath);
+
+    if (!fileContent.success) {
+      alert('Error loading SVG file: ' + fileContent.error);
+      return;
+    }
+
+    // Create a blob from the SVG content
+    const blob = new Blob([fileContent.data], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+
+    // Create a temporary download link
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+
+    // Clean up
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    debugLog('Vector downloaded successfully');
+  } catch (error) {
+    console.error('Error downloading vector:', error);
+    alert('Error downloading file: ' + error.message);
   }
 }
 

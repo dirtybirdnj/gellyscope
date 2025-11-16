@@ -529,18 +529,37 @@ function handleLayoutToggle(btn) {
 }
 
 /**
- * Handle work area position button click
+ * Handle horizontal center button click
  */
-function handleWorkAreaPositionClick(btn) {
-  const position = btn.dataset.position;
+function handleHorizontalCenter() {
+  // Reset horizontal position to center
+  ejectPositionX = 0;
 
-  // Update active state
-  document.querySelectorAll('.position-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  // Update SVG container position
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+  if (ejectSvgContainer) {
+    ejectSvgContainer.style.left = `calc(50% + ${ejectPositionX}px)`;
+    ejectSvgContainer.style.top = `calc(50% + ${ejectPositionY}px)`;
+  }
 
-  ejectWorkAreaPosition = position;
+  debugLog('Artwork centered horizontally');
+}
 
-  debugLog('Work area position changed:', position);
+/**
+ * Handle vertical center button click
+ */
+function handleVerticalCenter() {
+  // Reset vertical position to center
+  ejectPositionY = 0;
+
+  // Update SVG container position
+  const ejectSvgContainer = document.getElementById('ejectSvgContainer');
+  if (ejectSvgContainer) {
+    ejectSvgContainer.style.left = `calc(50% + ${ejectPositionX}px)`;
+    ejectSvgContainer.style.top = `calc(50% + ${ejectPositionY}px)`;
+  }
+
+  debugLog('Artwork centered vertically');
 }
 
 /**
@@ -770,6 +789,122 @@ function handleWindowResize() {
 }
 
 /**
+ * Handle Save SVG button click
+ */
+async function handleSaveSvg() {
+  debugLog('=== SAVE SVG CLICKED ===');
+
+  // Verify we have a loaded SVG
+  if (!state.currentSVGData || !state.currentSVGData.content) {
+    alert('No vector file loaded. Please load a vector file first.');
+    return;
+  }
+
+  // Get page dimensions
+  const dimensions = getEjectPageDimensions();
+  if (!dimensions) {
+    alert('Please select a valid page size.');
+    return;
+  }
+
+  const [pageWidthMm, pageHeightMm] = dimensions;
+
+  // Get output dimensions and apply scale
+  const outputWidth = parseFloat(document.getElementById('ejectCustomWidth').value);
+  const outputHeight = parseFloat(document.getElementById('ejectCustomHeight').value);
+  const outputUnit = document.getElementById('ejectCustomUnit').value;
+
+  // Validate dimensions
+  if (isNaN(outputWidth) || isNaN(outputHeight) || outputWidth <= 0 || outputHeight <= 0) {
+    alert('Please enter valid output dimensions.');
+    return;
+  }
+
+  // Apply scale factor to output dimensions
+  const scaleFactor = ejectScale / 100;
+  const scaledOutputWidthMm = toMm(outputWidth, outputUnit) * scaleFactor;
+  const scaledOutputHeightMm = toMm(outputHeight, outputUnit) * scaleFactor;
+
+  debugLog('Page size:', pageWidthMm + 'mm × ' + pageHeightMm + 'mm');
+  debugLog('Scaled artwork size:', scaledOutputWidthMm + 'mm × ' + scaledOutputHeightMm + 'mm');
+
+  // Parse the original SVG
+  const parser = new DOMParser();
+  const svgDoc = parser.parseFromString(state.currentSVGData.content, 'image/svg+xml');
+  const svgElement = svgDoc.querySelector('svg');
+
+  if (!svgElement) {
+    alert('Error: Could not parse SVG.');
+    return;
+  }
+
+  // Create a new SVG with the page dimensions
+  const newSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  newSvg.setAttribute('width', pageWidthMm + 'mm');
+  newSvg.setAttribute('height', pageHeightMm + 'mm');
+  newSvg.setAttribute('viewBox', `0 0 ${pageWidthMm} ${pageHeightMm}`);
+  newSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+  // Create a group for the artwork
+  const artworkGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+  // Calculate position to center the artwork on the page
+  const offsetX = (pageWidthMm - scaledOutputWidthMm) / 2;
+  const offsetY = (pageHeightMm - scaledOutputHeightMm) / 2;
+
+  // Calculate the scale factor from original SVG to desired output size
+  let originalWidth, originalHeight;
+  const viewBox = svgElement.getAttribute('viewBox');
+  if (viewBox) {
+    const viewBoxValues = viewBox.split(/\s+/);
+    originalWidth = parseFloat(viewBoxValues[2]);
+    originalHeight = parseFloat(viewBoxValues[3]);
+  } else {
+    originalWidth = parseFloat(svgElement.getAttribute('width')) || 100;
+    originalHeight = parseFloat(svgElement.getAttribute('height')) || 100;
+  }
+
+  const scaleX = scaledOutputWidthMm / originalWidth;
+  const scaleY = scaledOutputHeightMm / originalHeight;
+
+  // Apply transform to position and scale the artwork
+  artworkGroup.setAttribute('transform', `translate(${offsetX}, ${offsetY}) scale(${scaleX}, ${scaleY})`);
+
+  // Copy all children from the original SVG to the group
+  Array.from(svgElement.children).forEach(child => {
+    artworkGroup.appendChild(child.cloneNode(true));
+  });
+
+  // Add the artwork group to the new SVG
+  newSvg.appendChild(artworkGroup);
+
+  // Serialize the SVG
+  const serializer = new XMLSerializer();
+  const svgString = serializer.serializeToString(newSvg);
+
+  // Create a blob and download
+  const blob = new Blob([svgString], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+
+  // Generate filename
+  const originalFilename = state.currentSVGData.path ? state.currentSVGData.path.split('/').pop().replace('.svg', '') : 'artwork';
+  const filename = `${originalFilename}_${pageWidthMm.toFixed(0)}x${pageHeightMm.toFixed(0)}mm.svg`;
+
+  // Create download link
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+
+  // Clean up
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  debugLog('SVG saved:', filename);
+}
+
+/**
  * Handle Generate G-code button click
  */
 async function handleEjectToGcode() {
@@ -871,10 +1006,17 @@ export function initEjectTab() {
     btn.addEventListener('click', () => handleLayoutToggle(btn));
   });
 
-  // Work area position button handlers
-  document.querySelectorAll('.position-btn').forEach(btn => {
-    btn.addEventListener('click', () => handleWorkAreaPositionClick(btn));
-  });
+  // Horizontal center button handler
+  const horizontalCenterBtn = document.getElementById('horizontalCenterBtn');
+  if (horizontalCenterBtn) {
+    horizontalCenterBtn.addEventListener('click', handleHorizontalCenter);
+  }
+
+  // Vertical center button handler
+  const verticalCenterBtn = document.getElementById('verticalCenterBtn');
+  if (verticalCenterBtn) {
+    verticalCenterBtn.addEventListener('click', handleVerticalCenter);
+  }
 
   // Page size button handlers
   document.querySelectorAll('.eject-page-size-btn').forEach(btn => {
@@ -917,6 +1059,12 @@ export function initEjectTab() {
     ejectSvgContainer.addEventListener('mousedown', handleSvgMouseDown);
     document.addEventListener('mousemove', handleSvgMouseMove);
     document.addEventListener('mouseup', handleSvgMouseUp);
+  }
+
+  // Save SVG button handler
+  const ejectSaveSvgBtn = document.getElementById('ejectSaveSvgBtn');
+  if (ejectSaveSvgBtn) {
+    ejectSaveSvgBtn.addEventListener('click', handleSaveSvg);
   }
 
   // Generate G-code button handler
