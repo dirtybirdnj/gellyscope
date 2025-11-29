@@ -154,6 +154,9 @@
             </div>
 
             <div class="toolbar-section">
+              <button class="toolbar-action-btn crop-btn" id="traceCropBtn" style="display: none;">
+                <span>✂️</span> Crop Selected
+              </button>
               <button class="toolbar-action-btn save-svg-btn" id="saveSvgBtn">
                 <span>💾</span> Save SVG
               </button>
@@ -195,10 +198,11 @@
                 <div class="control-group">
                   <label class="control-label">Scale</label>
                   <div class="scale-btn-group">
+                    <button class="scale-btn" data-scale="200">200%</button>
+                    <button class="scale-btn" data-scale="150">150%</button>
                     <button class="scale-btn active" data-scale="100">100%</button>
                     <button class="scale-btn" data-scale="75">75%</button>
                     <button class="scale-btn" data-scale="50">50%</button>
-                    <button class="scale-btn" data-scale="25">25%</button>
                   </div>
                 </div>
 
@@ -273,6 +277,37 @@
                   <span class="toggle-slider"></span>
                 </label>
               </div>
+
+              <div class="control-group-divider"></div>
+              <div class="control-group-header">Edge Detection</div>
+
+              <div class="control-group">
+                <label class="control-label">Sobel Filter</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sobelToggle">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div id="sobelControls" style="display: none;">
+                <div class="control-group">
+                  <label class="control-label">Threshold</label>
+                  <div class="control-slider-wrapper">
+                    <button class="arrow-btn" data-target="sobelThresholdSlider" data-direction="-1">◄</button>
+                    <input type="range" class="control-slider" id="sobelThresholdSlider" min="0" max="255" value="128" step="1">
+                    <button class="arrow-btn" data-target="sobelThresholdSlider" data-direction="1">►</button>
+                  </div>
+                  <span class="control-value" id="sobelThresholdValue">128</span>
+                </div>
+
+                <div class="control-group">
+                  <label class="control-label">Invert Edges</label>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="sobelInvertToggle">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
               </div>
             </div>
 
@@ -330,6 +365,14 @@
                 <label class="control-label">Curve Optimization</label>
                 <label class="toggle-switch">
                   <input type="checkbox" id="optCurveToggle" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="control-group">
+                <label class="control-label">Remove Outer Frame</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="removeFrameToggle" checked>
                   <span class="toggle-slider"></span>
                 </label>
               </div>

@@ -77,6 +77,93 @@ export function showImageInTraceTab(imageSrc, fileName) {
   debugLog('Showing image in Trace tab:', fileName);
 }
 
+// Sobel edge detection algorithm
+function applySobelFilter(imageData, threshold, invert) {
+  const width = imageData.width;
+  const height = imageData.height;
+  const src = imageData.data;
+  const output = new Uint8ClampedArray(src.length);
+
+  // Sobel kernels
+  const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+  const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+
+  // Convert to grayscale first for edge detection
+  const gray = new Float32Array(width * height);
+  for (let i = 0; i < width * height; i++) {
+    const idx = i * 4;
+    // Luminance formula
+    gray[i] = 0.299 * src[idx] + 0.587 * src[idx + 1] + 0.114 * src[idx + 2];
+  }
+
+  // Apply Sobel operator
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      let gx = 0;
+      let gy = 0;
+
+      // Convolve with Sobel kernels
+      for (let ky = -1; ky <= 1; ky++) {
+        for (let kx = -1; kx <= 1; kx++) {
+          const idx = (y + ky) * width + (x + kx);
+          const kernelIdx = (ky + 1) * 3 + (kx + 1);
+          gx += gray[idx] * sobelX[kernelIdx];
+          gy += gray[idx] * sobelY[kernelIdx];
+        }
+      }
+
+      // Calculate gradient magnitude
+      let magnitude = Math.sqrt(gx * gx + gy * gy);
+
+      // Apply threshold
+      let edgeValue = magnitude > threshold ? 255 : 0;
+
+      // Invert if requested (white edges on black vs black edges on white)
+      if (invert) {
+        edgeValue = 255 - edgeValue;
+      }
+
+      const outIdx = (y * width + x) * 4;
+      output[outIdx] = edgeValue;
+      output[outIdx + 1] = edgeValue;
+      output[outIdx + 2] = edgeValue;
+      output[outIdx + 3] = 255;
+    }
+  }
+
+  // Handle borders (set to background color)
+  const borderValue = invert ? 255 : 0;
+  for (let x = 0; x < width; x++) {
+    // Top row
+    output[x * 4] = borderValue;
+    output[x * 4 + 1] = borderValue;
+    output[x * 4 + 2] = borderValue;
+    output[x * 4 + 3] = 255;
+    // Bottom row
+    const bottomIdx = ((height - 1) * width + x) * 4;
+    output[bottomIdx] = borderValue;
+    output[bottomIdx + 1] = borderValue;
+    output[bottomIdx + 2] = borderValue;
+    output[bottomIdx + 3] = 255;
+  }
+  for (let y = 0; y < height; y++) {
+    // Left column
+    const leftIdx = (y * width) * 4;
+    output[leftIdx] = borderValue;
+    output[leftIdx + 1] = borderValue;
+    output[leftIdx + 2] = borderValue;
+    output[leftIdx + 3] = 255;
+    // Right column
+    const rightIdx = (y * width + width - 1) * 4;
+    output[rightIdx] = borderValue;
+    output[rightIdx + 1] = borderValue;
+    output[rightIdx + 2] = borderValue;
+    output[rightIdx + 3] = 255;
+  }
+
+  return new ImageData(output, width, height);
+}
+
 // Apply image processing filters and return processed image URL
 function applyImageProcessing(originalSrc) {
   return new Promise((resolve) => {
@@ -119,11 +206,26 @@ function applyImageProcessing(originalSrc) {
         filters.push('sepia(100%)');
       }
 
-      // Apply filters
+      // Apply CSS filters
       if (filters.length > 0) {
         ctx.filter = filters.join(' ');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
+        ctx.filter = 'none'; // Reset filter for subsequent operations
+      }
+
+      // Apply Sobel edge detection if enabled
+      const sobelEnabled = document.getElementById('sobelToggle').checked;
+      if (sobelEnabled) {
+        const threshold = parseInt(document.getElementById('sobelThresholdSlider').value);
+        const invert = document.getElementById('sobelInvertToggle').checked;
+
+        // Get current image data and apply Sobel
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const sobelResult = applySobelFilter(imageData, threshold, invert);
+        ctx.putImageData(sobelResult, 0, 0);
+
+        debugLog('Sobel filter applied with threshold:', threshold, 'invert:', invert);
       }
 
       // Return processed image as data URL
@@ -184,6 +286,63 @@ function updateDimensionDisplay() {
   }
 }
 
+// Detect if a path is an outer frame (boundary rectangle)
+function isOuterFramePath(path, svgWidth, svgHeight, tolerance = 0.05) {
+  const d = path.getAttribute('d');
+  if (!d) return false;
+
+  // Parse path to get bounding coordinates
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const coords = d.match(/[-+]?[0-9]*\.?[0-9]+/g);
+
+  if (!coords || coords.length < 4) return false;
+
+  // Extract coordinate pairs
+  for (let i = 0; i < coords.length - 1; i += 2) {
+    const x = parseFloat(coords[i]);
+    const y = parseFloat(coords[i + 1]);
+    if (!isNaN(x) && !isNaN(y)) {
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  // Check if path covers nearly the entire image (within tolerance)
+  const widthTolerance = svgWidth * tolerance;
+  const heightTolerance = svgHeight * tolerance;
+
+  const coversFullWidth = minX <= widthTolerance && maxX >= svgWidth - widthTolerance;
+  const coversFullHeight = minY <= heightTolerance && maxY >= svgHeight - heightTolerance;
+
+  // Also check if it's suspiciously rectangular (path length suggests a simple shape)
+  const pathWidth = maxX - minX;
+  const pathHeight = maxY - minY;
+  const isNearlyFullSize = pathWidth > svgWidth * 0.9 && pathHeight > svgHeight * 0.9;
+
+  return coversFullWidth && coversFullHeight && isNearlyFullSize;
+}
+
+// Remove outer frame paths from SVG
+function removeOuterFramePaths(svgDoc, svgWidth, svgHeight) {
+  const paths = svgDoc.querySelectorAll('path');
+  let removedCount = 0;
+
+  paths.forEach(path => {
+    if (isOuterFramePath(path, svgWidth, svgHeight)) {
+      path.remove();
+      removedCount++;
+    }
+  });
+
+  if (removedCount > 0) {
+    debugLog('Removed', removedCount, 'outer frame path(s)');
+  }
+
+  return removedCount;
+}
+
 // Debounced trace function
 async function performTrace() {
   if (!window.currentTraceImage || !window.currentTraceImage.src) {
@@ -239,15 +398,28 @@ async function performTrace() {
       const parser = new DOMParser();
       const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
       const svgElement = svgDoc.querySelector('svg');
+
+      // Get SVG dimensions before removing attributes
+      let svgWidth = 0, svgHeight = 0;
+      if (svgElement) {
+        svgWidth = parseFloat(svgElement.getAttribute('width')) || 0;
+        svgHeight = parseFloat(svgElement.getAttribute('height')) || 0;
+      }
+
+      // Remove outer frame paths if enabled
+      const removeFrame = document.getElementById('removeFrameToggle').checked;
+      if (removeFrame && svgWidth > 0 && svgHeight > 0) {
+        removeOuterFramePaths(svgDoc, svgWidth, svgHeight);
+      }
+
+      // Get paths after potential frame removal
       const paths = svgDoc.querySelectorAll('path');
 
       // Make SVG responsive by removing fixed dimensions
       if (svgElement) {
         // Preserve viewBox if it exists, or create one from width/height
-        if (!svgElement.hasAttribute('viewBox') && svgElement.hasAttribute('width') && svgElement.hasAttribute('height')) {
-          const width = svgElement.getAttribute('width');
-          const height = svgElement.getAttribute('height');
-          svgElement.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        if (!svgElement.hasAttribute('viewBox') && svgWidth > 0 && svgHeight > 0) {
+          svgElement.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
         }
 
         // Remove fixed width and height to make it responsive
@@ -355,6 +527,7 @@ function updateLayersList() {
 
   if (capturedLayers.length === 0) {
     layersList.innerHTML = '<div style="padding: 16px; text-align: center; opacity: 0.5; font-size: 13px;">No layers</div>';
+    updateCropButtonVisibility();
     return;
   }
 
@@ -365,14 +538,27 @@ function updateLayersList() {
 
     const layerItem = document.createElement('div');
     layerItem.className = 'layer-item';
-    layerItem.style.cssText = 'padding: 8px 12px; border-bottom: 1px solid #e0e0e0; cursor: pointer; display: flex; flex-direction: column; gap: 4px;';
+    layerItem.style.cssText = 'padding: 8px 12px; border-bottom: 1px solid #e0e0e0; display: flex; flex-direction: column; gap: 4px;';
 
     const topRow = document.createElement('div');
-    topRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center;';
+    topRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; gap: 8px;';
+
+    // Add checkbox for selection
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'layer-checkbox';
+    checkbox.checked = layer.selected || false;
+    checkbox.style.cssText = 'cursor: pointer;';
+    checkbox.addEventListener('change', (e) => {
+      e.stopPropagation();
+      layer.selected = e.target.checked;
+      updateCropButtonVisibility();
+      debugLog('Layer selection changed:', layer.name, layer.selected);
+    });
 
     const layerName = document.createElement('span');
     layerName.textContent = layer.name;
-    layerName.style.cssText = 'font-size: 13px; font-weight: 500;';
+    layerName.style.cssText = 'font-size: 13px; font-weight: 500; flex: 1;';
 
     const deleteBtn = document.createElement('button');
     deleteBtn.textContent = '×';
@@ -387,18 +573,30 @@ function updateLayersList() {
       debugLog('Deleted layer:', layer.name);
     });
 
+    topRow.appendChild(checkbox);
     topRow.appendChild(layerName);
     topRow.appendChild(deleteBtn);
 
     // Add metadata row
     const metaRow = document.createElement('div');
-    metaRow.style.cssText = 'font-size: 11px; color: #666; display: flex; gap: 12px;';
+    metaRow.style.cssText = 'font-size: 11px; color: #666; display: flex; gap: 12px; margin-left: 24px;';
     metaRow.innerHTML = `<span>${metadata.shapes} shapes</span><span>${metadata.points} points</span>`;
 
     layerItem.appendChild(topRow);
     layerItem.appendChild(metaRow);
     layersList.appendChild(layerItem);
   });
+
+  updateCropButtonVisibility();
+}
+
+// Update crop button visibility based on selection
+function updateCropButtonVisibility() {
+  const cropBtn = document.getElementById('traceCropBtn');
+  if (cropBtn) {
+    const hasSelection = capturedLayers.some(layer => layer.selected);
+    cropBtn.style.display = hasSelection ? 'flex' : 'none';
+  }
 }
 
 // Update the display to show captured layers list (just the sidebar list)
@@ -585,6 +783,146 @@ function removePageBackground() {
   }
 }
 
+// ============ CROP FUNCTIONALITY ============
+
+// Calculate the bounding box of all paths in an SVG
+function getSvgBoundingBox(svgData) {
+  try {
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(svgData, 'image/svg+xml');
+    const paths = svgDoc.querySelectorAll('path');
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    paths.forEach(path => {
+      const d = path.getAttribute('d');
+      if (!d) return;
+
+      // Parse path commands to find coordinates
+      const matches = d.matchAll(/([MLHVCSQTAZ])\s*([^MLHVCSQTAZ]*)/gi);
+      let currentX = 0, currentY = 0;
+
+      for (const match of matches) {
+        const command = match[1].toUpperCase();
+        const params = match[2].trim().split(/[\s,]+/).map(parseFloat).filter(n => !isNaN(n));
+
+        if (command === 'M' || command === 'L') {
+          for (let i = 0; i < params.length; i += 2) {
+            const x = params[i];
+            const y = params[i + 1];
+            if (!isNaN(x) && !isNaN(y)) {
+              minX = Math.min(minX, x);
+              minY = Math.min(minY, y);
+              maxX = Math.max(maxX, x);
+              maxY = Math.max(maxY, y);
+              currentX = x;
+              currentY = y;
+            }
+          }
+        } else if (command === 'H') {
+          params.forEach(x => {
+            if (!isNaN(x)) {
+              minX = Math.min(minX, x);
+              maxX = Math.max(maxX, x);
+              currentX = x;
+            }
+          });
+        } else if (command === 'V') {
+          params.forEach(y => {
+            if (!isNaN(y)) {
+              minY = Math.min(minY, y);
+              maxY = Math.max(maxY, y);
+              currentY = y;
+            }
+          });
+        } else if (command === 'C') {
+          for (let i = 0; i < params.length; i += 6) {
+            for (let j = 0; j < 6; j += 2) {
+              const x = params[i + j];
+              const y = params[i + j + 1];
+              if (!isNaN(x) && !isNaN(y)) {
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+              }
+            }
+            currentX = params[i + 4];
+            currentY = params[i + 5];
+          }
+        }
+      }
+    });
+
+    if (minX === Infinity || minY === Infinity) {
+      return null;
+    }
+
+    return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
+  } catch (error) {
+    console.error('Error calculating bounding box:', error);
+    return null;
+  }
+}
+
+// Crop selected layers to their bounding box
+function cropSelectedLayers() {
+  const selectedLayers = capturedLayers.filter(layer => layer.selected);
+
+  if (selectedLayers.length === 0) {
+    alert('No layers selected. Please select layers to crop.');
+    return;
+  }
+
+  let processedCount = 0;
+
+  selectedLayers.forEach(layer => {
+    const bbox = getSvgBoundingBox(layer.svgData);
+
+    if (!bbox) {
+      console.warn('Could not calculate bounding box for layer:', layer.name);
+      return;
+    }
+
+    try {
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(layer.svgData, 'image/svg+xml');
+      const svgElement = svgDoc.querySelector('svg');
+      const paths = svgDoc.querySelectorAll('path');
+
+      // Create new viewBox based on bounding box
+      const newViewBox = `${bbox.minX} ${bbox.minY} ${bbox.width} ${bbox.height}`;
+      svgElement.setAttribute('viewBox', newViewBox);
+
+      // Reconstruct SVG
+      let croppedSvg = `<svg viewBox="${newViewBox}" xmlns="http://www.w3.org/2000/svg">`;
+      paths.forEach(path => {
+        croppedSvg += path.outerHTML;
+      });
+      croppedSvg += '</svg>';
+
+      // Update layer's SVG data
+      layer.svgData = croppedSvg;
+      processedCount++;
+
+      debugLog('Cropped layer:', layer.name, 'to bbox:', bbox);
+    } catch (error) {
+      console.error('Error cropping layer:', layer.name, error);
+    }
+  });
+
+  if (processedCount > 0) {
+    // Deselect all layers
+    capturedLayers.forEach(layer => layer.selected = false);
+
+    // Update displays
+    updateLayersList();
+    updateLayersDisplay();
+
+    debugLog('Cropped', processedCount, 'layers');
+  }
+}
+
 // ============ SAVE FUNCTIONALITY ============
 
 // Function to combine all layers into a single SVG with proper dimensions
@@ -751,6 +1089,46 @@ export function initTraceTab() {
     });
   }
 
+  // ========== SOBEL EDGE DETECTION CONTROLS ==========
+
+  // Sobel toggle - show/hide sobel controls
+  const sobelToggle = document.getElementById('sobelToggle');
+  const sobelControls = document.getElementById('sobelControls');
+
+  if (sobelToggle && sobelControls) {
+    sobelToggle.addEventListener('change', (e) => {
+      sobelControls.style.display = e.target.checked ? 'block' : 'none';
+      if (window.currentTraceImage && window.currentTraceImage.src) {
+        triggerAutoTrace();
+      }
+      debugLog('Sobel filter:', e.target.checked ? 'enabled' : 'disabled');
+    });
+  }
+
+  // Sobel threshold slider
+  const sobelThresholdSlider = document.getElementById('sobelThresholdSlider');
+  const sobelThresholdValue = document.getElementById('sobelThresholdValue');
+
+  if (sobelThresholdSlider && sobelThresholdValue) {
+    sobelThresholdSlider.addEventListener('input', (e) => {
+      sobelThresholdValue.textContent = e.target.value;
+      if (window.currentTraceImage && window.currentTraceImage.src) {
+        triggerAutoTrace();
+      }
+    });
+  }
+
+  // Sobel invert toggle
+  const sobelInvertToggle = document.getElementById('sobelInvertToggle');
+
+  if (sobelInvertToggle) {
+    sobelInvertToggle.addEventListener('change', (e) => {
+      if (window.currentTraceImage && window.currentTraceImage.src) {
+        triggerAutoTrace();
+      }
+    });
+  }
+
   // ========== POTRACE PARAMETERS CONTROLS ==========
 
   // Turn Policy
@@ -811,6 +1189,18 @@ export function initTraceTab() {
       if (window.currentTraceImage && window.currentTraceImage.src) {
         triggerAutoTrace();
       }
+    });
+  }
+
+  // Remove Outer Frame
+  const removeFrameToggle = document.getElementById('removeFrameToggle');
+
+  if (removeFrameToggle) {
+    removeFrameToggle.addEventListener('change', (e) => {
+      if (window.currentTraceImage && window.currentTraceImage.src) {
+        triggerAutoTrace();
+      }
+      debugLog('Remove outer frame:', e.target.checked);
     });
   }
 
@@ -1083,6 +1473,16 @@ export function initTraceTab() {
       updatePageBackground();
     }
   }, 100);
+
+  // ============ CROP FUNCTIONALITY ============
+
+  // Crop button - crops selected layers to their bounding box
+  const cropBtn = document.getElementById('traceCropBtn');
+  if (cropBtn) {
+    cropBtn.addEventListener('click', () => {
+      cropSelectedLayers();
+    });
+  }
 
   // ============ SAVE FUNCTIONALITY ============
 
