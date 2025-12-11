@@ -115,10 +115,11 @@ function applySobelFilter(imageData, threshold, invert) {
       // Calculate gradient magnitude
       let magnitude = Math.sqrt(gx * gx + gy * gy);
 
-      // Apply threshold
-      let edgeValue = magnitude > threshold ? 255 : 0;
+      // Apply threshold - edges become BLACK (0) on WHITE (255) background
+      // This is the format Potrace expects (dark = traced, light = background)
+      let edgeValue = magnitude > threshold ? 0 : 255;
 
-      // Invert if requested (white edges on black vs black edges on white)
+      // Invert if requested (white edges on black background)
       if (invert) {
         edgeValue = 255 - edgeValue;
       }
@@ -131,8 +132,8 @@ function applySobelFilter(imageData, threshold, invert) {
     }
   }
 
-  // Handle borders (set to background color)
-  const borderValue = invert ? 255 : 0;
+  // Handle borders (set to background color - white by default, black if inverted)
+  const borderValue = invert ? 0 : 255;
   for (let x = 0; x < width; x++) {
     // Top row
     output[x * 4] = borderValue;
