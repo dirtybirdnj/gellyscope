@@ -1,0 +1,5 @@
+# LLM Context Documentation
+# These files are for local LLMs (Qwen, Ollama, DeepSeek, etc.)
+# Claude should not auto-scan these token-heavy docs
+# but can read them when explicitly asked
+llm-context/
